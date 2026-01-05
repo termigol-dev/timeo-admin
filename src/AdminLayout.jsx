@@ -20,7 +20,7 @@ import Profile from './Profile';
 import { can } from './permissions';
 import NewCompany from './NewCompany';
 import NewBranch from './NewBranch';
-import NewEmployee from './NewEmployee';
+import CreateUser from './CreateUser';
 
 export default function AdminLayout({ dark, setDark, onLogout }) {
   const navigate = useNavigate();
@@ -126,7 +126,7 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
           />
           <Route
             path="companies/:companyId/employees/new"
-            element={<NewEmployee />}
+            element={<CreateUser defaultRole="EMPLEADO" />}
           />
 
           {/* REPORTES Y PERFIL */}
