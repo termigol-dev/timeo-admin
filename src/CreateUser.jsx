@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { createUser, getBranches } from './api';
+import { useParams } from 'react-router-dom';
+import { createEmployee, getBranches } from './api';
 
 export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
+  const { companyId } = useParams(); // ✅ empresa desde la URL
+
   const [branches, setBranches] = useState([]);
 
   const [form, setForm] = useState({
@@ -18,46 +21,66 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  /* ───────── CARGA SUCURSALES ───────── */
+  /* ───────── CARGA SUCURSALES (DE LA EMPRESA ACTUAL) ───────── */
   useEffect(() => {
-    getBranches().then(setBranches);
-  }, []);
+    if (companyId) {
+      getBranches(companyId).then(setBranches);
+    }
+  }, [companyId]);
 
   /* ───────── HANDLERS ───────── */
   function change(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    setForm(prev => ({
+      ...prev,
+      [name]: value,
+      // si cambia a ADMIN_EMPRESA, quitamos sucursal
+      ...(name === 'role' && value === 'ADMIN_EMPRESA'
+        ? { branchId: '' }
+        : {}),
+    }));
   }
 
   async function submit(e) {
-    e.preventDefault();
-    setError('');
-    setMessage('');
+  e.preventDefault();
+  setError('');
+  setMessage('');
 
-    try {
-      await createUser({
-        ...form,
-        password, // 🔑 CLAVE: ahora sí
-      });
+  try {
+    const payload = {
+      ...form,
+      password,
+    };
 
-      setMessage('Usuario creado correctamente');
-
-      // reset
-      setForm({
-        name: '',
-        firstSurname: '',
-        secondSurname: '',
-        dni: '',
-        email: '',
-        role: defaultRole,
-        branchId: '',
-      });
-      setPassword('');
-
-      onCreated?.();
-    } catch (err) {
-      setError(err.message || 'Error creando usuario');
+    // 🔑 CLAVE: no enviar branchId vacío
+    if (!payload.branchId) {
+      delete payload.branchId;
     }
+
+    await createEmployee(companyId, payload); // ✅ companyId correcto
+
+    setMessage('Usuario creado correctamente');
+
+    setForm({
+      name: '',
+      firstSurname: '',
+      secondSurname: '',
+      dni: '',
+      email: '',
+      role: defaultRole,
+      branchId: '',
+    });
+    setPassword('');
+
+    onCreated?.();
+  } catch (err) {
+    setError(err.message || 'Error creando usuario');
   }
+}
+
+  const needsBranch =
+    form.role === 'EMPLEADO' || form.role === 'ADMIN_SUCURSAL';
 
   return (
     <form
@@ -127,15 +150,19 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
         <select name="role" value={form.role} onChange={change}>
           <option value="EMPLEADO">Empleado</option>
           <option value="ADMIN_SUCURSAL">Admin sucursal</option>
+          <option value="ADMIN_EMPRESA">Admin empresa</option>
         </select>
 
         <select
           name="branchId"
           value={form.branchId}
           onChange={change}
-          required
+          disabled={!needsBranch}
+          required={needsBranch}
         >
-          <option value="">Sucursal</option>
+          <option value="">
+            {needsBranch ? 'Sucursal' : 'No aplica'}
+          </option>
           {branches.map(b => (
             <option key={b.id} value={b.id}>
               {b.name}

@@ -6,7 +6,7 @@ export default function CompanyProfile() {
   const { companyId } = useParams();
   const navigate = useNavigate();
 
-  const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'SUPERADMIN';
 
   const [company, setCompany] = useState(null);

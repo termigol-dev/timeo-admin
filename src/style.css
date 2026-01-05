@@ -533,3 +533,9 @@ button.primary:hover {
   transform: none;
   box-shadow: none;
 }
+/* ===== MAIN ADMIN FIX ===== */
+.main {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}

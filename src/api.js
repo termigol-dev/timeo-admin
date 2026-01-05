@@ -7,7 +7,7 @@ async function api(path, method = 'GET', body, auth = true) {
   };
 
   if (auth) {
-    const token = localStorage.getItem('admin_token');
+    const token = localStorage.getItem('token');
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -31,25 +31,31 @@ async function api(path, method = 'GET', body, auth = true) {
   return res.json();
 }
 
-/* ───────── AUTH ───────── */
+/* ───────── AUTH (ÚNICO) ───────── */
 export async function adminLogin(email, password) {
-  return api('/auth/login', 'POST', { email, password }, false);
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!res.ok) throw new Error('Login incorrecto');
+
+  const data = await res.json();
+
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('user', JSON.stringify(data.user));
+
+  return data;
 }
 
-export function setToken(token) {
-  localStorage.setItem('admin_token', token);
-}
-
+/* ───────── LOGOUT ───────── */
 export function clearToken() {
-  localStorage.removeItem('admin_token');
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
 }
 
-export function getToken() {
-  return localStorage.getItem('admin_token');
-}
-
-/* ───────── USERS (GENÉRICO / ADMIN GLOBAL) ───────── */
-/* ⚠️ NO usar para Employees por empresa */
+/* ───────── USERS ───────── */
 export function getUsers() {
   return api('/users');
 }
@@ -66,31 +72,36 @@ export function resetUserPassword(id) {
   return api(`/users/${id}/reset-password`, 'PATCH');
 }
 
-export function updateUserRole(userId, role) {
-  return api(`/users/${userId}/role`, 'PATCH', { role });
-}
-
-export function updateEmployeeBranch(companyId, userId, branchId) {
-  return api(
-    `/companies/${companyId}/employees/${userId}/branch`,
-    'PATCH',
-    { branchId },
-  );
-}
-
 export function updateUser(id, data) {
   return api(`/users/${id}`, 'PATCH', data);
-}
-
-export function checkDeleteUser(id) {
-  return api(`/users/${id}/delete-check`);
 }
 
 export function deleteUser(id) {
   return api(`/users/${id}`, 'DELETE');
 }
 
-/* ───────── BRANCHES (POR EMPRESA) ───────── */
+/* ───────── COMPANIES ───────── */
+export function getCompanies() {
+  return api('/companies');
+}
+
+export function getCompany(id) {
+  return api(`/companies/${id}`);
+}
+
+export function createCompany(data) {
+  return api('/companies', 'POST', data);
+}
+
+export function updateCompany(id, data) {
+  return api(`/companies/${id}`, 'PATCH', data);
+}
+
+export function deleteCompany(id) {
+  return api(`/companies/${id}`, 'DELETE');
+}
+
+/* ───────── BRANCHES ───────── */
 export function getBranches(companyId) {
   return api(`/companies/${companyId}/branches`);
 }
@@ -106,22 +117,29 @@ export function toggleBranch(companyId, branchId) {
   );
 }
 
-export function deleteBranch(companyId, branchId, body) {
+export function deleteBranch(companyId, branchId) {
   return api(
     `/companies/${companyId}/branches/${branchId}`,
-    'DELETE',
-    body
+    'DELETE'
   );
 }
-// 🔁 Regenerar token de tablet para una sucursal
+
+export function updateUserBranch(companyId, userId, branchId) {
+  return api(
+    `/companies/${companyId}/employees/${userId}/branch`,
+    'PATCH',
+    { branchId }
+  );
+}
+
 export function regenerateTabletToken(companyId, branchId) {
   return api(
     `/companies/${companyId}/branches/${branchId}/tablet-token`,
     'POST'
   );
 }
-/* ───────── EMPLOYEES (POR EMPRESA) ───────── */
 
+/* ───────── EMPLOYEES ───────── */
 export function getEmployees(companyId) {
   return api(`/companies/${companyId}/employees`);
 }
@@ -134,16 +152,6 @@ export function toggleEmployee(companyId, employeeId) {
   return api(
     `/companies/${companyId}/employees/${employeeId}/active`,
     'PATCH'
-  );
-}
-
-/* ───────── EMPLOYEES (POR EMPRESA) ───────── */
-
-export function updateUserBranch(companyId, userId, branchId) {
-  return api(
-    `/companies/${companyId}/employees/${userId}/branch`,
-    'PATCH',
-    { branchId },
   );
 }
 
@@ -173,40 +181,16 @@ export function getMyReports(filters = {}) {
   return api(`/reports/me?${params}`);
 }
 
-/* ───────── COMPANIES ───────── */
-export function getCompanies() {
-  return api('/companies');
-}
-
-export function getCompany(id) {
-  return api(`/companies/${id}`);
-}
-
-export function createCompany(data) {
-  return api('/companies', 'POST', data);
-}
-
-export function updateCompany(id, data) {
-  return api(`/companies/${id}`, 'PATCH', data);
-}
-
-/* 🧪 BORRADO DEFINITIVO EMPRESA (TEST) */
-export function deleteCompany(id) {
-  return api(`/companies/${id}`, 'DELETE');
-}
-/* ───────── TABLET (SIN ADMIN TOKEN) ───────── */
-
-// 🔐 Registrar tablet con token de activación
+/* ───────── TABLET (NO SE TOCA) ───────── */
 export async function registerTablet(activationToken) {
   return api(
     '/tablet/register',
     'POST',
     { token: activationToken },
-    false // ❗ NO admin auth
+    false
   );
 }
 
-// 📱 Obtener estado de la tablet
 export async function getTabletStatus(tabletToken) {
   return fetch(`${API_BASE}/tablet/me`, {
     headers: {
@@ -215,12 +199,7 @@ export async function getTabletStatus(tabletToken) {
   }).then(r => r.json());
 }
 
-// 🕒 FICHAR (IN / OUT)
-export async function tabletPunch({
-  tabletToken,
-  employeeId,
-  type, // 'IN' | 'OUT'
-}) {
+export async function tabletPunch({ tabletToken, employeeId, type }) {
   return fetch(`${API_BASE}/tablet/punch`, {
     method: 'POST',
     headers: {
@@ -235,5 +214,4 @@ export async function tabletPunch({
     }
     return res.json();
   });
-  
 }

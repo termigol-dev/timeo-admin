@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { adminLogin, setToken } from './api';
+import { adminLogin } from './api';
 
 export default function Login({ dark, setDark, onLogin }) {
   const [email, setEmail] = useState('');
@@ -15,6 +15,7 @@ export default function Login({ dark, setDark, onLogin }) {
     try {
       // 🔑 1. LLAMADA REAL AL BACKEND
       const res = await adminLogin(email, password);
+      onLogin()
 
       console.log('LOGIN RESPONSE 👉', res);
 
@@ -23,7 +24,7 @@ export default function Login({ dark, setDark, onLogin }) {
 
       // 🔑 3. GUARDAR USUARIO
       localStorage.setItem(
-        'admin_user',
+        'user',
         JSON.stringify({
           id: res.user.id,
           role: res.user.role,
