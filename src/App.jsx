@@ -4,7 +4,7 @@ import Login from './Login';
 import AdminLayout from './AdminLayout';
 import './style.css';
 
-/* 🔽 IMPORTS DE LAS PÁGINAS ADMIN */
+/* 🔽 PÁGINAS ADMIN */
 import Dashboard from './Dashboard';
 import Companies from './Companies';
 import CompanyProfile from './CompanyProfile';
@@ -25,13 +25,21 @@ export default function App() {
     !!localStorage.getItem('token')
   );
 
-  /* 🌙 modo oscuro */
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch {
+      return null;
+    }
+  })();
+
+  /* 🌙 MODO OSCURO */
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
     localStorage.setItem('dark_mode', dark);
   }, [dark]);
 
-  /* 🔁 sincronizar login */
+  /* 🔁 SINCRONIZAR LOGIN ENTRE PESTAÑAS */
   useEffect(() => {
     const checkToken = () => {
       setLogged(!!localStorage.getItem('token'));
@@ -41,6 +49,30 @@ export default function App() {
     return () =>
       window.removeEventListener('storage', checkToken);
   }, []);
+
+  /* 🚫 BLOQUEO EXPLÍCITO DE EMPLEADOS EN ADMIN */
+  if (logged && user?.role === 'EMPLEADO') {
+    return (
+      <div className="centered">
+        <div className="card">
+          <h2>Acceso no permitido</h2>
+          <p>
+            Este panel es solo para administradores.
+            <br />
+            Accede desde la aplicación móvil.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              setLogged(false);
+            }}
+          >
+            Volver al login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -58,7 +90,7 @@ export default function App() {
         />
       )}
 
-      {/* ───────── LOGUEADO (ADMIN) ───────── */}
+      {/* ───────── LOGUEADO (ADMIN / SUPERADMIN) ───────── */}
       {logged && (
         <>
           <Route
@@ -112,7 +144,7 @@ export default function App() {
             <Route path="profile" element={<Profile />} />
           </Route>
 
-          {/* fallback SOLO ADMIN */}
+          {/* FALLBACK SOLO ADMIN */}
           <Route
             path="*"
             element={<Navigate to="/admin" replace />}

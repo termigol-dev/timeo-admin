@@ -8,40 +8,39 @@ export default function Login({ dark, setDark, onLogin }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
 
-    try {
-      // 🔑 1. LLAMADA REAL AL BACKEND
-      const res = await adminLogin(email, password);
-      onLogin()
+  console.log('🚀 LOGIN SUBMIT', email);
 
-      console.log('LOGIN RESPONSE 👉', res);
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE}/auth/login`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      }
+    );
 
-      // 🔑 2. GUARDAR TOKEN
-      setToken(res.token);
+    console.log('📡 STATUS:', res.status);
 
-      // 🔑 3. GUARDAR USUARIO
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          id: res.user.id,
-          role: res.user.role,
-          companyId: res.user.companyId,
-          branchId: res.user.branchId,
-        })
-      );
+    const text = await res.text();
+    console.log('📦 RAW RESPONSE:', text);
 
-      // 🔑 4. ENTRAR AL ADMIN
-      onLogin();
-    } catch (e) {
-      console.error(e);
-      setError('Credenciales incorrectas');
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error('Login incorrecto');
     }
+
+    const data = JSON.parse(text);
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+
+    onLogin();
+  } catch (err) {
+    console.error('❌ LOGIN ERROR', err);
   }
+}
 
   return (
     <div className="login-page">

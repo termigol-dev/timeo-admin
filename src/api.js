@@ -39,7 +39,10 @@ export async function adminLogin(email, password) {
     body: JSON.stringify({ email, password }),
   });
 
-  if (!res.ok) throw new Error('Login incorrecto');
+  // 🔥 SI FALLA, NO INTENTES res.json()
+  if (!res.ok) {
+    throw new Error('Login incorrecto');
+  }
 
   const data = await res.json();
 

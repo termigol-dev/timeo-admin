@@ -63,16 +63,22 @@ export default function Employees() {
     load();
   }
 
-  /* ───────── ELIMINAR ───────── */
+  /* ───────── ELIMINAR (DOBLE CONFIRMACIÓN) ───────── */
   async function remove(employee) {
-    const ok = window.confirm(
-      `⚠️ Eliminar empleado:\n\n${employee.name} ${employee.firstSurname || ''}\n\n¿Continuar?`,
+    const first = window.confirm(
+      `⚠️ Eliminar empleado\n\n¿Estás seguro de que quieres eliminar a:\n${employee.name} ${employee.firstSurname || ''}?`
     );
-    if (!ok) return;
+    if (!first) return;
+
+    const second = window.confirm(
+      `🚨 Confirmación final\n\nEl empleado va a ser eliminado.\n\nPulsa en "Sí" para confirmar la acción.`
+    );
+    if (!second) return;
 
     try {
       await deleteEmployee(companyId, employee.id);
       load();
+      alert('Empleado eliminado');
     } catch (err) {
       alert(
         err.message ||
@@ -83,7 +89,6 @@ export default function Employees() {
 
   /* ───────── FILTERS ───────── */
 
-  // 👁️ ADMIN_EMPRESA / ADMIN_SUCURSAL NO ven inactivos
   const visibleEmployees =
     isSuperAdmin
       ? employees
@@ -176,22 +181,42 @@ export default function Employees() {
 
               <td className="right">
                 <div className="tablet-actions">
-                  {/* 🔒 SOLO SUPERADMIN */}
-                  {isSuperAdmin && (
-                    <button onClick={() => toggle(e)}>
-                      {e.active ? 'Desactivar' : 'Activar'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/admin/companies/${companyId}/employees/${e.id}/edit`,
+                      )
+                    }
+                  >
+                    Editar
+                  </button>
 
-                  {/* 🗑️ SUPERADMIN + ADMIN_EMPRESA */}
-                  {(isSuperAdmin || isAdminEmpresa) && (
-                    <button
-                      onClick={() => remove(e)}
-                      style={{ backgroundColor: '#ef4444' }}
-                    >
-                      Eliminar
-                    </button>
-                  )}
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/admin/companies/${companyId}/employees/${e.id}/photo`,
+                      )
+                    }
+                  >
+                    Foto
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/admin/companies/${companyId}/employees/${e.id}/schedules`,
+                      )
+                    }
+                  >
+                    Horarios
+                  </button>
+
+                  <button
+                    onClick={() => remove(e)}
+                    style={{ backgroundColor: '#ef4444' }}
+                  >
+                    Eliminar
+                  </button>
                 </div>
               </td>
             </tr>
