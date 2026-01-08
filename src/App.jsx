@@ -15,6 +15,7 @@ import Profile from './Profile';
 import NewCompany from './NewCompany';
 import NewBranch from './NewBranch';
 import CreateUser from './CreateUser';
+import EmployeeSchedules from './EmployeeSchedules';
 
 export default function App() {
   const [dark, setDark] = useState(
@@ -138,7 +139,10 @@ export default function App() {
               path="companies/:companyId/employees/new"
               element={<CreateUser defaultRole="EMPLEADO" />}
             />
-
+            <Route
+            path="companies/:companyId/employees/:employeeId/schedules"
+            element={<EmployeeSchedules />}
+            />
             {/* REPORTES Y PERFIL */}
             <Route path="reports" element={<Reports />} />
             <Route path="profile" element={<Profile />} />
