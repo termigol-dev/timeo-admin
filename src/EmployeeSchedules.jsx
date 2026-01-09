@@ -1,5 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+
+async function safeJson(res) {
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 const CONTROL_HEIGHT = 52;
 
 const days = [
@@ -35,11 +46,26 @@ export default function EmployeeSchedules() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
-  const [vacations, setVacations] = useState([]);
+  const [scheduleId, setScheduleId] = useState(null);
+  // 📅 Semana actual (lunes)
+const [weekStart, setWeekStart] = useState(() => {
+  const d = new Date();
+  const day = d.getDay(); // 0 domingo, 1 lunes...
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+});
+  const [saving, setSaving] = useState(false);
 
   const GRID_ROW_OFFSET = 2;
   const ROW_HEIGHT = 32;
   const INITIAL_SCROLL_HOUR = 8;
+ 
+  const weekDates = Array.from({ length: 7 }).map((_, i) => {
+  const d = new Date(weekStart);
+  d.setDate(weekStart.getDate() + i);
+  return d;
+});
+
 
   /* 🆕 CARGA EMPRESA + EMPLEADO */
   useEffect(() => {
@@ -63,8 +89,12 @@ export default function EmployeeSchedules() {
         return;
       }
 
-      const companyData = await companyRes.json();
-      setCompany(companyData);
+      const companyData = await safeJson(companyRes);
+if (!companyData) {
+  console.error('Respuesta vacía al cargar empresa');
+  return;
+}
+setCompany(companyData);
 
       // 👤 Empleados de la empresa
       const employeesRes = await fetch(
@@ -82,7 +112,11 @@ export default function EmployeeSchedules() {
         return;
       }
 
-      const employees = await employeesRes.json();
+      const employees = await safeJson(employeesRes);
+if (!employees) {
+  console.error('Respuesta vacía al cargar empleados');
+  return;
+}
 
       // 🎯 Empleado concreto
       const foundEmployee = employees.find(
@@ -90,6 +124,35 @@ export default function EmployeeSchedules() {
       );
 
       setEmployee(foundEmployee || null);
+
+// 📅 CARGAR HORARIO ACTIVO DEL EMPLEADO (VISUAL)
+if (foundEmployee?.branchId) {
+  const scheduleRes = await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (scheduleRes.ok) {
+    const schedule = await scheduleRes.json();
+
+    if (schedule?.shifts?.length) {
+      const loadedTurns = schedule.shifts.map(shift => ({
+        days: [weekDays[shift.weekday - 1]],
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        type: 'regular',
+      }));
+
+      setTurns(loadedTurns);
+      setScheduleId(schedule.id);
+    }
+  }
+}
+
     } catch (err) {
       console.error('Error cargando empresa / empleado', err);
     }
@@ -112,24 +175,112 @@ export default function EmployeeSchedules() {
     );
   }
 
-  function addTurn() {
-    if (!startTime || !endTime || selectedDays.length === 0) return;
+function hasOverlap(newTurn) {
+  const toMinutes = t => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
 
-    setTurns(prev => [
-      ...prev,
+  const newStart = toMinutes(newTurn.startTime);
+  const newEnd =
+    toMinutes(newTurn.endTime) <= newStart
+      ? toMinutes(newTurn.endTime) + 1440
+      : toMinutes(newTurn.endTime);
+
+  return turns.some(existing =>
+    existing.days.some(day =>
+      newTurn.days.includes(day) &&
+      toMinutes(existing.startTime) < newEnd &&
+      (toMinutes(existing.endTime) <= toMinutes(existing.startTime)
+        ? toMinutes(existing.endTime) + 1440
+        : toMinutes(existing.endTime)) > newStart
+    )
+  );
+}
+
+async function addTurn() {
+  if (!startTime || !endTime || selectedDays.length === 0) return;
+
+  try {
+    setSaving(true);
+
+    const newTurn = {
+  days: selectedDays,
+  startTime,
+  endTime,
+  type,
+};
+
+async function completeSchedule() {
+  if (turns.length === 0) {
+    alert('No hay turnos para guardar');
+    return;
+  }
+
+  try {
+    setSaving(true);
+
+    let id = scheduleId;
+
+    // 1️⃣ Crear borrador si no existe
+    if (!id) {
+      id = await createDraftSchedule();
+    }
+
+    // 2️⃣ Guardar TODOS los turnos
+    for (const turn of turns) {
+      await saveTurnToBackend(id, turn);
+    }
+
+    // 3️⃣ Confirmar horario
+    const token = localStorage.getItem('token');
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
       {
-        days: selectedDays,
-        startTime,
-        endTime,
-        type,
-      },
-    ]);
-  }
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  function addVacation() {
-    if (!dateFrom || !dateTo) return;
-    setVacations(prev => [...prev, { dateFrom, dateTo }]);
+    // 4️⃣ Salir
+    window.history.back();
+  } catch (err) {
+    console.error('Error completando horario', err);
+    alert('Error al guardar el horario');
+  } finally {
+    setSaving(false);
   }
+}
+
+// ⛔ VALIDACIÓN DE SOLAPAMIENTO
+if (hasOverlap(newTurn)) {
+  alert(
+    'El turno que intentas añadir se solapa parcial o totalmente con otro ya existente.'
+  );
+  return;
+}
+
+ // ✅ SOLO VISUAL
+setTurns(prev => [...prev, newTurn]);
+
+    setTurns(prev => [...prev, newTurn]);
+    setSelectedDays([]);
+    setStartTime('');
+    setEndTime('');
+  } catch (err) {
+    console.error('Error guardando turno', err);
+    alert('Error guardando el turno');
+  } finally {
+    setSaving(false);
+  }
+}
+
+  // function addVacation() {
+  // if (!dateFrom || !dateTo) return;
+  //  setVacations(prev => [...prev, { dateFrom, dateTo }]);
+  // } 
 
   function timeDiffInMinutes(start, end) {
     const [sh, sm] = start.split(':').map(Number);
@@ -144,6 +295,51 @@ export default function EmployeeSchedules() {
 
     return endMin - startMin;
   }
+
+  async function createDraftSchedule() {
+  const token = localStorage.getItem('token');
+
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Error creando horario');
+  }
+
+  const schedule = await res.json();
+  setScheduleId(schedule.id);
+  return schedule.id;
+}
+
+async function saveTurnToBackend(scheduleId, turn) {
+  const token = localStorage.getItem('token');
+
+  for (const day of turn.days) {
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          weekday: weekDays.indexOf(day) + 1,
+          startTime: turn.startTime,
+          endTime: turn.endTime,
+        }),
+      }
+    );
+  }
+}
 
   /* ✅ CÁLCULO CORRECTO DE HORAS TOTALES */
   let totalMinutes = 0;
@@ -436,6 +632,7 @@ export default function EmployeeSchedules() {
 
       {/* COMPLETED */}
       <button
+        onClick={completeSchedule}
         style={{
           width: '100%',
           marginTop: 18,
@@ -459,8 +656,35 @@ export default function EmployeeSchedules() {
       {/* WEEKLY CALENDAR */}
 <div className="card" style={{ padding: 10 }}>
   <h3 style={{ marginBottom: 10 }}>
-    Semana del 18 al 24 de marzo
-  </h3>
+  Semana del{' '}
+  {weekDates[0].toLocaleDateString('es-ES')} al{' '}
+  {weekDates[6].toLocaleDateString('es-ES')}
+</h3>
+<div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+  <button
+    onClick={() =>
+      setWeekStart(d => {
+        const prev = new Date(d);
+        prev.setDate(prev.getDate() - 7);
+        return prev;
+      })
+    }
+  >
+    ← Semana anterior
+  </button>
+
+  <button
+    onClick={() =>
+      setWeekStart(d => {
+        const next = new Date(d);
+        next.setDate(next.getDate() + 7);
+        return next;
+      })
+    }
+  >
+    Semana siguiente →
+  </button>
+</div>
 
   {/* 🔽 SCROLL HORIZONTAL (días) */}
  <div

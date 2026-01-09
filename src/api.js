@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE;
+const API_BASE = import.meta.env.VITE_API_URL;
 
 /* ───────── BASE API ───────── */
 async function api(path, method = 'GET', body, auth = true) {
@@ -184,6 +184,7 @@ export function getMyReports(filters = {}) {
   return api(`/reports/me?${params}`);
 }
 
+
 /* ───────── TABLET (NO SE TOCA) ───────── */
 export async function registerTablet(activationToken) {
   return api(
@@ -217,4 +218,52 @@ export async function tabletPunch({ tabletToken, employeeId, type }) {
     }
     return res.json();
   });
+  
+}
+
+/* ───────── SCHEDULES ───────── */
+
+// 1️⃣ Crear horario borrador
+export function createDraftSchedule(companyId, branchId, userId) {
+  return api(
+    `/companies/${companyId}/branches/${branchId}/schedules/draft/${userId}`,
+    'POST'
+  );
+}
+
+// 2️⃣ Añadir turno
+export function addShiftToSchedule(
+  companyId,
+  branchId,
+  scheduleId,
+  data
+) {
+  return api(
+    `/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
+    'POST',
+    data
+  );
+}
+
+// 3️⃣ Confirmar horario
+export function confirmSchedule(
+  companyId,
+  branchId,
+  scheduleId
+) {
+  return api(
+    `/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/confirm`,
+    'POST'
+  );
+}
+
+// 4️⃣ Ver horario activo
+export function getActiveSchedule(
+  companyId,
+  branchId,
+  userId
+) {
+  return api(
+    `/companies/${companyId}/branches/${branchId}/schedules/user/${userId}/active`
+  );
 }
