@@ -3,24 +3,28 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   getEmployees,
   deleteEmployee,
+  hardDeleteEmployee,
   getBranches,
   toggleEmployee,
   updateUserBranch,
 } from './api';
+import { useAuth } from './auth/AuthContext';
 
 export default function Employees() {
+  /* ───────── AUTH ───────── */
+  const { user } = useAuth();
+
+  const isSuperAdmin = user?.role === 'SUPERADMIN';
+  const isAdminEmpresa = user?.role === 'ADMIN_EMPRESA';
+  const isAdminSucursal = user?.role === 'ADMIN_SUCURSAL';
+
+  /* ───────── ROUTER ───────── */
   const navigate = useNavigate();
   const { companyId } = useParams();
   const [searchParams] = useSearchParams();
   const branchFilter = searchParams.get('branch');
 
-  // 🔑 Rol del usuario autenticado
-  const role = localStorage.getItem('role');
-
-  const isSuperAdmin = role === 'SUPERADMIN';
-  const isAdminEmpresa = role === 'ADMIN_EMPRESA';
-  const isAdminSucursal = role === 'ADMIN_SUCURSAL';
-
+  /* ───────── STATE ───────── */
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,15 +59,11 @@ export default function Employees() {
 
   /* ───────── CAMBIAR SUCURSAL ───────── */
   async function changeBranch(employeeId, branchId) {
-    await updateUserBranch(
-      companyId,
-      employeeId,
-      branchId || null,
-    );
+    await updateUserBranch(companyId, employeeId, branchId || null);
     load();
   }
 
-  /* ───────── ELIMINAR (DOBLE CONFIRMACIÓN) ───────── */
+  /* ───────── ELIMINAR (PRODUCCIÓN – BORRADO INTELIGENTE) ───────── */
   async function remove(employee) {
     const first = window.confirm(
       `⚠️ Eliminar empleado\n\n¿Estás seguro de que quieres eliminar a:\n${employee.name} ${employee.firstSurname || ''}?`
@@ -87,12 +87,32 @@ export default function Employees() {
     }
   }
 
-  /* ───────── FILTERS ───────── */
+  /* ───────── HARD DELETE (PRUEBAS – BYPASS TOTAL) ───────── */
+  async function hardDelete(employee) {
+    const first = window.confirm(
+      `⚠️ BORRADO TOTAL (PRUEBAS)\n\nVas a eliminar DEFINITIVAMENTE a:\n${employee.name} ${employee.firstSurname || ''}\n\nEsta acción NO se puede deshacer.`
+    );
+    if (!first) return;
 
-  const visibleEmployees =
-    isSuperAdmin
-      ? employees
-      : employees.filter(e => e.active);
+    const second = window.confirm(
+      `🚨 CONFIRMACIÓN FINAL\n\nEsto eliminará TODOS los datos del empleado.\n\n¿Seguro que quieres continuar?`
+    );
+    if (!second) return;
+
+    try {
+      await hardDeleteEmployee(companyId, employee.id);
+      await load();
+      alert('Empleado eliminado definitivamente');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Error en el borrado definitivo');
+    }
+  }
+
+  /* ───────── FILTERS ───────── */
+  const visibleEmployees = isSuperAdmin
+    ? employees
+    : employees.filter(e => e.active);
 
   const visible = branchFilter
     ? visibleEmployees.filter(e => e.branchId === branchFilter)
@@ -184,7 +204,7 @@ export default function Employees() {
                   <button
                     onClick={() =>
                       navigate(
-                        `/admin/companies/${companyId}/employees/${e.id}/edit`,
+                        `/admin/companies/${companyId}/employees/${e.id}/edit`
                       )
                     }
                   >
@@ -194,7 +214,7 @@ export default function Employees() {
                   <button
                     onClick={() =>
                       navigate(
-                        `/admin/companies/${companyId}/employees/${e.id}/photo`,
+                        `/admin/companies/${companyId}/employees/${e.id}/photo`
                       )
                     }
                   >
@@ -204,19 +224,35 @@ export default function Employees() {
                   <button
                     onClick={() =>
                       navigate(
-                        `/admin/companies/${companyId}/employees/${e.id}/schedules`,
+                        `/admin/companies/${companyId}/employees/${e.id}/schedules`
                       )
                     }
                   >
                     Horarios
                   </button>
 
+                  {/* BORRADO NORMAL (PRODUCCIÓN) */}
                   <button
                     onClick={() => remove(e)}
                     style={{ backgroundColor: '#ef4444' }}
                   >
                     Eliminar
                   </button>
+
+                  {/* HARD DELETE (PRUEBAS) */}
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => hardDelete(e)}
+                      title="Borrado total (solo pruebas)"
+                      style={{
+                        backgroundColor: '#991b1b',
+                        color: 'white',
+                        fontWeight: 900,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import './EmployeeSchedules.css';
 
 async function safeJson(res) {
   const text = await res.text();
@@ -98,85 +99,10 @@ function toMinutes(time) {
   return h * 60 + m;
 }
 
-function buildVisualBlocks(turns) {
-  const blocksByDay = {};
-
-  for (const t of turns) {
-    for (const day of t.days) {
-      if (!blocksByDay[day]) blocksByDay[day] = [];
-
-      blocksByDay[day].push({
-        start: t.startTime,
-        end: t.endTime,
-        isDraft: t.source === 'draft',
-      });
-    }
-  }
-
-  const result = [];
-
-  for (const day of Object.keys(blocksByDay)) {
-    const blocks = blocksByDay[day]
-      .map(b => ({
-        ...b,
-        startMin: toMinutes(b.start),
-        endMin: toMinutes(b.end),
-      }))
-      .sort((a, b) => a.startMin - b.startMin);
-
-    let current = null;
-
-    for (const b of blocks) {
-      if (!current || b.startMin > current.endMin) {
-        if (current) result.push(current);
-
-        current = {
-          day,
-          startTime: b.start,
-          endTime: b.end,
-          startMin: b.startMin,
-          endMin: b.endMin,
-          isDraft: b.isDraft,
-        };
-      } else {
-        current.endMin = Math.max(current.endMin, b.endMin);
-        current.endTime =
-          b.endMin >= current.endMin ? b.end : current.endTime;
-
-        current.isDraft = current.isDraft || b.isDraft;
-      }
-    }
-
-    if (current) result.push(current);
-  }
-
-  return result;
-}
-
 function minutesToTime(min) {
   const h = Math.floor(min / 60) % 24;
   const m = min % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function buildVacationBlocks(vacations) {
-  const result = [];
-
-  for (const v of vacations) {
-    const start = 0;       // 00:00
-    const end = 24 * 60;   // 24:00
-
-    result.push({
-      day: v.day,
-      startTime: '00:00',
-      endTime: '24:00',
-      startMin: start,
-      endMin: end,
-      source: v.source, // 'saved' | 'draft'
-    });
-  }
-
-  return result;
 }
 
 export default function EmployeeSchedules() {
@@ -195,9 +121,13 @@ export default function EmployeeSchedules() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
-  // 🆕 VACACIONES
-  const [vacations, setVacations] = useState([]);
+  const [vacations, setVacations] = useState([]); 
+  const [removedTurns, setRemovedTurns] = useState([]);
   const [scheduleId, setScheduleId] = useState(null);
+
+// 🟠 CAMBIOS DEL USUARIO
+const [draftTurns, setDraftTurns] = useState([]);
+
   // 📅 Semana actual (lunes)
   const [weekStart, setWeekStart] = useState(() => {
   const d = new Date();
@@ -206,7 +136,7 @@ export default function EmployeeSchedules() {
   return new Date(d.setDate(diff));
 });
   const [saving, setSaving] = useState(false);
-  const GRID_ROW_OFFSET = 2;
+
   const ROW_HEIGHT = 24;
   const INITIAL_SCROLL_HOUR = 8;
 
@@ -223,46 +153,49 @@ export default function EmployeeSchedules() {
    - Une tramos contiguos o solapados
    - NO modifica `turns`
 ====================================================== */
+const normalizedTurns = React.useMemo(() => {
+  const result = [];
 
-const normalizedTurns = [];
+  weekDays.forEach(day => {
+    const dayTurns = turns
+      .filter(t => t.days.includes(day) && t.type === 'regular')
+      .map(t => ({
+        start: timeToMinutes(t.startTime),
+        end:
+          timeToMinutes(t.endTime) <= timeToMinutes(t.startTime)
+            ? timeToMinutes(t.endTime) + 1440
+            : timeToMinutes(t.endTime),
+      }))
+      .sort((a, b) => a.start - b.start);
 
-weekDays.forEach(day => {
-  const dayTurns = turns
-    .filter(t => t.days.includes(day) && t.type === 'regular')
-    .map(t => ({
-      start: timeToMinutes(t.startTime),
-      end:
-        timeToMinutes(t.endTime) <= timeToMinutes(t.startTime)
-          ? timeToMinutes(t.endTime) + 1440
-          : timeToMinutes(t.endTime),
-    }))
-    .sort((a, b) => a.start - b.start);
+    if (!dayTurns.length) return;
 
-  if (!dayTurns.length) return;
+    let current = dayTurns[0];
 
-  let current = dayTurns[0];
+    for (let i = 1; i < dayTurns.length; i++) {
+      const next = dayTurns[i];
 
-  for (let i = 1; i < dayTurns.length; i++) {
-    const next = dayTurns[i];
-
-    if (next.start <= current.end) {
-      current.end = Math.max(current.end, next.end);
-    } else {
-      normalizedTurns.push({
-        days: [day],
-        startTime: minutesToTime(current.start),
-        endTime: minutesToTime(current.end),
-      });
-      current = next;
+      if (next.start <= current.end) {
+        current.end = Math.max(current.end, next.end);
+      } else {
+        result.push({
+          days: [day],
+          startTime: minutesToTime(current.start),
+          endTime: minutesToTime(current.end),
+        });
+        current = next;
+      }
     }
-  }
 
-  normalizedTurns.push({
-    days: [day],
-    startTime: minutesToTime(current.start),
-    endTime: minutesToTime(current.end),
+    result.push({
+      days: [day],
+      startTime: minutesToTime(current.start),
+      endTime: minutesToTime(current.end),
+    });
   });
-});
+
+  return result;
+}, [turns]);
 
 
   /* 🆕 CARGA EMPRESA + EMPLEADO */
@@ -311,10 +244,10 @@ setCompany(companyData);
       }
 
       const employees = await safeJson(employeesRes);
-if (!employees) {
-  console.error('Respuesta vacía al cargar empleados');
-  return;
-}
+      if (!employees) {
+      console.error('Respuesta vacía al cargar empleados');
+      return;
+      }
 
       // 🎯 Empleado concreto
       const foundEmployee = employees.find(
@@ -335,38 +268,34 @@ if (foundEmployee?.branchId) {
   );
 
   if (scheduleRes.ok) {
-    const schedule = await scheduleRes.json();
+  const schedule = await scheduleRes.json();
 
-    if (schedule?.shifts?.length) {
-      const loadedTurns = schedule.shifts.map(shift => ({
-        days: [weekDays[shift.weekday - 1]],
-        startTime: shift.startTime,
-        endTime: shift.endTime,
-        type: 'regular',
+  // TURNOS
+  if (schedule?.shifts?.length) {
+    const loadedTurns = schedule.shifts.map(shift => ({
+      days: [weekDays[shift.weekday - 1]],
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      type: 'regular',
+      source: 'saved',
+    }));
+
+    setTurns(loadedTurns);
+    setScheduleId(schedule.id);
+  }
+
+  // 🟠 VACACIONES (CLAVE)
+  if (schedule?.vacations?.length) {
+    setVacations(
+      schedule.vacations.map(v => ({
+        dateFrom: v.dateFrom,
+        dateTo: v.dateTo,
         source: 'saved',
-      }));
-
-      setTurns(loadedTurns);
-      setScheduleId(schedule.id);
-    }
-
-    // 🆕 VACACIONES DESDE BACKEND
-if (schedule?.vacations?.length) {
-  setVacations(
-    schedule.vacations.map(v => {
-      const d = new Date(v.date);
-      const wd = d.getDay();
-      return {
-        day: weekDays[wd === 0 ? 6 : wd - 1],
-        source: 'saved',
-      };
-    })
-  );
-}
-
+      }))
+    );
   }
 }
-
+}
     } catch (err) {
       console.error('Error cargando empresa / empleado', err);
     }
@@ -477,39 +406,29 @@ async function addTurn() {
   }
 
   // ✅ SOLO VISUAL
-  setTurns(prev => [...prev, newTurn]);
+  setDraftTurns(prev => [...prev, newTurn]);
   setSelectedDays([]);
   setStartTime('');
   setEndTime('');
 }
 
 
-function addVacation() {
+  function addVacation() {
   if (!dateFrom || !dateTo) return;
 
-  const start = new Date(dateFrom);
-  const end = new Date(dateTo);
-
-  const newVacations = [];
-
-  for (
-    let d = new Date(start);
-    d <= end;
-    d.setDate(d.getDate() + 1)
-  ) {
-    const jsDay = d.getDay(); // 0 domingo - 6 sábado
-
-    const dayMap = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-    const day = dayMap[jsDay];
-
-    newVacations.push({
-      day,
+  setVacations(prev => [
+    ...prev,
+    {
+      dateFrom,
+      dateTo,
       source: 'draft',
-    });
-  }
+    },
+  ]);
 
-  setVacations(prev => [...prev, ...newVacations]);
+  setDateFrom('');
+  setDateTo('');
 }
+
 
   async function createDraftSchedule() {
   const token = localStorage.getItem('token');
@@ -556,29 +475,61 @@ async function saveTurnToBackend(scheduleId, turn) {
   }
 }
 
-async function completeSchedule() {
-  if (turns.length === 0) {
-    alert('No hay turnos para guardar');
-    return;
-  }
+async function saveVacationToBackend(scheduleId, vacation) {
+  const token = localStorage.getItem('token');
 
+  await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/vacations`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        dateFrom: vacation.dateFrom,
+        dateTo: vacation.dateTo,
+      }),
+    }
+  );
+}
+
+async function completeSchedule() {
+  console.log('▶️ completeSchedule START', {
+    scheduleId,
+    turns: turns.length,
+    vacations: vacations.length,
+  });
+
+  const safeDraftTurns = Array.isArray(draftTurns) ? draftTurns : [];
+  const safeRemovedTurns = Array.isArray(removedTurns) ? removedTurns : [];
+ 
   try {
     setSaving(true);
     let id = scheduleId;
 
     // 1️⃣ Crear borrador si no existe
     if (!id) {
+      console.log('🟡 creando draft schedule...');
       id = await createDraftSchedule();
+      console.log('🟢 draft creado', id);
     }
 
-    // 2️⃣ Guardar TODOS los turnos
-    for (const turn of turns) {
+    // =========================
+    // 2️⃣ TURNOS
+    // =========================
+    console.log('🟡 guardando turnos +', safeDraftTurns.length);
+    for (const turn of safeDraftTurns) {
       await saveTurnToBackend(id, turn);
     }
 
-    // 3️⃣ Confirmar horario
+    // =========================
+    // 4️⃣ CONFIRMAR
+    // =========================
+    console.log('🟡 confirmando horario...');
     const token = localStorage.getItem('token');
-    await fetch(
+
+    const confirmRes = await fetch(
       `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
       {
         method: 'POST',
@@ -588,35 +539,59 @@ async function completeSchedule() {
       }
     );
 
-    // 4️⃣ Salir
+    if (!confirmRes.ok) {
+      const text = await confirmRes.text();
+      throw new Error('CONFIRM FAILED: ' + text);
+    }
+
+    console.log('✅ TODO OK — saliendo');
+    setDraftTurns([]);
     window.history.back();
+
   } catch (err) {
-    console.error('Error completando horario', err);
-    alert('Error al guardar el horario');
+    console.error('❌ ERROR EN completeSchedule', err);
+    alert(err.message || 'Error guardando horario');
   } finally {
     setSaving(false);
   }
 }
 
-const vacationDays = new Set(
-  vacations.map(v => v.day)
-);
-
 const savedTurns = mergeTurns(
-  turns.filter(
-    t =>
-      t.source === 'saved' &&
-      !t.days.some(day => vacationDays.has(day))
-  )
+  turns.map(t => ({ ...t, source: 'saved' }))
 );
 
-const draftTurns = mergeTurns(
-  turns.filter(
-    t =>
-      t.source === 'draft' &&
-      !t.days.some(day => vacationDays.has(day))
-  )
+const mergedDraftTurns = mergeTurns(
+  draftTurns.map(t => ({ ...t, source: 'draft' }))
 );
+
+
+// =========================
+// VACACIONES VISUALES (por semana visible)
+// =========================
+const weekVacationBlocks = [];
+
+vacations.forEach((v, index) => {
+  if (!v.dateFrom || !v.dateTo) return;
+
+  const from = new Date(v.dateFrom);
+  const to = new Date(v.dateTo);
+
+  weekDates.forEach((date, colIndex) => {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    if (from <= dayEnd && to >= dayStart) {
+      weekVacationBlocks.push({
+        col: colIndex + 2,
+        source: v.source,
+        key: `vac-${index}-${colIndex}`,
+      });
+    }
+  });
+});
 
 /* ======================================================
    CÁLCULO CORRECTO DE HORAS (FRONTEND)
@@ -640,15 +615,6 @@ function minutesBetween(start, end) {
 }
 
 // 🔑 clave única por día + franja
-const uniqueTurns = new Map();
-
-turns
-  .filter(t => t.type === 'regular')
-  .forEach(t => {
-    const day = t.days[0]; // cada turno YA es por día
-    const key = `${day}-${t.startTime}-${t.endTime}`;
-    uniqueTurns.set(key, t);
-  });
 
 let totalMinutes = 0;
 
@@ -658,16 +624,11 @@ normalizedTurns.forEach(t => {
 
 const totalHours = Math.floor(totalMinutes / 60);
 const totalRestMinutes = totalMinutes % 60;
-console.log(
-  'TURNOS CONTADOS:',
-  turns.map(t => `${t.startTime}-${t.endTime} (${t.days.join(',')})`)
-);
 
-const visualBlocks = buildVisualBlocks(turns);
 
   return (
-    <div className="container" style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <h2 style={{ marginBottom: 32 }}>
+    <div className="container">
+      <h2 className="page-title">
   {company?.commercialName || 'Empresa'} ·{' '}
   {employee
     ? `${employee.name} ${employee.firstSurname}`
@@ -677,30 +638,14 @@ const visualBlocks = buildVisualBlocks(turns);
       {/* TODO TU JSX SIGUE EXACTAMENTE IGUAL */}
 
 {/* FORM */}
-<div className="card" style={{ padding: 20, marginBottom: 5 }}>
+<div className="form-card">
 
   {/* DAYS */}
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'center',
-      gap: 22,
-      marginBottom: 10,
-      padding: '14px 0',
-      background: '#ccfbf1', // turquesa suave
-      borderRadius: 14,
-    }}
-  >
+  <div className="days-selector">
     {days.map(d => (
       <label
         key={d.key}
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}
+        className="day-checkbox"
       >
         <input
           type="checkbox"
@@ -713,561 +658,311 @@ const visualBlocks = buildVisualBlocks(turns);
   </div>
 
   {/* TWO COLUMNS */}
-  <div
-    style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 36,
-    }}
+<div className="form-grid">
+
+{/* LEFT COLUMN */}
+<div className="left-column">
+  {/* CAPTION IN */}
+  <div className="caption">Horario de entrada</div>
+
+  {/* IN */}
+  <div className="time-row">
+    <span className="badge-in">IN</span>
+    <input
+      type="time"
+      value={startTime}
+      onChange={e => setStartTime(e.target.value)}
+      className="time-input"
+    />
+  </div>
+
+  {/* CAPTION OUT */}
+  <div className="caption">Horario de salida</div>
+
+  {/* OUT */}
+  <div className="time-row">
+    <span className="badge-out">OUT</span>
+    <input
+      type="time"
+      value={endTime}
+      onChange={e => setEndTime(e.target.value)}
+      className="time-input"
+    />
+  </div>
+
+  {/* TYPE CHECKBOXES */}
+  <div className="type-selector">
+    <label>
+      <input
+        type="checkbox"
+        checked={type === 'regular'}
+        onChange={() => setType('regular')}
+      />{' '}
+      Horario recurrente
+    </label>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={type === 'special'}
+        onChange={() => setType('special')}
+      />{' '}
+      Horas extra
+    </label>
+  </div>
+
+  {/* BUTTONS */}
+  <button
+    onClick={addTurn}
+    className="primary-button add-turn"
   >
-    {/* LEFT COLUMN */}
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: 14,
-        background: '#f0fdf4', // verde muy tenue
-        padding: 24,
-        borderRadius: 16,
-      }}
-    >
-      {/* CAPTION IN */}
-      <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
-        Horario de entrada
-      </div>
+    Añadir turno
+  </button>
 
-      {/* IN */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span
-          style={{
-            background: '#22c55e',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: 14,
-            fontWeight: 800,
-            width: 48,
-            textAlign: 'center',
-          }}
-        >
-          IN
-        </span>
-        <input
-          type="time"
-          value={startTime}
-          onChange={e => setStartTime(e.target.value)}
-          style={{
-            width: 160,
-            fontSize: 18,
-            padding: '10px 12px',
-            borderRadius: 12,
-          }}
-        />
-      </div>
+  <button
+    onClick={addVacation}
+    className="primary-button add-vacation"
+  >
+    Añadir vacaciones
+  </button>
+</div>
 
-      {/* CAPTION OUT */}
-      <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
-        Horario de salida
-      </div>
 
-      {/* OUT */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span
-          style={{
-            background: '#ef4444',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: 14,
-            fontWeight: 800,
-            width: 48,
-            textAlign: 'center',
-          }}
-        >
-          OUT
-        </span>
-        <input
-          type="time"
-          value={endTime}
-          onChange={e => setEndTime(e.target.value)}
-          style={{
-            width: 160,
-            fontSize: 18,
-            padding: '10px 12px',
-            borderRadius: 12,
-          }}
-        />
-      </div>
+  {/* RIGHT COLUMN */}
+<div className="right-column">
+  {/* CAPTION DATE FROM */}
+  <div className="caption">Fecha de inicio</div>
+  <input
+    type="date"
+    value={dateFrom}
+    onChange={e => setDateFrom(e.target.value)}
+    className="date-input"
+  />
 
-      {/* TYPE CHECKBOXES */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 18,
-          marginTop: 6,
-        }}
-      >
-        <label style={{ fontSize: 15, fontWeight: 600 }}>
-          <input
-            type="checkbox"
-            checked={type === 'regular'}
-            onChange={() => setType('regular')}
-          />{' '}
-          Horario recurrente
-        </label>
+  {/* CAPTION DATE TO */}
+  <div className="caption">Fecha de fin</div>
+  <input
+    type="date"
+    value={dateTo}
+    onChange={e => setDateTo(e.target.value)}
+    className="date-input"
+  />
 
-        <label style={{ fontSize: 15, fontWeight: 600 }}>
-          <input
-            type="checkbox"
-            checked={type === 'special'}
-            onChange={() => setType('special')}
-          />{' '}
-          Horas extra
-        </label>
-      </div>
-
-      {/* BUTTONS */}
-      <button
-        onClick={addTurn}
-        style={{
-          width: 220,
-          marginTop: 10,
-          padding: '14px 0',
-          fontSize: 18,
-          fontWeight: 700,
-          borderRadius: 14,
-          background: '#22c55e',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        Añadir turno
-      </button>
-
-      <button
-        onClick={addVacation}
-        style={{
-          width: 220,
-          marginTop: 10,
-          padding: '14px 0',
-          fontSize: 18,
-          fontWeight: 700,
-          borderRadius: 14,
-          background: '#f97316',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        Añadir vacaciones
-      </button>
+  {/* TOTAL HOURS */}
+  <div className="total-hours">
+    <div className="total-hours-number">
+      {totalHours}
+      <span className="total-hours-minutes">
+        {totalRestMinutes > 0
+          ? `:${String(totalRestMinutes).padStart(2, '0')}`
+          : ''}
+      </span>
     </div>
 
-    {/* RIGHT COLUMN */}
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 14,
-        background: '#f8fafc', // gris muy tenue
-        padding: 24,
-        borderRadius: 16,
-      }}
-    >
-      {/* CAPTION DATE FROM */}
-      <div style={{ fontSize: 13, fontWeight: 600 }}>
-        Fecha de inicio
-      </div>
-      <input
-        type="date"
-        value={dateFrom}
-        onChange={e => setDateFrom(e.target.value)}
-        style={{
-          width: 220,
-          fontSize: 16,
-          padding: '10px 12px',
-          borderRadius: 12,
-        }}
-      />
-
-      {/* CAPTION DATE TO */}
-      <div style={{ fontSize: 13, fontWeight: 600 }}>
-        Fecha de fin
-      </div>
-      <input
-        type="date"
-        value={dateTo}
-        onChange={e => setDateTo(e.target.value)}
-        style={{
-          width: 220,
-          fontSize: 16,
-          padding: '10px 12px',
-          borderRadius: 12,
-        }}
-      />
-
-      {/* TOTAL HOURS */}
-      <div
-        style={{
-          marginTop: 24,
-          width: '100%',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 56,
-            fontWeight: 800,
-            lineHeight: 1,
-          }}
-        >
-          {totalHours}
-          <span style={{ fontSize: 32 }}>
-            {totalRestMinutes > 0
-              ? `:${String(totalRestMinutes).padStart(2, '0')}`
-              : ''}
-          </span>
-        </div>
-        <div
-          style={{
-            marginTop: 6,
-            fontSize: 14,
-            fontWeight: 600,
-            color: '#6b7280',
-          }}
-        >
-          horas totales (horario regular)
-        </div>
-      </div>
-
-      {/* COMPLETED */}
-      <button
-        onClick={completeSchedule}
-        style={{
-          width: '100%',
-          marginTop: 18,
-          padding: '14px 0',
-          fontSize: 16,
-          fontWeight: 700,
-          borderRadius: 14,
-          background: '#14b8a6', // turquesa intenso
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        Horario completado
-      </button>
+    <div className="total-hours-label">
+      horas totales (horario regular)
     </div>
+  </div>
+
+  {/* COMPLETED */}
+  <button
+    onClick={completeSchedule}
+    className="complete-button"
+  >
+    Horario completado
+  </button>
+</div>
   </div>
 </div>
 
 {/* WEEKLY CALENDAR */}
-<div
-  className="card"
-  style={{
-    marginTop: 0,
-    padding: 10,
-    background: '#ccfbf1',
-    borderRadius: 20,
-    maxWidth: 1140,
-    marginLeft: 'auto',
-    marginRight: 'auto',
-  }}
->
+<div className="calendar-wrapper">
 
-  {/* HEADER CALENDARIO */}
-<div
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: '6px 8px',
-    marginBottom: 6,
-  }}
->
-  {/* Texto semana */}
-  <div style={{ fontWeight: 600 }}>
-    Semana del{' '}
-    {weekDates[0].toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-    })}{' '}
-    –{' '}
-    {weekDates[6].toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-    })}
-  </div>
-
-  {/* Controles */}
-  <div style={{ display: 'flex', gap: 6 }}>
-    <button
-      onClick={() =>
-        setWeekStart(d => {
-          const prev = new Date(d);
-          prev.setDate(prev.getDate() - 7);
-          return prev;
-        })
-      }
-      style={{
-        padding: '4px 10px',
-        borderRadius: 8,
-        border: '1px solid #e5e7eb',
-        background: 'white',
-        cursor: 'pointer',
-      }}
-    >
-      ←
-    </button>
-
-    <button
-      onClick={() =>
-        setWeekStart(d => {
-          const next = new Date(d);
-          next.setDate(next.getDate() + 7);
-          return next;
-        })
-      }
-      style={{
-        padding: '4px 10px',
-        borderRadius: 8,
-        border: '1px solid #e5e7eb',
-        background: 'white',
-        cursor: 'pointer',
-      }}
-    >
-      →
-    </button>
-
-    {/* Selector de mes */}
-    <select
-      value={weekStart.getMonth()}
-      onChange={e => {
-        const d = new Date(weekStart);
-        d.setMonth(Number(e.target.value));
-        setWeekStart(d);
-      }}
-      style={{
-        padding: '4px 8px',
-        borderRadius: 8,
-        border: '1px solid #e5e7eb',
-        background: 'white',
-      }}
-    >
-      {Array.from({ length: 12 }).map((_, i) => (
-        <option key={i} value={i}>
-          {new Date(0, i).toLocaleString('es-ES', {
-            month: 'short',
-          })}
-        </option>
-      ))}
-    </select>
-
-    {/* Selector de año */}
-    <select
-      value={weekStart.getFullYear()}
-      onChange={e => {
-        const d = new Date(weekStart);
-        d.setFullYear(Number(e.target.value));
-        setWeekStart(d);
-      }}
-      style={{
-        padding: '4px 8px',
-        borderRadius: 8,
-        border: '1px solid #e5e7eb',
-        background: 'white',
-      }}
-    >
-      {Array.from({ length: 5 }).map((_, i) => {
-        const year = new Date().getFullYear() - 2 + i;
-        return (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        );
+  {/* HEADER */}
+  <div className="calendar-header">
+    <div className="calendar-week-text">
+      Semana del{' '}
+      {weekDates[0].toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+      })}{' '}
+      –{' '}
+      {weekDates[6].toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
       })}
-    </select>
-  </div>
-</div>
+    </div>
 
-  {/* MARCO CALENDARIO */}
-  <div
-    style={{
-      background: 'white',
-      borderRadius: 16,
-      border: '1px solid #e5e7eb',
-      overflow: 'hidden',
-    }}
-  >
-    {/* CABECERA DÍAS (FIJA) */}
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '90px repeat(7, 140px)',
-        height: 40,
-        borderBottom: '5px solid #e5e7eb',
-        background: 'white',
-        zIndex: 2,
-      }}
-    >
-      <div /> {/* esquina horas */}
+    <div className="calendar-controls">
+      <button
+        onClick={() =>
+          setWeekStart(d => {
+            const prev = new Date(d);
+            prev.setDate(prev.getDate() - 7);
+            return prev;
+          })
+        }
+        className="calendar-button"
+      >
+        ←
+      </button>
+
+      <button
+        onClick={() =>
+          setWeekStart(d => {
+            const next = new Date(d);
+            next.setDate(next.getDate() + 7);
+            return next;
+          })
+        }
+        className="calendar-button"
+      >
+        →
+      </button>
+
+      <select
+        value={weekStart.getMonth()}
+        onChange={e => {
+          const d = new Date(weekStart);
+          d.setMonth(Number(e.target.value));
+          setWeekStart(d);
+        }}
+        className="calendar-select"
+      >
+        {Array.from({ length: 12 }).map((_, i) => (
+          <option key={i} value={i}>
+            {new Date(0, i).toLocaleString('es-ES', { month: 'short' })}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={weekStart.getFullYear()}
+        onChange={e => {
+          const d = new Date(weekStart);
+          d.setFullYear(Number(e.target.value));
+          setWeekStart(d);
+        }}
+        className="calendar-select"
+      >
+        {Array.from({ length: 5 }).map((_, i) => {
+          const year = new Date().getFullYear() - 2 + i;
+          return (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  </div>
+
+  {/* GRID */}
+  <div className="calendar-grid-wrapper">
+
+    {/* DAYS HEADER */}
+    <div className="calendar-days-header">
+      <div />
       {weekDays.map(d => (
-        <div
-          key={d}
-          style={{
-            textAlign: 'center',
-            fontWeight: 700,
-            lineHeight: '40px',
-          }}
-        >
+        <div key={d} className="calendar-day">
           {d}
         </div>
       ))}
     </div>
 
-    {/* CUERPO SCROLLEABLE */}
+    {/* SCROLLABLE BODY */}
     <div
       ref={calendarRef}
       onMouseDown={() => setCalendarFocused(true)}
-      style={{
-        height: 360,
-        overflowY: calendarFocused ? 'auto' : 'hidden',
-        overflowX: 'hidden',
-      }}
+     className={`calendar-scroll ${calendarFocused ? 'focused' : ''}`}
     >
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '90px repeat(7, 140px)',
-          gridTemplateRows: `repeat(48, ${ROW_HEIGHT}px)`,
-          fontSize: 14,
-        }}
+        className="calendar-grid calendar-grid-rows"
       >
-        {/* HORAS */}
+        {/* HOURS */}
         {Array.from({ length: 24 }).map((_, h) => (
           <div
             key={h}
-            style={{
-              gridColumn: 1,
-              gridRow: h * 2 + 1,
-              textAlign: 'right',
-              paddingRight: 8,
-              color: '#6b7280',
-              fontSize: 12,
-            }}
+            className="hour-label"
+            style={{ gridRow: h * 2 + 1 }}
           >
             {String(h).padStart(2, '0')}:00
           </div>
         ))}
 
-        {/* GRID */}
+        {/* GRID CELLS */}
         {Array.from({ length: 48 }).map((_, row) =>
           weekDays.map((_, col) => (
             <div
               key={`${row}-${col}`}
+              className="calendar-cell"
               style={{
                 gridColumn: col + 2,
                 gridRow: row + 1,
-                borderLeft: '1px solid #e5e7eb',
-                borderBottom: '1px solid #e5e7eb',
-                borderRight: '1px solid #e5e7eb',
               }}
             />
-          ))     
+          ))
         )}
 
-       {/* VACACIONES */}
-{vacations.map((v, i) => {
-  const col = weekDays.indexOf(v.day) + 2;
+        {/* VACATIONS */}
+        {weekVacationBlocks.map(v => (
+          <div
+            key={v.key}
+            className={`vacation ${v.source === 'draft' ? 'draft' : ''}`}
+            style={{
+              gridColumn: v.col,
+              gridRow: '1 / 49',
+            }}
+          >
+            Vacaciones
+          </div>
+        ))}
 
-  return (
-    <div
-      key={`vacation-${i}-${v.day}`}
-      style={{
-        gridColumn: col,
-        gridRow: `1 / 49`, // 00:00 → 24:00
-        background: '#f97316',
-        color: 'white',
-        borderRadius: 10,
-        margin: 2,
-        zIndex: 3,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 800,
-        fontSize: 14,
-        border:
-          v.source === 'draft'
-            ? '2px solid #4b5563'
-            : 'none',
-      }}
-    >
-      VACACIONES
-    </div>
-  );
-})}
+        {/* SAVED TURNS */}
+        {savedTurns.map((t, i) =>
+          t.days.map(day => {
+            const col = weekDays.indexOf(day) + 2;
+            const start = timeToRow(t.startTime);
+            let end = timeToRow(t.endTime);
+            if (end <= start) end += 48;
 
-{/* TURNOS GUARDADOS (VERDES) */}
-{savedTurns.map((t, i) =>
-  t.days.map(day => {
-    const col = weekDays.indexOf(day) + 2;
-    const start = timeToRow(t.startTime);
-    let end = timeToRow(t.endTime);
-    if (end <= start) end += 48;
+            return (
+              <div
+                key={`saved-${i}-${day}`}
+                className="turn-saved"
+                style={{
+                  gridColumn: col,
+                  gridRow: `${start + 1} / ${end + 1}`,
+                }}
+              >
+                {t.startTime} – {t.endTime}
+              </div>
+            );
+          })
+        )}
 
-    return (
-      <div
-        key={`saved-${i}-${day}`}
-        style={{
-          gridColumn: col,
-          gridRow: `${start + 1} / ${end + 1}`,
-          background: '#22c55e',
-          color: 'white',
-          borderRadius: 10,
-          padding: 6,
-          fontSize: 13,
-          margin: 2,
-          zIndex: 1,
-        }}
-      >
-        {t.startTime} – {t.endTime}
-      </div>
-    );
-  })
-)}
+        {/* DRAFT TURNS */}
+        {mergedDraftTurns.map((t, i) =>
+          t.days.map(day => {
+            const col = weekDays.indexOf(day) + 2;
+            const start = timeToRow(t.startTime);
+            let end = timeToRow(t.endTime);
+            if (end <= start) end += 48;
 
-{/* TURNOS BORRADOR (BORDE GRIS) */}
-{draftTurns.map((t, i) =>
-  t.days.map(day => {
-    const col = weekDays.indexOf(day) + 2;
-    const start = timeToRow(t.startTime);
-    let end = timeToRow(t.endTime);
-    if (end <= start) end += 48;
-
-    return (
-      <div
-        key={`draft-${i}-${day}`}
-        style={{
-          gridColumn: col,
-          gridRow: `${start + 1} / ${end + 1}`,
-          background: '#22c55e',
-          color: 'white',
-          borderRadius: 10,
-          padding: 6,
-          fontSize: 13,
-          margin: 2,
-          zIndex: 2,
-          border: '2px solid #4b5563',
-        }}
-      >
-        {t.startTime} – {t.endTime}
-      </div>
-    );
-  })
-)}
+            return (
+              <div
+                key={`draft-${i}-${day}`}
+                className="turn-draft"
+                style={{
+                  gridColumn: col,
+                  gridRow: `${start + 1} / ${end + 1}`,
+                }}
+              >
+                {t.startTime} – {t.endTime}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   </div>

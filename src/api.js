@@ -165,6 +165,13 @@ export function deleteEmployee(companyId, employeeId) {
   );
 }
 
+export function hardDeleteEmployee(companyId, employeeId) {
+  return api(
+    `/companies/${companyId}/employees/${employeeId}/hard`,
+    'DELETE'
+  );
+}
+
 /* ───────── PROFILE ───────── */
 export function getMyProfile() {
   return api('/users/me');

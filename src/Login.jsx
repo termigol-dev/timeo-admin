@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { adminLogin } from './api';
+import { useAuth } from "./auth/AuthContext";
 
 export default function Login({ dark, setDark, onLogin }) {
   const [email, setEmail] = useState('');

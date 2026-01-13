@@ -1,0 +1,346 @@
+/* ======================================================
+   BASE
+====================================================== */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+/* ======================================================
+   FORMULARIO
+====================================================== */
+
+.form-card {
+  padding: 20px;
+  margin-bottom: 5px;
+}
+
+.days-selector {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-bottom: 10px;
+  padding: 14px 0;
+  background: #ccfbf1;
+  border-radius: 14px;
+}
+
+.day-checkbox {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+}
+
+/* ======================================================
+   COLUMNA IZQUIERDA
+====================================================== */
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+  background: #f0fdf4;
+  padding: 24px;
+  border-radius: 16px;
+}
+
+.caption {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.badge-in {
+  background: #22c55e;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 14px;
+  font-weight: 800;
+  width: 48px;
+  text-align: center;
+}
+
+.badge-out {
+  background: #ef4444;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 14px;
+  font-weight: 800;
+  width: 48px;
+  text-align: center;
+}
+
+.time-input {
+  width: 160px;
+  font-size: 18px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.type-selector {
+  display: flex;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.primary-button {
+  width: 220px;
+  margin-top: 10px;
+  padding: 14px 0;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+}
+
+.add-turn {
+  background: #22c55e;
+  color: white;
+}
+
+.add-vacation {
+  background: #f97316;
+  color: white;
+}
+
+/* ======================================================
+   COLUMNA DERECHA
+====================================================== */
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  background: #f8fafc;
+  padding: 24px;
+  border-radius: 16px;
+}
+
+.date-input {
+  width: 220px;
+  font-size: 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.total-hours {
+  margin-top: 24px;
+  width: 100%;
+  text-align: center;
+}
+
+.total-hours-number {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.total-hours-minutes {
+  font-size: 32px;
+}
+
+.total-hours-label {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.complete-button {
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px 0;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 14px;
+  background: #14b8a6;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+/* ======================================================
+   CALENDARIO
+====================================================== */
+
+/* Panel blanco del grid */
+.calendar-grid-panel {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.calendar-wrapper {
+  margin-top: 0;
+  padding: 10px;
+  background: #ccfbf1;
+  border-radius: 20px;
+  max-width: 1140px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+}
+
+.calendar-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.calendar-cell {
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.calendar-button {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+}
+
+.calendar-select {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+}
+
+/* ======================================================
+   GRID
+====================================================== */
+
+.calendar-days-header {
+  display: grid;
+  grid-template-columns: 90px repeat(7, 140px);
+  height: 40px;
+  border-bottom: 5px solid #e5e7eb;
+  background: white;
+  z-index: 2;
+}
+
+.calendar-day {
+  text-align: center;
+  font-weight: 700;
+  line-height: 40px;
+}
+
+.calendar-scroll {
+  height: 360px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.calendar-scroll.focused {
+  overflow-y: auto;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 90px repeat(7, 140px);
+  font-size: 14px;
+}
+
+.calendar-grid-rows {
+  grid-template-rows: repeat(48, 24px);
+}
+
+.hour-label {
+  text-align: right;
+  padding-right: 8px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.calendar-week-text {
+  font-weight: 600;
+}
+
+.calendar-grid-wrapper {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.calendar-cell {
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* ======================================================
+   BLOQUES
+====================================================== */
+
+.turn-saved {
+  background: #22c55e;
+  color: white;
+  border-radius: 10px;
+  padding: 6px;
+  font-size: 13px;
+  margin: 2px;
+  z-index: 1;
+}
+
+.turn-draft {
+  background: #22c55e;
+  color: white;
+  border-radius: 10px;
+  padding: 6px;
+  font-size: 13px;
+  margin: 2px;
+  z-index: 2;
+  border: 2px solid #4b5563;
+}
+
+.vacation {
+  background: #f97316;
+  color: white;
+  border-radius: 12px;
+  padding: 8px;
+  margin: 2px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.vacation.draft {
+  border: 2px solid #4b5563;
+}
+
