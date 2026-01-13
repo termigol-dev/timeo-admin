@@ -89,6 +89,23 @@ function mergeTurns(turns) {
   return result;
 }
 
+function mergeDraftTurns(draftTurns) {
+  const expanded = [];
+
+  // 1️⃣ Expandimos: un turno por día
+  for (const t of draftTurns) {
+    for (const day of t.days) {
+      expanded.push({
+        ...t,
+        days: [day],
+      });
+    }
+  }
+
+  // 2️⃣ Reutilizamos mergeTurns (ahora sí correctamente)
+  return mergeTurns(expanded);
+}
+
 function timeToMinutes(time) {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
@@ -457,7 +474,9 @@ async function saveTurnToBackend(scheduleId, turn) {
   const token = localStorage.getItem('token');
 
   for (const day of turn.days) {
-    await fetch(
+    console.log('➡️ POST DAY:', day);
+
+    const res = await fetch(
       `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
       {
         method: 'POST',
@@ -472,6 +491,11 @@ async function saveTurnToBackend(scheduleId, turn) {
         }),
       }
     );
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Error guardando turno ${day}: ${text}`);
+    }
   }
 }
 
@@ -519,6 +543,14 @@ async function completeSchedule() {
     // 2️⃣ TURNOS
     // =========================
     console.log('🟡 guardando turnos +', safeDraftTurns.length);
+    console.log(
+  '🧪 DRAFT TURNS A GUARDAR',
+  safeDraftTurns.map(t => ({
+    days: t.days,
+    start: t.startTime,
+    end: t.endTime,
+  }))
+);
     for (const turn of safeDraftTurns) {
       await saveTurnToBackend(id, turn);
     }
@@ -560,10 +592,9 @@ const savedTurns = mergeTurns(
   turns.map(t => ({ ...t, source: 'saved' }))
 );
 
-const mergedDraftTurns = mergeTurns(
+const mergedDraftTurns = mergeDraftTurns(
   draftTurns.map(t => ({ ...t, source: 'draft' }))
 );
-
 
 // =========================
 // VACACIONES VISUALES (por semana visible)
@@ -941,28 +972,28 @@ const totalRestMinutes = totalMinutes % 60;
           })
         )}
 
-        {/* DRAFT TURNS */}
-        {mergedDraftTurns.map((t, i) =>
-          t.days.map(day => {
-            const col = weekDays.indexOf(day) + 2;
-            const start = timeToRow(t.startTime);
-            let end = timeToRow(t.endTime);
-            if (end <= start) end += 48;
+       {/* DRAFT TURNS */}
+{mergedDraftTurns.map((t, i) =>
+  t.days.map(day => {
+    const col = weekDays.indexOf(day) + 2;
+    const start = timeToRow(t.startTime);
+    let end = timeToRow(t.endTime);
+    if (end <= start) end += 48;
 
-            return (
-              <div
-                key={`draft-${i}-${day}`}
-                className="turn-draft"
-                style={{
-                  gridColumn: col,
-                  gridRow: `${start + 1} / ${end + 1}`,
-                }}
-              >
-                {t.startTime} – {t.endTime}
-              </div>
-            );
-          })
-        )}
+    return (
+      <div
+        key={`draft-${i}-${day}`}
+        className="turn-draft"
+        style={{
+          gridColumn: col,
+          gridRow: `${start + 1} / ${end + 1}`,
+        }}
+      >
+        {t.startTime} – {t.endTime}
+      </div>
+    );
+  })
+)}
       </div>
     </div>
   </div>
