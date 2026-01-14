@@ -25,6 +25,12 @@ const days = [
 
 const weekDays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
+const timeOptions = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, '0');
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${h}:${m}`;
+});
+
 function timeToRow(time) {
   const [h, m] = time.split(':').map(Number);
   return h * 2 + (m >= 30 ? 1 : 0);
@@ -134,8 +140,8 @@ export default function EmployeeSchedules() {
   const [selectedDays, setSelectedDays] = useState([]);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [type, setType] = useState('regular');
-  const [dateFrom, setDateFrom] = useState('');
+ const today = new Date().toISOString().slice(0, 10);
+const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
   const [vacations, setVacations] = useState([]); 
@@ -175,7 +181,7 @@ const normalizedTurns = React.useMemo(() => {
 
   weekDays.forEach(day => {
     const dayTurns = turns
-      .filter(t => t.days.includes(day) && t.type === 'regular')
+      .filter(t => t.days.includes(day))
       .map(t => ({
         start: timeToMinutes(t.startTime),
         end:
@@ -410,7 +416,6 @@ async function addTurn() {
     days: selectedDays,
     startTime,
     endTime,
-    type,
     source: 'draft',
   };
 
@@ -554,7 +559,13 @@ async function completeSchedule() {
     for (const turn of safeDraftTurns) {
       await saveTurnToBackend(id, turn);
     }
-
+    // =========================
+    // 3️⃣ VACACIONES
+    // =========================
+    for (const vacation of vacations.filter(v => v.source === 'draft')) {
+       await saveVacationToBackend(id, vacation);
+    }
+    
     // =========================
     // 4️⃣ CONFIRMAR
     // =========================
@@ -699,12 +710,18 @@ const totalRestMinutes = totalMinutes % 60;
   {/* IN */}
   <div className="time-row">
     <span className="badge-in">IN</span>
-    <input
-      type="time"
-      value={startTime}
-      onChange={e => setStartTime(e.target.value)}
-      className="time-input"
-    />
+   <select
+  value={startTime}
+  onChange={e => setStartTime(e.target.value)}
+  className="time-input"
+>
+  <option value="">--</option>
+  {timeOptions.map(t => (
+    <option key={t} value={t}>
+      {t}
+    </option>
+  ))}
+</select>
   </div>
 
   {/* CAPTION OUT */}
@@ -713,33 +730,18 @@ const totalRestMinutes = totalMinutes % 60;
   {/* OUT */}
   <div className="time-row">
     <span className="badge-out">OUT</span>
-    <input
-      type="time"
-      value={endTime}
-      onChange={e => setEndTime(e.target.value)}
-      className="time-input"
-    />
-  </div>
-
-  {/* TYPE CHECKBOXES */}
-  <div className="type-selector">
-    <label>
-      <input
-        type="checkbox"
-        checked={type === 'regular'}
-        onChange={() => setType('regular')}
-      />{' '}
-      Horario recurrente
-    </label>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={type === 'special'}
-        onChange={() => setType('special')}
-      />{' '}
-      Horas extra
-    </label>
+  <select
+  value={startTime}
+  onChange={e => setStartTime(e.target.value)}
+  className="time-input"
+>
+  <option value="">--</option>
+  {timeOptions.map(t => (
+    <option key={t} value={t}>
+      {t}
+    </option>
+  ))}
+</select>
   </div>
 
   {/* BUTTONS */}
@@ -998,6 +1000,11 @@ const totalRestMinutes = totalMinutes % 60;
     </div>
   </div>
 </div>
+<datalist id="time-options">
+  {timeOptions.map(t => (
+    <option key={t} value={t} />
+  ))}
+</datalist>
     </div>
   );
 }
