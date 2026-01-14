@@ -292,6 +292,8 @@ if (foundEmployee?.branchId) {
 
   if (scheduleRes.ok) {
   const schedule = await scheduleRes.json();
+  console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
+
 
   // TURNOS
   if (schedule?.shifts?.length) {
@@ -307,16 +309,16 @@ if (foundEmployee?.branchId) {
     setScheduleId(schedule.id);
   }
 
-  // 🟠 VACACIONES (CLAVE)
-  if (schedule?.vacations?.length) {
-    setVacations(
-      schedule.vacations.map(v => ({
-        dateFrom: v.dateFrom,
-        dateTo: v.dateTo,
-        source: 'saved',
-      }))
-    );
-  }
+
+// 🟠 VACACIONES (guardadas, 1 día = 1 registro)
+if (schedule?.vacations?.length) {
+  setVacations(
+    schedule.vacations.map(v => ({
+      date: v.date.slice(0, 10),
+      source: 'saved',
+    }))
+  );
+}
 }
 }
     } catch (err) {
@@ -435,22 +437,26 @@ async function addTurn() {
 }
 
 
-  function addVacation() {
+ function addVacation() {
   if (!dateFrom || !dateTo) return;
+
+  const from = new Date(dateFrom);
+  const to = new Date(dateTo);
+
+  const days = [];
+
+  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    days.push(d.toISOString().slice(0, 10));
+  }
 
   setVacations(prev => [
     ...prev,
-    {
-      dateFrom,
-      dateTo,
+    ...days.map(date => ({
+      date,
       source: 'draft',
-    },
+    })),
   ]);
-
-  setDateFrom('');
-  setDateTo('');
 }
-
 
   async function createDraftSchedule() {
   const token = localStorage.getItem('token');
@@ -524,6 +530,7 @@ async function saveVacationToBackend(scheduleId, vacation) {
 }
 
 async function completeSchedule() {
+  const token = localStorage.getItem('token');
   console.log('▶️ completeSchedule START', {
     scheduleId,
     turns: turns.length,
@@ -560,18 +567,30 @@ async function completeSchedule() {
       await saveTurnToBackend(id, turn);
     }
     // =========================
-    // 3️⃣ VACACIONES
-    // =========================
-    for (const vacation of vacations.filter(v => v.source === 'draft')) {
-       await saveVacationToBackend(id, vacation);
+// 3️⃣ VACACIONES
+// =========================
+const draftVacations = vacations.filter(v => v.source === 'draft');
+
+for (const v of draftVacations) {
+  await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'VACATION',
+        date: v.date,
+      }),
     }
-    
+  );
+}
     // =========================
     // 4️⃣ CONFIRMAR
     // =========================
     console.log('🟡 confirmando horario...');
-    const token = localStorage.getItem('token');
-
     const confirmRes = await fetch(
       `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
       {
@@ -607,16 +626,13 @@ const mergedDraftTurns = mergeDraftTurns(
   draftTurns.map(t => ({ ...t, source: 'draft' }))
 );
 
-// =========================
-// VACACIONES VISUALES (por semana visible)
+
+// VACACIONES VISUALES (por día exacto)
 // =========================
 const weekVacationBlocks = [];
 
 vacations.forEach((v, index) => {
-  if (!v.dateFrom || !v.dateTo) return;
-
-  const from = new Date(v.dateFrom);
-  const to = new Date(v.dateTo);
+  const day = new Date(v.date);
 
   weekDates.forEach((date, colIndex) => {
     const dayStart = new Date(date);
@@ -625,7 +641,7 @@ vacations.forEach((v, index) => {
     const dayEnd = new Date(date);
     dayEnd.setHours(23, 59, 59, 999);
 
-    if (from <= dayEnd && to >= dayStart) {
+    if (day >= dayStart && day <= dayEnd) {
       weekVacationBlocks.push({
         col: colIndex + 2,
         source: v.source,
