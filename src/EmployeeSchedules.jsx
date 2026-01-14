@@ -293,7 +293,7 @@ if (foundEmployee?.branchId) {
   if (scheduleRes.ok) {
   const schedule = await scheduleRes.json();
   console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
-
+  
 
   // TURNOS
   if (schedule?.shifts?.length) {
@@ -321,6 +321,7 @@ if (schedule?.vacations?.length) {
 }
 }
 }
+
     } catch (err) {
       console.error('Error cargando empresa / empleado', err);
     }
@@ -388,6 +389,7 @@ useEffect(() => {
     );
   }
 
+
 function hasOverlap(newTurn) {
   const toMinutes = t => {
     const [h, m] = t.split(':').map(Number);
@@ -437,7 +439,7 @@ async function addTurn() {
 }
 
 
- function addVacation() {
+function addVacation() {
   if (!dateFrom || !dateTo) return;
 
   const from = new Date(dateFrom);
@@ -446,19 +448,20 @@ async function addTurn() {
   const days = [];
 
   for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-    days.push(d.toISOString().slice(0, 10));
+    days.push({
+      date: d.toISOString().slice(0, 10),
+      source: 'draft',
+    });
   }
 
-  setVacations(prev => [
-    ...prev,
-    ...days.map(date => ({
-      date,
-      source: 'draft',
-    })),
-  ]);
+  console.log('🟠 VACATION DAYS ADDED:', days);
+
+  setVacations(prev => [...prev, ...days]);
+  setDateFrom('');
+  setDateTo('');
 }
 
-  async function createDraftSchedule() {
+async function createDraftSchedule() {
   const token = localStorage.getItem('token');
 
   const res = await fetch(
@@ -510,36 +513,18 @@ async function saveTurnToBackend(scheduleId, turn) {
   }
 }
 
-async function saveVacationToBackend(scheduleId, vacation) {
-  const token = localStorage.getItem('token');
-
-  await fetch(
-    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/vacations`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        dateFrom: vacation.dateFrom,
-        dateTo: vacation.dateTo,
-      }),
-    }
-  );
-}
-
 async function completeSchedule() {
   const token = localStorage.getItem('token');
+
   console.log('▶️ completeSchedule START', {
     scheduleId,
     turns: turns.length,
     vacations: vacations.length,
   });
 
-  const safeDraftTurns = Array.isArray(draftTurns) ? draftTurns : [];
-  const safeRemovedTurns = Array.isArray(removedTurns) ? removedTurns : [];
- 
+  const draftTurnsSafe = Array.isArray(draftTurns) ? draftTurns : [];
+  const draftVacations = vacations.filter(v => v.source === 'draft');
+
   try {
     setSaving(true);
     let id = scheduleId;
@@ -554,56 +539,64 @@ async function completeSchedule() {
     // =========================
     // 2️⃣ TURNOS
     // =========================
-    console.log('🟡 guardando turnos +', safeDraftTurns.length);
-    console.log(
-  '🧪 DRAFT TURNS A GUARDAR',
-  safeDraftTurns.map(t => ({
-    days: t.days,
-    start: t.startTime,
-    end: t.endTime,
-  }))
-);
-    for (const turn of safeDraftTurns) {
+    console.log('🟡 guardando turnos:', draftTurnsSafe.length);
+
+    for (const turn of draftTurnsSafe) {
       await saveTurnToBackend(id, turn);
     }
+
     // =========================
-// 3️⃣ VACACIONES
+// 3️⃣ VACACIONES (DÍAS SUELTOS)
 // =========================
 const draftVacations = vacations.filter(v => v.source === 'draft');
 
+console.log('🟠 GUARDANDO VACACIONES (draft):', draftVacations);
+
 for (const v of draftVacations) {
-  await fetch(
-    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+  console.log('➡️ POST VACATION DAY:', v.date);
+
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/vacations`,
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        type: 'VACATION',
-        date: v.date,
-      }),
+      body: JSON.stringify({ date: v.date }),
     }
   );
+
+  const text = await res.text();
+
+  console.log('⬅️ VACATION SAVE RESPONSE:', res.status, text || '(empty)');
+
+  if (!res.ok) {
+    throw new Error(`Error guardando vacaciones (${v.date}): ${text}`);
+  }
 }
     // =========================
-    // 4️⃣ CONFIRMAR
+    // 4️⃣ CONFIRMAR (solo si hay turnos)
     // =========================
-    console.log('🟡 confirmando horario...');
-    const confirmRes = await fetch(
-      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    if (draftTurnsSafe.length > 0) {
+      console.log('🟡 confirmando horario...');
 
-    if (!confirmRes.ok) {
-      const text = await confirmRes.text();
-      throw new Error('CONFIRM FAILED: ' + text);
+      const confirmRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!confirmRes.ok) {
+        const text = await confirmRes.text();
+        throw new Error('CONFIRM FAILED: ' + text);
+      }
+    } else {
+      console.log('ℹ️ Horario sin turnos: no se confirma (solo vacaciones)');
     }
 
     console.log('✅ TODO OK — saliendo');
