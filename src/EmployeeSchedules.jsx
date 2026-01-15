@@ -309,15 +309,19 @@ if (foundEmployee?.branchId) {
     setScheduleId(schedule.id);
   }
 
+  
 
-// 🟠 VACACIONES (guardadas, 1 día = 1 registro)
-if (schedule?.vacations?.length) {
-  setVacations(
-    schedule.vacations.map(v => ({
+// 🟠 VACACIONES (guardadas)
+if (schedule?.exceptions?.length) {
+  const loadedVacations = schedule.exceptions
+    .filter(e => e.type === 'VACATION')
+    .map(v => ({
       date: v.date.slice(0, 10),
       source: 'saved',
-    }))
-  );
+    }));
+
+  console.log('🟣 VACACIONES CARGADAS:', loadedVacations);
+  setVacations(loadedVacations);
 }
 }
 }
@@ -740,8 +744,8 @@ const totalRestMinutes = totalMinutes % 60;
   <div className="time-row">
     <span className="badge-out">OUT</span>
   <select
-  value={startTime}
-  onChange={e => setStartTime(e.target.value)}
+  value={endTime}
+  onChange={e => setEndTime(e.target.value)}
   className="time-input"
 >
   <option value="">--</option>
