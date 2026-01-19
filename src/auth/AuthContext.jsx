@@ -7,9 +7,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  console.log('🧠 AuthContext render');
+
   useEffect(() => {
-    console.log('🔁 AuthContext useEffect (load user)');
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       const parsed = JSON.parse(storedUser);
@@ -32,7 +31,6 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
   }
 
-  console.log('🧠 AuthContext user =', user);
   
   return (
     <AuthContext.Provider

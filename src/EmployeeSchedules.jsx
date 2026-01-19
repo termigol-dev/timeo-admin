@@ -315,7 +315,7 @@ export default function EmployeeSchedules() {
           if (scheduleRes.ok) {
             const schedule = await scheduleRes.json();
             console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
-
+            console.log('🧪 SHIFTS RAW BACKEND:', schedule.shifts);
 
             // TURNOS
             if (schedule?.shifts?.length) {
@@ -328,6 +328,7 @@ export default function EmployeeSchedules() {
                 source: 'saved',
               }));
 
+              console.log('🟢 TURNOS NORMALIZADOS FRONT:', loadedTurns);
               setTurns(loadedTurns);
               setScheduleId(schedule.id);
             }
@@ -891,12 +892,12 @@ export default function EmployeeSchedules() {
       const dayEnd = new Date(date);
       dayEnd.setHours(23, 59, 59, 999);
 
-      console.log(
+      /*console.log(
         '   ↪ comparando con día grid:',
         date.toISOString().slice(0, 10),
         '| vacación =',
         v.date
-      );
+      );*/
 
       if (day >= dayStart && day <= dayEnd) {
         //console.log('   ✅ COINCIDE → se dibuja en columna', colIndex + 1);
@@ -1201,7 +1202,6 @@ export default function EmployeeSchedules() {
             onMouseDown={() => setCalendarFocused(true)}
           >
             <div className="calendar-days-header">
-              <div />
               {weekDays.map(d => (
                 <div key={d} className="calendar-day">
                   {d}
@@ -1277,6 +1277,14 @@ export default function EmployeeSchedules() {
                 {savedTurns.map((t, i) =>
                   t.days.map(day => {
                     const col = weekDays.indexOf(day) + 1;
+
+                    console.log('🎯 DIBUJANDO TURNO:', {
+                      day,
+                      indexInWeekDays: weekDays.indexOf(day),
+                      colCalculada: col,
+                      fechaColumna: weekDates[col - 1]?.toISOString().slice(0, 10),
+                    });
+
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
