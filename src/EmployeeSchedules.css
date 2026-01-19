@@ -1,3 +1,10 @@
+:root {
+  --control-font-size: 1rem;
+  --control-line-height: 1.2;
+  --control-padding-y: 0.9em;
+  --day-col-width: 130px;
+}
+
 /* ======================================================
    BASE
 ====================================================== */
@@ -18,8 +25,8 @@
 ====================================================== */
 
 .form-card {
-  padding: 20px;
-  margin-bottom: 5px;
+  padding: 40px;
+  padding-bottom: 10px;
 }
 
 .days-selector {
@@ -28,7 +35,7 @@
   gap: 22px;
   margin-bottom: 10px;
   padding: 14px 0;
-  background: #ccfbf1;
+  background: #9ae0db;
   border-radius: 14px;
 }
 
@@ -43,11 +50,11 @@
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 36px;
+  /*gap: 36px;*/
 }
 
 /* ======================================================
-   COLUMNA IZQUIERDA
+   COLUMNA DERECHA
 ====================================================== */
 
 .left-column {
@@ -71,31 +78,16 @@
   gap: 14px;
 }
 
-.badge-in {
-  background: #22c55e;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 14px;
-  font-weight: 800;
-  width: 48px;
-  text-align: center;
-}
-
-.badge-out {
-  background: #ef4444;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 14px;
-  font-weight: 800;
-  width: 48px;
-  text-align: center;
-}
-
 .time-input {
-  width: 160px;
+  width: 250px;
+  max-width: 200px;
   font-size: 18px;
   padding: 10px 12px;
   border-radius: 12px;
+  color: #000;
+  /* texto negro */
+  caret-color: #9ca3af;
+  /* cursor gris suave */
 }
 
 .type-selector {
@@ -105,28 +97,48 @@
 }
 
 .primary-button {
-  width: 220px;
+  width: 270px;
+  height: 50px;
   margin-top: 10px;
-  padding: 14px 0;
-  font-size: 18px;
+  font-size: var(--control-font-size);
+  line-height: var(--control-line-height);
+  padding: var(--control-padding-y) 0;
   font-weight: 700;
   border-radius: 14px;
   border: none;
   cursor: pointer;
 }
 
+.controls-buttons button,
+.complete-button {
+  width: 85%;
+  font-size: var(--control-font-size);
+  line-height: var(--control-line-height);
+  height: 50px;
+  padding: var(--control-padding-y) 0;
+  font-weight: 700;
+  border-radius: 14px;
+  color: #ffffff;
+  background: #14b8a6;
+  border: none;
+  cursor: pointer;
+}
+
+
 .add-turn {
-  background: #22c55e;
+  background: #14b8a6;
   color: white;
 }
 
 .add-vacation {
+  margin-top: 0;
+  color: #ffffff;
   background: #f97316;
   color: white;
 }
 
 /* ======================================================
-   COLUMNA DERECHA
+   COLUMNA IZDA
 ====================================================== */
 
 .right-column {
@@ -146,20 +158,16 @@
 
   width: 40%;
   height: 44px;
-
-  padding: 0 14px;
-
-  font-size: 15px;
-  font-weight: 500;
+  padding: 0.6em 0.9em;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
   color: #111827;
-
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
 
   cursor: pointer;
   outline: none;
-
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -195,21 +203,11 @@
   color: #6b7280;
 }
 
-.complete-button {
-  width: 100%;
-  margin-top: 18px;
-  padding: 14px 0;
-  font-size: 16px;
-  font-weight: 700;
-  border-radius: 14px;
-  background: #14b8a6;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
+
+
 
 /* ======================================================
-   CALENDARIO
+CALENDARIO
 ====================================================== */
 
 /* Panel blanco del grid */
@@ -217,17 +215,25 @@
   background: white;
   border-radius: 16px;
   border: 1px solid #e5e7eb;
-  overflow: hidden;
 }
 
 .calendar-wrapper {
   margin-top: 0;
+  padding-top: 0;
   padding: 10px;
   background: #ccfbf1;
   border-radius: 20px;
-  max-width: 1140px;
+  max-width: 1050px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.calendar-grid-wrapper {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
 }
 
 .calendar-header {
@@ -237,6 +243,7 @@
   gap: 12px;
   padding: 6px 8px;
   margin-bottom: 6px;
+  overflow-x: hidden;
 }
 
 .calendar-controls {
@@ -266,16 +273,17 @@
 }
 
 /* ======================================================
-   GRID
+GRID
 ====================================================== */
 
 .calendar-days-header {
-  display: grid;
-  grid-template-columns: 90px repeat(7, 140px);
-  height: 40px;
-  border-bottom: 5px solid #e5e7eb;
   background: white;
-  z-index: 2;
+  display: grid;
+  grid-template-columns: 60px repeat(7, var(--day-col-width));
+  min-width: calc(60px + 7 * var(--day-col-width));
+  height: 40px;
+  background: white;
+  border-bottom: 5px solid #e5e7eb;
 }
 
 .calendar-day {
@@ -285,18 +293,32 @@
 }
 
 .calendar-scroll {
+  margin-left: 60px;
   height: 360px;
+  display: flex;
+  align-items: flex-start;
   overflow-x: hidden;
   overflow-y: hidden;
 }
 
 .calendar-scroll.focused {
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.calendar-grid-panel {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
 }
 
 .calendar-grid {
+  background: #ffffff;
   display: grid;
-  grid-template-columns: 90px repeat(7, 140px);
+  flex: 1;
+  grid-template-columns: repeat(7, var(--day-col-width));
+  min-width: calc(7 * var(--day-col-width));
   font-size: 14px;
 }
 
@@ -305,31 +327,59 @@
 }
 
 .hour-label {
+  height: 48px;
   text-align: right;
-  padding-right: 8px;
+  padding-right: 6px;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  background: white;
 }
 
 .calendar-week-text {
   font-weight: 600;
 }
 
-.calendar-grid-wrapper {
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  overflow: hidden;
-}
-
 .calendar-cell {
   border-left: 1px solid #e5e7eb;
   border-right: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
+
+}
+
+/* HEADER HORIZONTAL */
+.calendar-header-x {
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.calendar-header-x.focused {
+  overflow-x: auto;
+  /* aparece SOLO con click */
+}
+
+/* CUERPO */
+.calendar-body {
+  display: flex;
+}
+
+/* HORAS — SOLO SCROLL VERTICAL */
+.calendar-hours-y {
+  position: absolute;
+  left: 0;
+  top: 40px;
+  /* debajo del header de días */
+  width: 60px;
+  height: 360px;
+  background: white;
+  z-index: 2;
+  pointer-events: none;
+  /* no interfieren */
+  overflow: hidden;
 }
 
 /* ======================================================
-   BLOQUES
+BLOQUES
 ====================================================== */
 
 .turn-saved {
@@ -359,7 +409,9 @@
   border-radius: 12px;
   padding: 8px;
   margin: 2px;
-  z-index: 3;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -370,7 +422,238 @@
   border: 2px solid #4b5563;
 }
 
-.time-input {
-  color: #000;            /* texto negro */
-  caret-color: #9ca3af;   /* cursor gris suave */
+/* ======================================================
+NUEVO LAYOUT PANEL SUPERIOR
+====================================================== */
+
+/* Contenedor principal del formulario */
+.form-single-column {
+  max-width: 900px;
+  margin: 0 auto;
+  /* 👈 CENTRADO */
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Fila con dos columnas (fechas / horas) */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* 👈 DOS COLUMNAS */
+  gap: 40px;
+  justify-content: center;
+}
+
+/* Columna de fechas */
+.form-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+/* Columna de horas */
+.form-times {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Botones */
+.form-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  /* 👈 CENTRADO */
+}
+
+/* Fila de botones */
+.form-buttons-row {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  Height: 100%;
+  justify-content: center;
+}
+
+
+.delete-block {
+  background: #ef4444;
+  color: white;
+}
+
+.delete-block:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ======================================================
+PANEL INTERMEDIO (CONTROLES)
+====================================================== */
+
+/* Quitamos margen inferior de la barra de días */
+.days-selector {
+  margin-bottom: 0;
+  /* 👈 pegado al panel */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Panel principal debajo de los días */
+.controls-panel {
+  background: #dbf4ef;
+  border-radius: 0 0 16px 16px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  /* 👈 unido visualmente */
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Subpanel de fechas (color distinto) */
+.controls-dates-panel {
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Controles IN / OUT */
+.controls-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Fila de botones */
+.controls-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Afinado visual */
+.controls-panel .caption {
+  margin-bottom: 4px;
+}
+
+/* ======================================================
+LAYOUT UNIFICADO
+====================================================== */
+
+.layout-width {
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 12px;
+  padding-right: 12px;
+  box-sizing: border-box;
+}
+
+/* ======================================================
+HEADER EMPRESA / EMPLEADO
+====================================================== */
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.employee-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #14b8a6;
+  flex-shrink: 0;
+}
+
+.page-title {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.company-name {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.employee-texts {
+  display: flex;
+  flex-direction: row;
+  /* ← CLAVE */
+  align-items: center;
+  gap: 16px;
+  /* espacio entre empresa y empleado */
+}
+
+.employee-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.form-inline-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.form-inline-buttons .primary-button {
+  flex: 1;
+}
+
+/* =========================
+   MODALES (POPUPS)
+========================= */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+
+  background: rgba(0, 0, 0, 0.4);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 9999; /* 🔥 por encima de TODO */
+}
+
+.modal {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  min-width: 320px;
+  max-width: 400px;
+
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
