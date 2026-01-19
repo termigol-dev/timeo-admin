@@ -317,8 +317,8 @@ GRID
   background: #ffffff;
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(7, var(--day-col-width));
-  min-width: calc(7 * var(--day-col-width));
+  grid-template-columns: 60px repeat(7, var(--day-col-width));
+  min-width: calc(60px + 7 * var(--day-col-width));
   font-size: 14px;
 }
 

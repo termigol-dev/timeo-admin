@@ -316,6 +316,15 @@ export default function EmployeeSchedules() {
             const schedule = await scheduleRes.json();
             console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
             console.log('🧪 SHIFTS RAW BACKEND:', schedule.shifts);
+            console.log(
+              '🧪 WEEKDAYS BACKEND (CRUDO):',
+              schedule.shifts.map(s => ({
+                id: s.id,
+                weekday: s.weekday,
+                startTime: s.startTime,
+                endTime: s.endTime,
+              }))
+            );
 
             // TURNOS
             if (schedule?.shifts?.length) {
@@ -646,7 +655,7 @@ export default function EmployeeSchedules() {
       );
 
       // 🔚 CERRAR POPUPS
-      setShowDeleteMode(false);
+      //setShowDeleteMode(false);
       setShiftToDelete(null);
 
     } catch (err) {
