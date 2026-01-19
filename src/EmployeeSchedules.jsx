@@ -148,9 +148,13 @@ export default function EmployeeSchedules() {
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
   const [vacations, setVacations] = useState([]);
+
   // 🗑️ BORRADO DE VACACIONES (UX)
   const [vacationToDelete, setVacationToDelete] = useState(null);
-  // { date: '2026-01-15', col: number }
+  // 🗑️ BORRADO DE TURNOS (UX)
+  const [shiftToDelete, setShiftToDelete] = useState(null);
+  // { shiftId, day, startTime, endTime }
+  const [showShiftDeleteConfirm, setShowShiftDeleteConfirm] = useState(false);
 
   const [showVacationConfirm, setShowVacationConfirm] = useState(false);
   const [showVacationMode, setShowVacationMode] = useState(false);
@@ -316,6 +320,7 @@ export default function EmployeeSchedules() {
             // TURNOS
             if (schedule?.shifts?.length) {
               const loadedTurns = schedule.shifts.map(shift => ({
+                id: shift.id,
                 days: [weekDays[shift.weekday - 1]],
                 startTime: shift.startTime,
                 endTime: shift.endTime,
@@ -338,7 +343,7 @@ export default function EmployeeSchedules() {
                   source: 'saved',
                 }));
 
-              console.log('z🟣 VACACIONES CARGADAS:', loadedVacations);
+              //console.log('z🟣 VACACIONES CARGADAS:', loadedVacations);
               setVacations(loadedVacations);
             }
           }
@@ -542,11 +547,71 @@ export default function EmployeeSchedules() {
       });
     }
 
-    console.log('🟠 VACATION DAYS ADDED:', days);
+    //console.log('🟠 VACATION DAYS ADDED:', days);
 
     setVacations(prev => [...prev, ...days]);
     setDateFrom('');
     setDateTo('');
+  }
+
+  async function handleConfirmDeleteShift() {
+    if (!shiftToDelete) return;
+
+    const token = localStorage.getItem('token');
+
+    console.log('🟡 BORRANDO TURNO EN BACKEND:', shiftToDelete);
+
+    try {
+      console.log('🟡 BORRANDO TURNO EN BACKEND:', {
+        dateFrom: shiftToDelete.date,
+        startTime: shiftToDelete.startTime,
+        endTime: shiftToDelete.endTime,
+      });
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            source: 'PANEL',
+            mode: 'ONLY_THIS_BLOCK',
+            dateFrom: shiftToDelete.date,
+            startTime: shiftToDelete.startTime,
+            endTime: shiftToDelete.endTime,
+          }),
+        }
+      );
+
+      const text = await res.text();
+      console.log('⬅️ RESPUESTA DELETE SHIFT:', res.status, text || '(empty)');
+
+      if (!res.ok) {
+        throw new Error(text || 'Error borrando turno');
+      }
+
+      // 🧹 PASO 3 — QUITAR BLOQUE DEL ESTADO LOCAL (VISUAL)
+      setTurns(prev =>
+        prev.filter(
+          t =>
+            !(
+              t.days.includes(shiftToDelete.day) &&
+              t.startTime === shiftToDelete.startTime &&
+              t.endTime === shiftToDelete.endTime
+            )
+        )
+      );
+
+      // 🔚 CERRAR POPUPS
+      setShowDeleteMode(false);
+      setShiftToDelete(null);
+    } catch (err) {
+      console.error('❌ ERROR BORRANDO TURNO', err);
+      alert(err.message || 'Error borrando turno');
+    }
   }
 
   async function handleConfirmDeleteVacation() {
@@ -681,11 +746,11 @@ export default function EmployeeSchedules() {
       let id = scheduleId;
 
       // 1️⃣ Crear borrador si no existe
-      if (!id) {
+      /*if (!id) {
         console.log('🟡 creando draft schedule...');
         id = await createDraftSchedule();
         console.log('🟢 draft creado', id);
-      }
+      }*/
 
       // =========================
       // 2️⃣ TURNOS
@@ -701,10 +766,10 @@ export default function EmployeeSchedules() {
       // =========================
 
 
-      console.log('🟠 GUARDANDO VACACIONES (draft):', draftVacations);
+      //console.log('🟠 GUARDANDO VACACIONES (draft):', draftVacations);
 
       for (const v of draftVacations) {
-        console.log('➡️ POST VACATION DAY:', v.date);
+        //console.log('➡️ POST VACATION DAY:', v.date);
 
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/vacations`,
@@ -774,7 +839,7 @@ export default function EmployeeSchedules() {
   // VACACIONES VISUALES (por día exacto)
   // =========================
   const weekVacationBlocks = [];
-  console.log('📅 SEMANA EN PANTALLA:', weekDates.map(d => d.toISOString().slice(0, 10)));
+  //console.log('📅 SEMANA EN PANTALLA:', weekDates.map(d => d.toISOString().slice(0, 10)));
 
   vacations.forEach((v, index) => {
     const day = new Date(v.date + 'T00:00:00');
@@ -794,7 +859,7 @@ export default function EmployeeSchedules() {
       );
 
       if (day >= dayStart && day <= dayEnd) {
-        console.log('   ✅ COINCIDE → se dibuja en columna', colIndex + 1);
+        //console.log('   ✅ COINCIDE → se dibuja en columna', colIndex + 1);
         weekVacationBlocks.push({
           date: v.date,
           col: colIndex + 1,
@@ -803,7 +868,7 @@ export default function EmployeeSchedules() {
         });
       }
     });
-    console.log('🟢 BLOQUES DE VACACIONES GENERADOS:', weekVacationBlocks);
+    //console.log('🟢 BLOQUES DE VACACIONES GENERADOS:', weekVacationBlocks);
   });
 
   /* ======================================================
@@ -1156,20 +1221,20 @@ export default function EmployeeSchedules() {
                     onClick={e => {
                       e.stopPropagation();
 
-                      console.log('🟥 CLICK EN BLOQUE DE VACACIONES', v);
-                      console.log('📅 Fecha clicada (REAL):', v.date);
+                      //console.log('🟥 CLICK EN BLOQUE DE VACACIONES', v);
+                      //console.log('📅 Fecha clicada (REAL):', v.date);
 
                       setVacationToDelete({ date: v.date });   // 🔑 USAMOS LA FECHA REAL
                       setShowVacationConfirm(true);            // 👉 POPUP 1
-                      console.log('🟣 showVacationConfirm = true');
+                      //console.log('🟣 showVacationConfirm = true');
                     }}
                   >
                     Vacaciones
                   </div>
                 ))}
 
-                {/* TURNOS GUARDADOS */}
-                {savedTurns.map((t, i) =>
+                {/* TURNOS GUARDADOS (REALES, BORRABLES) */}
+                {realSavedTurns.map((t, i) =>
                   t.days.map(day => {
                     const col = weekDays.indexOf(day) + 1;
                     const start = timeToRow(t.startTime);
@@ -1178,11 +1243,36 @@ export default function EmployeeSchedules() {
 
                     return (
                       <div
-                        key={`saved-${i}-${day}`}
+                        key={`saved-${t.id}-${day}`}
                         className="turn-saved"
                         style={{
                           gridColumn: col,
                           gridRow: `${start + 1} / ${end + 1}`,
+                        }}
+
+                        // 🔑 EVITAR QUE EL GRID ROBE EL FOCO
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                        }}
+
+                        onClick={e => {
+                          e.stopPropagation();
+
+                          console.log('🟥 CLICK EN TURNO GUARDADO REAL', {
+                            id: t.id,
+                            day,
+                            startTime: t.startTime,
+                            endTime: t.endTime,
+                          });
+
+                          setShiftToDelete({
+                            day,
+                            date: weekDates[col - 1].toISOString().slice(0, 10), // día exacto clicado
+                            startTime: t.startTime,
+                            endTime: t.endTime,
+                          });
+
+                          setShowShiftDeleteConfirm(true);
                         }}
                       >
                         {t.startTime} – {t.endTime}
@@ -1322,6 +1412,42 @@ export default function EmployeeSchedules() {
                 onClick={handleConfirmDeleteVacation}
               >
                 Confirmar borrado
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 🗑️ POP-UP — CONFIRMAR BORRADO TURNO */}
+      {showShiftDeleteConfirm && shiftToDelete && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Borrar turno</h3>
+
+            <p>
+              ¿Quieres borrar el turno del día{' '}
+              <strong>{shiftToDelete.day}</strong>{' '}
+              de{' '}
+              <strong>
+                {shiftToDelete.startTime} – {shiftToDelete.endTime}
+              </strong>
+              ?
+            </p>
+
+            <div className="modal-buttons">
+              <button
+                onClick={() => {
+                  setShowShiftDeleteConfirm(false);
+                  setShiftToDelete(null);
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                className="delete-block"
+                onClick={handleConfirmDeleteShift}
+              >
+                Borrar turno
               </button>
             </div>
           </div>
