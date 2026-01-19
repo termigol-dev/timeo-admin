@@ -155,6 +155,7 @@ export default function EmployeeSchedules() {
   const [shiftToDelete, setShiftToDelete] = useState(null);
   // { shiftId, day, startTime, endTime }
   const [showShiftDeleteConfirm, setShowShiftDeleteConfirm] = useState(false);
+  const [deleteShiftMode, setDeleteShiftMode] = useState('ONLY_THIS_BLOCK');
 
   const [showVacationConfirm, setShowVacationConfirm] = useState(false);
   const [showVacationMode, setShowVacationMode] = useState(false);
@@ -570,8 +571,19 @@ export default function EmployeeSchedules() {
     const token = localStorage.getItem('token');
 
     // 🔑 ESTE BORRADO VIENE DEL CALENDARIO → SIEMPRE BORRAMOS SOLO ESTE TURNO
-    const mode = 'ONLY_THIS_DAY';
+    // 🔑 MODO ELEGIDO EN EL POPUP
+    const mode = deleteShiftMode;
+    if (!mode) {
+      alert('Debes seleccionar una opción de borrado');
+      return;
+    }
+    // 🔒 NUNCA PERMITIR BORRAR HACIA ATRÁS EN EL TIEMPO
+    const today = new Date().toISOString().slice(0, 10);
 
+    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_DAY') {
+      alert('No se pueden borrar turnos del pasado en bloque');
+      return;
+    }
     console.log('🟡 BORRANDO TURNO (DESDE CALENDARIO):', {
       mode,
       dateFrom: shiftToDelete.date,
@@ -612,6 +624,7 @@ export default function EmployeeSchedules() {
       // 🔚 CERRAR POPUP SIEMPRE
       setShowShiftDeleteConfirm(false);
       setShiftToDelete(null);
+      setDeleteShiftMode('ONLY_THIS_BLOCK');   // o ONLY_THIS_DAY según nombre final
 
     } catch (err) {
       console.error('❌ ERROR BORRANDO TURNO', err);
@@ -620,6 +633,7 @@ export default function EmployeeSchedules() {
       // 🔚 CERRAR POPUP AUNQUE HAYA ERROR
       setShowShiftDeleteConfirm(false);
       setShiftToDelete(null);
+      setDeleteShiftMode('ONLY_THIS_BLOCK');   // o ONLY_THIS_DAY según nombre final
     }
   }
 
@@ -1342,7 +1356,7 @@ export default function EmployeeSchedules() {
                             startTime: t.startTime,
                             endTime: t.endTime,
                           });
-
+                          setDeleteShiftMode('ONLY_THIS_BLOCK');
                           setShowShiftDeleteConfirm(true);
                         }}
                       >
@@ -1495,16 +1509,40 @@ export default function EmployeeSchedules() {
             <h3>Borrar turno</h3>
 
             <p>
-              ¿Quieres borrar el turno del día{' '}
+              Turno del día{' '}
               <strong>{shiftToDelete.day}</strong>{' '}
               de{' '}
               <strong>
                 {shiftToDelete.startTime} – {shiftToDelete.endTime}
               </strong>
-              ?
             </p>
 
-            <div className="modal-buttons">
+            <div style={{ marginTop: '16px' }}>
+              <label className="modal-label" style={{ display: 'block', marginBottom: '12px' }}>
+                <input
+                  className="modal-input"
+                  type="radio"
+                  name="deleteShiftMode"
+                  value="ONLY_THIS_BLOCK"
+                  checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
+                  onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
+                />
+                Borrar solo este turno
+              </label>
+
+              <label className="modal-label" style={{ display: 'block' }}>
+                <input
+                  className="modal-input"
+                  type="radio"
+                  name="deleteShiftMode"
+                  value="FROM_THIS_DAY_ON"
+                  checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
+                  onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
+                />
+                Borrar todos los turnos desde este día en adelante
+              </label>
+            </div>
+            <div className="modal-buttons" style={{ marginTop: '16px' }}>
               <button
                 onClick={() => {
                   setShowShiftDeleteConfirm(false);
@@ -1518,7 +1556,7 @@ export default function EmployeeSchedules() {
                 className="delete-block"
                 onClick={handleConfirmDeleteShift}
               >
-                Borrar turno
+                Confirmar borrado
               </button>
             </div>
           </div>

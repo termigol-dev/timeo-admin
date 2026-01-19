@@ -668,3 +668,18 @@ HEADER EMPRESA / EMPLEADO
   justify-content: flex-end;
   gap: 12px;
 }
+
+
+.modal-input[type="radio"] {
+  appearance: auto;
+  -webkit-appearance: radio;
+  opacity: 1;
+  position: static;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.modal-label {
+  cursor: pointer;
+  font-size: 14px;
+}
