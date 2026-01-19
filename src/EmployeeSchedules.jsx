@@ -555,19 +555,37 @@ export default function EmployeeSchedules() {
   }
 
   async function handleConfirmDeleteShift() {
-    if (!shiftToDelete) return;
+    if (!shiftToDelete || !scheduleId) return;
 
     const token = localStorage.getItem('token');
 
-    console.log('🟡 BORRANDO TURNO EN BACKEND:', shiftToDelete);
+    // 🔑 Decidir modo según panel (si hay fecha fin o no)
+    let mode = null;
+
+    if (dateFrom && !dateTo) {
+      // Caso A1 → desde este día en adelante
+      mode = 'FROM_THIS_DAY_ON';
+    } else if (dateFrom && dateTo) {
+      // Caso A2 → rango de fechas
+      mode = 'RANGE';
+    } else if (!dateFrom && !dateTo && (startTime || endTime)) {
+      // Caso A3 → solo horas desde hoy en adelante
+      mode = 'FROM_THIS_DAY_ON';
+    } else {
+      alert('Configuración de borrado inválida');
+      return;
+    }
+
+    console.log('🟡 BORRANDO TURNOS EN BACKEND:', {
+      source: 'PANEL',
+      mode,
+      dateFrom: dateFrom || shiftToDelete.date,
+      dateTo,
+      startTime: shiftToDelete.startTime,
+      endTime: shiftToDelete.endTime,
+    });
 
     try {
-      console.log('🟡 BORRANDO TURNO EN BACKEND:', {
-        dateFrom: shiftToDelete.date,
-        startTime: shiftToDelete.startTime,
-        endTime: shiftToDelete.endTime,
-      });
-
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
         {
@@ -578,8 +596,9 @@ export default function EmployeeSchedules() {
           },
           body: JSON.stringify({
             source: 'PANEL',
-            mode: 'ONLY_THIS_BLOCK',
-            dateFrom: shiftToDelete.date,
+            mode,
+            dateFrom: dateFrom || shiftToDelete.date,
+            dateTo: dateTo || null,
             startTime: shiftToDelete.startTime,
             endTime: shiftToDelete.endTime,
           }),
@@ -590,24 +609,45 @@ export default function EmployeeSchedules() {
       console.log('⬅️ RESPUESTA DELETE SHIFT:', res.status, text || '(empty)');
 
       if (!res.ok) {
-        throw new Error(text || 'Error borrando turno');
+        throw new Error(text || 'Error borrando turnos');
       }
 
-      // 🧹 PASO 3 — QUITAR BLOQUE DEL ESTADO LOCAL (VISUAL)
+      // 🧹 ACTUALIZAR ESTADO LOCAL (QUITAR TODOS LOS BLOQUES AFECTADOS)
       setTurns(prev =>
-        prev.filter(
-          t =>
-            !(
-              t.days.includes(shiftToDelete.day) &&
-              t.startTime === shiftToDelete.startTime &&
-              t.endTime === shiftToDelete.endTime
-            )
-        )
+        prev.filter(t => {
+          // mismo día de la semana
+          if (!t.days.includes(shiftToDelete.day)) return true;
+
+          // comprobar solape horario
+          const toMin = time => {
+            const [h, m] = time.split(':').map(Number);
+            return h * 60 + m;
+          };
+
+          const tStart = toMin(t.startTime);
+          const tEnd =
+            toMin(t.endTime) <= tStart
+              ? toMin(t.endTime) + 1440
+              : toMin(t.endTime);
+
+          const delStart = toMin(shiftToDelete.startTime);
+          const delEnd =
+            toMin(shiftToDelete.endTime) <= delStart
+              ? toMin(shiftToDelete.endTime) + 1440
+              : toMin(shiftToDelete.endTime);
+
+          const overlaps =
+            tStart < delEnd && tEnd > delStart;
+
+          // si solapa → se elimina
+          return !overlaps;
+        })
       );
 
       // 🔚 CERRAR POPUPS
       setShowDeleteMode(false);
       setShiftToDelete(null);
+
     } catch (err) {
       console.error('❌ ERROR BORRANDO TURNO', err);
       alert(err.message || 'Error borrando turno');
@@ -1234,7 +1274,7 @@ export default function EmployeeSchedules() {
                 ))}
 
                 {/* TURNOS GUARDADOS (REALES, BORRABLES) */}
-                {realSavedTurns.map((t, i) =>
+                {savedTurns.map((t, i) =>
                   t.days.map(day => {
                     const col = weekDays.indexOf(day) + 1;
                     const start = timeToRow(t.startTime);
