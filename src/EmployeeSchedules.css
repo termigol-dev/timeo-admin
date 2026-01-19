@@ -4,7 +4,9 @@
   --control-padding-y: 0.9em;
   --day-col-width: 130px;
 }
-
+:root {
+  --hours-col-width: 90px;   
+}
 /* ======================================================
    BASE
 ====================================================== */
@@ -279,11 +281,20 @@ GRID
 .calendar-days-header {
   background: white;
   display: grid;
-  grid-template-columns: 60px repeat(7, var(--day-col-width));
+  grid-template-columns: 125px repeat(7, var(--day-col-width));
   min-width: calc(60px + 7 * var(--day-col-width));
   height: 40px;
-  background: white;
   border-bottom: 5px solid #e5e7eb;
+
+  align-items: center;       /* centrado vertical */
+  justify-content: center;   /* centrado horizontal */
+
+  font-weight: 700;          /* negrita */
+  font-size: 14px;
+  color: #111827;
+
+  text-transform: capitalize; /* primera letra en mayúscula */
+
 }
 
 .calendar-day {
@@ -317,8 +328,8 @@ GRID
   background: #ffffff;
   display: grid;
   flex: 1;
-  grid-template-columns: 60px repeat(7, var(--day-col-width));
-  min-width: calc(60px + 7 * var(--day-col-width));
+  grid-template-columns: repeat(7, var(--day-col-width));
+  min-width: calc(7 * var(--day-col-width));
   font-size: 14px;
 }
 

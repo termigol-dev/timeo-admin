@@ -622,6 +622,9 @@ export default function EmployeeSchedules() {
         throw new Error(text || 'Error borrando turnos');
       }
 
+      // 🔄 RECARGAR HORARIO REAL DESDE BACKEND
+      await reloadActiveSchedule();
+
       // 🧹 ACTUALIZAR ESTADO LOCAL (QUITAR TODOS LOS BLOQUES AFECTADOS)
       setTurns(prev =>
         prev.filter(t => {
@@ -874,6 +877,56 @@ export default function EmployeeSchedules() {
       alert(err.message || 'Error guardando horario');
     } finally {
       setSaving(false);
+    }
+  }
+
+  // 🔄 RECARGAR HORARIO REAL DESDE BACKEND
+  async function reloadActiveSchedule() {
+    const token = localStorage.getItem('token');
+
+    const scheduleRes = await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!scheduleRes.ok) return;
+
+    const schedule = await scheduleRes.json();
+
+    console.log('🔄 RECARGANDO HORARIO DESDE BACKEND:', schedule);
+
+    // TURNOS
+    if (schedule?.shifts?.length) {
+      const loadedTurns = schedule.shifts.map(shift => ({
+        days: [weekDays[shift.weekday - 1]],
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        type: 'regular',
+        source: 'saved',
+      }));
+
+      setTurns(loadedTurns);
+      setScheduleId(schedule.id);
+    } else {
+      setTurns([]);
+    }
+
+    // VACACIONES
+    if (schedule?.exceptions?.length) {
+      const loadedVacations = schedule.exceptions
+        .filter(e => e.type === 'VACATION')
+        .map(v => ({
+          date: v.date.slice(0, 10),
+          source: 'saved',
+        }));
+
+      setVacations(loadedVacations);
+    } else {
+      setVacations([]);
     }
   }
 
@@ -1211,9 +1264,14 @@ export default function EmployeeSchedules() {
             onMouseDown={() => setCalendarFocused(true)}
           >
             <div className="calendar-days-header">
-              {weekDays.map(d => (
-                <div key={d} className="calendar-day">
-                  {d}
+
+              {/* 🔹 CELDA VACÍA PARA ALINEAR CON LA COLUMNA DE HORAS */}
+              <div />
+
+              {/* 🔹 CABECERAS DE LOS 7 DÍAS */}
+              {weekDates.map((date, i) => (
+                <div key={i} className="calendar-day-header">
+                  {date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
                 </div>
               ))}
             </div>
