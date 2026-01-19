@@ -569,28 +569,12 @@ export default function EmployeeSchedules() {
 
     const token = localStorage.getItem('token');
 
-    // 🔑 Decidir modo según panel (si hay fecha fin o no)
-    let mode = null;
+    // 🔑 ESTE BORRADO VIENE DEL CALENDARIO → SIEMPRE BORRAMOS SOLO ESTE TURNO
+    const mode = 'ONLY_THIS_DAY';
 
-    if (dateFrom && !dateTo) {
-      // Caso A1 → desde este día en adelante
-      mode = 'FROM_THIS_DAY_ON';
-    } else if (dateFrom && dateTo) {
-      // Caso A2 → rango de fechas
-      mode = 'RANGE';
-    } else if (!dateFrom && !dateTo && (startTime || endTime)) {
-      // Caso A3 → solo horas desde hoy en adelante
-      mode = 'FROM_THIS_DAY_ON';
-    } else {
-      alert('Configuración de borrado inválida');
-      return;
-    }
-
-    console.log('🟡 BORRANDO TURNOS EN BACKEND:', {
-      source: 'PANEL',
+    console.log('🟡 BORRANDO TURNO (DESDE CALENDARIO):', {
       mode,
-      dateFrom: dateFrom || shiftToDelete.date,
-      dateTo,
+      dateFrom: shiftToDelete.date,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
     });
@@ -605,10 +589,10 @@ export default function EmployeeSchedules() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            source: 'PANEL',
-            mode,
-            dateFrom: dateFrom || shiftToDelete.date,
-            dateTo: dateTo || null,
+            source: 'CALENDAR',
+            mode,                               // 👈 SOLO ESTE DÍA
+            dateFrom: shiftToDelete.date,       // 👈 FECHA EXACTA CLICADA
+            dateTo: null,
             startTime: shiftToDelete.startTime,
             endTime: shiftToDelete.endTime,
           }),
@@ -619,51 +603,23 @@ export default function EmployeeSchedules() {
       console.log('⬅️ RESPUESTA DELETE SHIFT:', res.status, text || '(empty)');
 
       if (!res.ok) {
-        throw new Error(text || 'Error borrando turnos');
+        throw new Error(text || 'Error borrando turno');
       }
 
-      // 🔄 RECARGAR HORARIO REAL DESDE BACKEND
+      // 🔄 RECARGAR HORARIO REAL DESDE BACKEND (FUENTE DE VERDAD)
       await reloadActiveSchedule();
 
-      // 🧹 ACTUALIZAR ESTADO LOCAL (QUITAR TODOS LOS BLOQUES AFECTADOS)
-      setTurns(prev =>
-        prev.filter(t => {
-          // mismo día de la semana
-          if (!t.days.includes(shiftToDelete.day)) return true;
-
-          // comprobar solape horario
-          const toMin = time => {
-            const [h, m] = time.split(':').map(Number);
-            return h * 60 + m;
-          };
-
-          const tStart = toMin(t.startTime);
-          const tEnd =
-            toMin(t.endTime) <= tStart
-              ? toMin(t.endTime) + 1440
-              : toMin(t.endTime);
-
-          const delStart = toMin(shiftToDelete.startTime);
-          const delEnd =
-            toMin(shiftToDelete.endTime) <= delStart
-              ? toMin(shiftToDelete.endTime) + 1440
-              : toMin(shiftToDelete.endTime);
-
-          const overlaps =
-            tStart < delEnd && tEnd > delStart;
-
-          // si solapa → se elimina
-          return !overlaps;
-        })
-      );
-
-      // 🔚 CERRAR POPUPS
-      //setShowDeleteMode(false);
+      // 🔚 CERRAR POPUP SIEMPRE
+      setShowShiftDeleteConfirm(false);
       setShiftToDelete(null);
 
     } catch (err) {
       console.error('❌ ERROR BORRANDO TURNO', err);
       alert(err.message || 'Error borrando turno');
+
+      // 🔚 CERRAR POPUP AUNQUE HAYA ERROR
+      setShowShiftDeleteConfirm(false);
+      setShiftToDelete(null);
     }
   }
 
