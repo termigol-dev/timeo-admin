@@ -260,6 +260,8 @@ export default function EmployeeSchedules() {
           }
         );
 
+        console.log('🏢 COMPANY STATUS:', companyRes.status); // 👈 LOG 1
+
         if (!companyRes.ok) {
           const text = await companyRes.text();
           console.error('Error cargando empresa:', text);
@@ -282,6 +284,8 @@ export default function EmployeeSchedules() {
             },
           }
         );
+
+        console.log('👥 EMPLOYEES STATUS:', employeesRes.status); // 👈 LOG 2
 
         if (!employeesRes.ok) {
           const text = await employeesRes.text();
@@ -313,8 +317,18 @@ export default function EmployeeSchedules() {
             }
           );
 
+          console.log('📅 SCHEDULE STATUS:', scheduleRes.status); // 👈 LOG 3
+
           if (scheduleRes.ok) {
-            const schedule = await scheduleRes.json();
+            const schedule = await safeJson(scheduleRes);   // 👈 AQUÍ ESTÁ LA CLAVE
+
+            if (!schedule) {
+              console.log('🟡 NO HAY HORARIO ACTIVO (respuesta vacía)');
+              setTurns([]);
+              setVacations([]);
+              return;
+            }
+
             console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
             console.log('🧪 SHIFTS RAW BACKEND:', schedule.shifts);
             console.log(
@@ -343,8 +357,6 @@ export default function EmployeeSchedules() {
               setScheduleId(schedule.id);
             }
 
-
-
             // 🟠 VACACIONES (guardadas)
             if (schedule?.exceptions?.length) {
               const loadedVacations = schedule.exceptions
@@ -354,7 +366,6 @@ export default function EmployeeSchedules() {
                   source: 'saved',
                 }));
 
-              //console.log('z🟣 VACACIONES CARGADAS:', loadedVacations);
               setVacations(loadedVacations);
             }
           }
@@ -726,8 +737,26 @@ export default function EmployeeSchedules() {
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
 
+    // 🔑 FECHAS QUE VIENEN DEL PANEL SUPERIOR
+    // dateFrom y dateTo ya existen en tu estado
+    const fromDate = dateFrom;                // obligatorio
+    const toDate = dateTo || null;             // puede ser null
+
+    if (!fromDate) {
+      throw new Error('No hay fecha de inicio (dateFrom) para el turno');
+    }
+
     for (const day of turn.days) {
-      console.log('➡️ POST DAY:', day);
+      const weekdayNumber = weekDays.indexOf(day) + 1;
+
+      console.log('➡️ POST TURN:', {
+        day,
+        weekday: weekdayNumber,
+        startTime: turn.startTime,
+        endTime: turn.endTime,
+        validFrom: fromDate,
+        validTo: toDate,
+      });
 
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
@@ -738,20 +767,25 @@ export default function EmployeeSchedules() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            weekday: weekDays.indexOf(day) + 1,
+            weekday: weekdayNumber,
             startTime: turn.startTime,
             endTime: turn.endTime,
+            validFrom: fromDate,   // 👈 CLAVE
+            validTo: toDate,       // 👈 CLAVE (null o fecha)
           }),
         }
       );
 
       if (!res.ok) {
         const text = await res.text();
+        console.error('❌ ERROR BACKEND ADD SHIFT:', text);
         throw new Error(`Error guardando turno ${day}: ${text}`);
       }
+
+      const created = await res.json();
+      console.log('🟢 TURNO GUARDADO OK:', created);
     }
   }
-
   async function completeSchedule() {
     const token = localStorage.getItem('token');
 
@@ -760,6 +794,39 @@ export default function EmployeeSchedules() {
       turns: turns.length,
       vacations: vacations.length,
     });
+
+    let activeScheduleId = scheduleId;
+
+    // 🔑 SI NO HAY HORARIO ACTIVO → CREAR BORRADOR PRIMERO
+    if (!activeScheduleId) {
+      console.log('🆕 NO HAY SCHEDULE → CREANDO DRAFT');
+
+      const token = localStorage.getItem('token');
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('❌ ERROR creando schedule draft:', text);
+        alert('Error creando horario');
+        return;
+      }
+
+      const newSchedule = await res.json();
+
+      console.log('🟢 SCHEDULE DRAFT CREADO:', newSchedule.id);
+
+      activeScheduleId = newSchedule.id;
+      setScheduleId(newSchedule.id);
+    }
 
     const draftTurnsSafe = Array.isArray(draftTurns) ? draftTurns : [];
     const draftVacations = vacations.filter(v => v.source === 'draft');
@@ -781,7 +848,7 @@ export default function EmployeeSchedules() {
       console.log('🟡 guardando turnos:', draftTurnsSafe.length);
 
       for (const turn of draftTurnsSafe) {
-        await saveTurnToBackend(id, turn);
+        await saveTurnToBackend(activeScheduleId, turn);
       }
 
       // =========================
