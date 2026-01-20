@@ -580,7 +580,7 @@ export default function EmployeeSchedules() {
     // 🔒 NUNCA PERMITIR BORRAR HACIA ATRÁS EN EL TIEMPO
     const today = new Date().toISOString().slice(0, 10);
 
-    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_DAY') {
+    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
       alert('No se pueden borrar turnos del pasado en bloque');
       return;
     }
@@ -624,7 +624,7 @@ export default function EmployeeSchedules() {
       // 🔚 CERRAR POPUP SIEMPRE
       setShowShiftDeleteConfirm(false);
       setShiftToDelete(null);
-      setDeleteShiftMode('ONLY_THIS_BLOCK');   // o ONLY_THIS_DAY según nombre final
+      setDeleteShiftMode('ONLY_THIS_BLOCK');
 
     } catch (err) {
       console.error('❌ ERROR BORRANDO TURNO', err);
@@ -633,7 +633,7 @@ export default function EmployeeSchedules() {
       // 🔚 CERRAR POPUP AUNQUE HAYA ERROR
       setShowShiftDeleteConfirm(false);
       setShiftToDelete(null);
-      setDeleteShiftMode('ONLY_THIS_BLOCK');   // o ONLY_THIS_DAY según nombre final
+      setDeleteShiftMode('ONLY_THIS_BLOCK');
     }
   }
 
@@ -1517,13 +1517,11 @@ export default function EmployeeSchedules() {
               </strong>
             </p>
 
-            <div style={{ marginTop: '16px' }}>
-              <label className="modal-label" style={{ display: 'block', marginBottom: '12px' }}>
+            <div style={{ marginTop: '12px' }}>
+              <label className="modal-label" style={{ display: 'block', marginBottom: '8px' }}>
                 <input
-                  className="modal-input"
                   type="radio"
                   name="deleteShiftMode"
-                  value="ONLY_THIS_BLOCK"
                   checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
                   onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
                 />
@@ -1532,17 +1530,16 @@ export default function EmployeeSchedules() {
 
               <label className="modal-label" style={{ display: 'block' }}>
                 <input
-                  className="modal-input"
                   type="radio"
                   name="deleteShiftMode"
-                  value="FROM_THIS_DAY_ON"
                   checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
                   onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
                 />
                 Borrar todos los turnos desde este día en adelante
               </label>
             </div>
-            <div className="modal-buttons" style={{ marginTop: '16px' }}>
+
+            <div className="modal-buttons">
               <button
                 onClick={() => {
                   setShowShiftDeleteConfirm(false);

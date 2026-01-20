@@ -49,11 +49,11 @@
   gap: 6px;
 }
 
-.form-grid {
+/*.form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  /*gap: 36px;*/
-}
+  gap: 36px;
+}*/
 
 /* ======================================================
    COLUMNA DERECHA
@@ -92,11 +92,11 @@
   /* cursor gris suave */
 }
 
-.type-selector {
+/*.type-selector {
   display: flex;
   gap: 18px;
   margin-top: 6px;
-}
+}*/
 
 .primary-button {
   width: 270px;
@@ -111,7 +111,7 @@
   cursor: pointer;
 }
 
-.controls-buttons button,
+/*.controls-buttons button,*/
 .complete-button {
   width: 85%;
   font-size: var(--control-font-size);
@@ -212,12 +212,12 @@
 CALENDARIO
 ====================================================== */
 
-/* Panel blanco del grid */
+/* Panel blanco del grid 
 .calendar-grid-panel {
   background: white;
   border-radius: 16px;
   border: 1px solid #e5e7eb;
-}
+}*/
 
 .calendar-wrapper {
   margin-top: 0;
@@ -656,9 +656,11 @@ HEADER EMPRESA / EMPLEADO
   background: white;
   padding: 24px;
   border-radius: 8px;
+  border: 5px solid red;
   min-width: 320px;
   max-width: 400px;
-
+  position: relative;
+  z-index: 10000; 
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
 }
 
@@ -669,17 +671,34 @@ HEADER EMPRESA / EMPLEADO
   gap: 12px;
 }
 
-
-.modal-input[type="radio"] {
-  appearance: auto;
-  -webkit-appearance: radio;
-  opacity: 1;
-  position: static;
-  margin-right: 8px;
-  cursor: pointer;
-}
-
 .modal-label {
   cursor: pointer;
   font-size: 14px;
+}
+
+
+/* 🔥 RADIOS VISIBLES Y CLAROS EN MODAL */
+.modal input[type="radio"] {
+  all: unset;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #111;
+  border-radius: 50%;
+  margin-right: 8px;
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  background: white;
+}
+
+.modal input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 8px;
+  height: 8px;
+  background: #111;
+  border-radius: 50%;
 }
