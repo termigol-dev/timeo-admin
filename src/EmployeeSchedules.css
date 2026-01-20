@@ -702,3 +702,42 @@ HEADER EMPRESA / EMPLEADO
   background: #111;
   border-radius: 50%;
 }
+
+/* =========================
+   PREVIEW EDICIÓN DE TURNOS
+========================= */
+
+.turn-preview {
+  border-radius: 5px;
+  /*padding: 6px;*/
+  margin: 2px;
+  font-size: 13px;
+  z-index: 40;
+  box-shadow: 0 0 0 2px #000000;
+}
+
+/* 🟢 Tramo que se VA A AÑADIR */
+.preview-add {
+  background: #22c55e;
+  color: white;
+}
+
+/* 🔴 Tramo que se VA A BORRAR */
+.preview-delete {
+  background: white;
+  color: #111827;
+  border: 2px dashed #000000;
+}
+
+/* 🔒 MODO EDICIÓN DE TURNO */
+.editing-mode {
+  filter: blur(2px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.editing-highlight {
+  outline: 3px solid #111827;
+  z-index: 50;
+  position: relative;
+}

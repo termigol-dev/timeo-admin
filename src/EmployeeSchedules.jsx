@@ -25,6 +25,8 @@ const days = [
 
 const weekDays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
+
+
 const timeOptions = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, '0');
   const m = i % 2 === 0 ? '00' : '30';
@@ -148,11 +150,15 @@ export default function EmployeeSchedules() {
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
   const [vacations, setVacations] = useState([]);
+  // 🟢 MODO EDICIÓN DE TURNO
+  const [editingShift, setEditingShift] = useState(null);
+  const [editingPreview, setEditingPreview] = useState(null);
 
   // 🗑️ BORRADO DE VACACIONES (UX)
   const [vacationToDelete, setVacationToDelete] = useState(null);
   // 🗑️ BORRADO DE TURNOS (UX)
   const [shiftToDelete, setShiftToDelete] = useState(null);
+
   // { shiftId, day, startTime, endTime }
   const [showShiftDeleteConfirm, setShowShiftDeleteConfirm] = useState(false);
   const [deleteShiftMode, setDeleteShiftMode] = useState('ONLY_THIS_BLOCK');
@@ -734,6 +740,73 @@ export default function EmployeeSchedules() {
     return schedule.id;
   }
 
+  async function handleConfirmEditShift() {
+    if (!editingShift || !scheduleId) return;
+
+    console.log('💾 CONFIRMANDO EDICIÓN DE TURNO:', {
+      old: editingShift,
+      newStart: startTime,
+      newEnd: endTime,
+    });
+
+    // 1️⃣ Borrar turno antiguo (solo este bloque)
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: 'CALENDAR',
+          mode: 'ONLY_THIS_BLOCK',
+          dateFrom: editingShift.date,
+          startTime: editingShift.startTime,
+          endTime: editingShift.endTime,
+        }),
+      }
+    );
+
+    // 2️⃣ Crear nuevo turno en backend
+    await saveTurnToBackend(scheduleId, {
+      days: [editingShift.day],
+      startTime,
+      endTime,
+    });
+
+    // 🟢 3️⃣ REGISTRAR ESTE CAMBIO EN EL FRONT (CLAVE)
+    setTurns(prev =>
+      prev
+        // quitamos el turno antiguo
+        .filter(
+          t =>
+            !(
+              t.days.includes(editingShift.day) &&
+              t.startTime === editingShift.startTime &&
+              t.endTime === editingShift.endTime
+            )
+        )
+        // añadimos el nuevo turno editado
+        .concat([
+          {
+            days: [editingShift.day],
+            startTime,
+            endTime,
+            type: 'regular',
+            source: 'saved',
+          },
+        ])
+    );
+
+    // 4️⃣ Limpiar modo edición
+    setEditingShift(null);
+    setEditingPreview(null);
+    setSelectedDays([]);
+    setStartTime('');
+    setEndTime('');
+  }
+
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
 
@@ -786,6 +859,69 @@ export default function EmployeeSchedules() {
       console.log('🟢 TURNO GUARDADO OK:', created);
     }
   }
+
+  // 🖊️ Calcula qué tramo se añade o se borra al editar un turno
+  function updateEditingPreview(newStart, newEnd) {
+    if (!editingShift) return;
+
+    const oldStart = editingShift.startTime;
+    const oldEnd = editingShift.endTime;
+
+    const toMin = t => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const oStart = toMin(oldStart);
+    const oEnd = toMin(oldEnd);
+    const nStart = toMin(newStart);
+    const nEnd = toMin(newEnd);
+
+    let preview = null;
+
+    // 🔴 SE BORRA FINAL
+    if (nEnd < oEnd) {
+      preview = {
+        type: 'DELETE',
+        day: editingShift.day,
+        startTime: newEnd,
+        endTime: oldEnd,
+      };
+    }
+
+    // 🔴 SE BORRA INICIO
+    else if (nStart > oStart) {
+      preview = {
+        type: 'DELETE',
+        day: editingShift.day,
+        startTime: oldStart,
+        endTime: newStart,
+      };
+    }
+
+    // 🟢 SE AÑADE FINAL
+    else if (nEnd > oEnd) {
+      preview = {
+        type: 'ADD',
+        day: editingShift.day,
+        startTime: oldEnd,
+        endTime: newEnd,
+      };
+    }
+
+    // 🟢 SE AÑADE INICIO
+    else if (nStart < oStart) {
+      preview = {
+        type: 'ADD',
+        day: editingShift.day,
+        startTime: newStart,
+        endTime: oldStart,
+      };
+    }
+
+    setEditingPreview(preview);
+  }
+
   async function completeSchedule() {
     const token = localStorage.getItem('token');
 
@@ -939,6 +1075,7 @@ export default function EmployeeSchedules() {
     // TURNOS
     if (schedule?.shifts?.length) {
       const loadedTurns = schedule.shifts.map(shift => ({
+        id: shift.id,
         days: [weekDays[shift.weekday - 1]],
         startTime: shift.startTime,
         endTime: shift.endTime,
@@ -1086,7 +1223,7 @@ export default function EmployeeSchedules() {
 
 
         {/* PANEL DE CONTROLES */}
-        <div className="controls-panel">
+        <div className={`controls-panel ${editingShift ? '' : ''}`}>
 
           {/* FECHAS + HORAS (DOS SUBCOLUMNAS) */}
           <div className="form-row">
@@ -1117,7 +1254,18 @@ export default function EmployeeSchedules() {
               <div className="time-row">
                 <select
                   value={startTime}
-                  onChange={e => setStartTime(e.target.value)}
+                  onChange={e => {
+                    const newStart = e.target.value;
+                    setStartTime(newStart);
+
+                    if (editingShift) {
+                      setEditingPreview({
+                        ...editingShift,
+                        startTime: newStart,
+                        endTime,
+                      });
+                    }
+                  }}
                   className="time-input in-select"
                 >
                   <option value="">Hora de entrada</option>
@@ -1132,8 +1280,19 @@ export default function EmployeeSchedules() {
               <div className="time-row">
                 <select
                   value={endTime}
-                  onChange={e => setEndTime(e.target.value)}
-                  className="time-input in-select"
+                  onChange={e => {
+                    const newEnd = e.target.value;
+                    setEndTime(newEnd);
+
+                    if (editingShift) {
+                      setEditingPreview({
+                        ...editingShift,
+                        startTime,
+                        endTime: newEnd,
+                      });
+                    }
+                  }}
+                  className="time-input out select"
                 >
                   <option value="">Hora de salida</option>
                   {timeOptions.map(t => (
@@ -1154,7 +1313,13 @@ export default function EmployeeSchedules() {
                 </button>
 
                 <button
-                  onClick={addTurn}
+                  onClick={() => {
+                    if (editingShift) {
+                      handleConfirmEditShift();
+                    } else {
+                      addTurn();
+                    }
+                  }}
                   className="primary-button add-turn"
                 >
                   Añadir turno
@@ -1292,7 +1457,7 @@ export default function EmployeeSchedules() {
 
 
         {/* GRID */}
-        <div className="calendar-grid-wrapper">
+        <div className={`calendar-grid-wrapper ${editingShift ? 'editing-mode' : ''}`}>
 
           {/* HEADER DÍAS — scroll horizontal */}
           <div
@@ -1396,7 +1561,13 @@ export default function EmployeeSchedules() {
                     return (
                       <div
                         key={`saved-${t.id}-${day}`}
-                        className="turn-saved"
+                        className={`turn-saved ${editingShift &&
+                          editingShift.day === day &&
+                          editingShift.startTime === t.startTime &&
+                          editingShift.endTime === t.endTime
+                          ? 'editing-highlight'
+                          : ''
+                          }`}
                         style={{
                           gridColumn: col,
                           gridRow: `${start + 1} / ${end + 1}`,
@@ -1406,31 +1577,79 @@ export default function EmployeeSchedules() {
                         onMouseDown={e => {
                           e.stopPropagation();
                         }}
-
                         onClick={e => {
                           e.stopPropagation();
 
-                          console.log('🟥 CLICK EN TURNO GUARDADO REAL', {
+                          console.log('✏️ EDITANDO TURNO:', {
                             id: t.id,
                             day,
                             startTime: t.startTime,
                             endTime: t.endTime,
                           });
 
-                          setShiftToDelete({
+                          // 1️⃣ Guardamos el turno que estamos editando
+                          setEditingShift({
+                            id: t.id,
                             day,
-                            date: weekDates[col - 1].toISOString().slice(0, 10), // día exacto clicado
+                            date: weekDates[col - 1].toISOString().slice(0, 10),
                             startTime: t.startTime,
                             endTime: t.endTime,
                           });
-                          setDeleteShiftMode('ONLY_THIS_BLOCK');
-                          setShowShiftDeleteConfirm(true);
+
+                          // 2️⃣ Cargamos los datos en el panel superior
+                          setSelectedDays([day]);
+                          setStartTime(t.startTime);
+                          setEndTime(t.endTime);
+                          setDateFrom(weekDates[col - 1].toISOString().slice(0, 10));
+                          setDateTo('');
+
+                          // 3️⃣ Activamos preview vacío de momento
+                          setEditingPreview(null);
                         }}
                       >
                         {t.startTime} – {t.endTime}
                       </div>
                     );
                   })
+                )}
+
+                {/* ✏️ PREVIEW DE EDICIÓN */}
+                {editingPreview && (
+                  (() => {
+                    const col = weekDays.indexOf(editingPreview.day) + 1;
+                    const start = timeToRow(editingPreview.startTime);
+                    let end = timeToRow(editingPreview.endTime);
+                    if (end <= start) end += 48;
+
+                    return (
+                      <div
+                        className="turn-draft editing-highlight"
+                        style={{
+                          gridColumn: col,
+                          gridRow: `${start + 1} / ${end + 1}`,
+                          background: '#22c55e',
+                          opacity: 0.7,
+                        }}
+                      >
+                        {editingPreview.startTime} – {editingPreview.endTime}
+                      </div>
+                    );
+                  })()
+                )}
+
+                {/* 🖊️ PREVIEW DE EDICIÓN */}
+                {editingPreview && (
+                  <div
+                    className={`turn-preview ${editingPreview.type === 'ADD' ? 'preview-add' : 'preview-delete'
+                      }`}
+                    style={{
+                      gridColumn: weekDays.indexOf(editingPreview.day) + 1,
+                      gridRow: `${timeToRow(editingPreview.startTime) + 1} / ${timeToRow(editingPreview.endTime) + 1
+                        }`,
+                    }}
+                  >
+                    {editingPreview.startTime} – {editingPreview.endTime}
+                  </div>
                 )}
 
                 {/* TURNOS BORRADOR */}
@@ -1569,11 +1788,11 @@ export default function EmployeeSchedules() {
           </div>
         </div>
       )}
-      {/* 🗑️ POP-UP — CONFIRMAR BORRADO TURNO */}
+      {/* 🗑️ POP-UP — OPCIONES TURNO */}
       {showShiftDeleteConfirm && shiftToDelete && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Borrar turno</h3>
+            <h3>Turno</h3>
 
             <p>
               Turno del día{' '}
@@ -1584,29 +1803,37 @@ export default function EmployeeSchedules() {
               </strong>
             </p>
 
-            <div style={{ marginTop: '12px' }}>
-              <label className="modal-label" style={{ display: 'block', marginBottom: '8px' }}>
-                <input
-                  type="radio"
-                  name="deleteShiftMode"
-                  checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
-                  onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
-                />
-                Borrar solo este turno
-              </label>
+            <div className="modal-buttons" style={{ justifyContent: 'space-between' }}>
+              {/* 🖊️ BOTÓN EDITAR */}
+              <button
+                onClick={() => {
+                  // cerrar popup de opciones
+                  setShowShiftDeleteConfirm(false);
 
-              <label className="modal-label" style={{ display: 'block' }}>
-                <input
-                  type="radio"
-                  name="deleteShiftMode"
-                  checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
-                  onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
-                />
-                Borrar todos los turnos desde este día en adelante
-              </label>
-            </div>
+                  // activar modo edición
+                  setEditingShift(shiftToDelete);
 
-            <div className="modal-buttons">
+                  // precargar panel superior
+                  setStartTime(shiftToDelete.startTime);
+                  setEndTime(shiftToDelete.endTime);
+                  setDateFrom(shiftToDelete.date);
+                  setDateTo(shiftToDelete.date);
+
+                  // limpiar preview
+                  setEditingPreview(null);
+                }}
+              >
+                ✏️ Editar turno
+              </button>
+
+              {/* 🗑️ BOTÓN BORRAR */}
+              <button
+                className="delete-block"
+                onClick={handleConfirmDeleteShift}
+              >
+                Borrar turno
+              </button>
+
               <button
                 onClick={() => {
                   setShowShiftDeleteConfirm(false);
@@ -1615,12 +1842,31 @@ export default function EmployeeSchedules() {
               >
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ✏️ POP-UP — MODO EDICIÓN DE TURNO */}
+      {editingShift && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Editar turno</h3>
 
+            <p>
+              Edita el turno en el panel superior y pulsa en{' '}
+              <strong>Añadir turno</strong>.<br /><br />
+              Cuando termines todos los cambios del horario, pulsa en{' '}
+              <strong>Horario completado</strong>.
+            </p>
+
+            <div className="modal-buttons">
               <button
-                className="delete-block"
-                onClick={handleConfirmDeleteShift}
+                onClick={() => {
+                  setEditingShift(null);
+                  setEditingPreview(null);
+                }}
               >
-                Confirmar borrado
+                Cancelar edición
               </button>
             </div>
           </div>
