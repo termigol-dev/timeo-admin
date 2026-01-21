@@ -153,7 +153,8 @@ export default function EmployeeSchedules() {
   // 🟢 MODO EDICIÓN DE TURNO
   const [editingShift, setEditingShift] = useState(null);
   const [editingPreview, setEditingPreview] = useState(null);
-
+  const [showEditInfo, setShowEditInfo] = useState(false);
+  const [pendingEditShift, setPendingEditShift] = useState(null);
   // 🗑️ BORRADO DE VACACIONES (UX)
   const [vacationToDelete, setVacationToDelete] = useState(null);
   // 🗑️ BORRADO DE TURNOS (UX)
@@ -189,16 +190,20 @@ export default function EmployeeSchedules() {
 
   const ROW_HEIGHT = 24;
   const INITIAL_SCROLL_HOUR = 8;
-
   const [calendarFocused, setCalendarFocused] = useState(false);
-
-
-
   const weekDates = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
     return d;
   });
+
+  // 🛡️ BLINDAJE: nunca permitir edición activa si abrimos el popup de opciones
+  useEffect(() => {
+    if (showShiftDeleteConfirm) {
+      setEditingShift(null);
+      setEditingPreview(null);
+    }
+  }, [showShiftDeleteConfirm]);
 
   /* ======================================================
      NORMALIZACIÓN DE TURNOS (VISUAL + CONTADOR)
@@ -527,6 +532,10 @@ export default function EmployeeSchedules() {
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
+
+    // 🔑 SALIR DE MODO EDICIÓN AQUÍ
+    setEditingShift(null);
+    setEditingPreview(null);
   }
 
   function handleDeleteBlock() {
@@ -741,21 +750,24 @@ export default function EmployeeSchedules() {
   }
 
   async function handleConfirmEditShift() {
-    if (!editingShift || !scheduleId) return;
+  if (!editingShift || !scheduleId) return;
 
-    console.log('💾 CONFIRMANDO EDICIÓN DE TURNO:', {
-      old: editingShift,
-      newStart: startTime,
-      newEnd: endTime,
-    });
+  console.log('💾 CONFIRMANDO EDICIÓN DE TURNO:', {
+    old: editingShift,
+    newStart: startTime,
+    newEnd: endTime,
+  });
 
-    // 1️⃣ Borrar turno antiguo (solo este bloque)
-    await fetch(
+  const token = localStorage.getItem('token');
+
+  try {
+    // 1️⃣ BORRAR TURNO ANTIGUO (solo este bloque)
+    const deleteRes = await fetch(
       `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
       {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -768,45 +780,38 @@ export default function EmployeeSchedules() {
       }
     );
 
-    // 2️⃣ Crear nuevo turno en backend
+    if (!deleteRes.ok) {
+      const text = await deleteRes.text();
+      throw new Error('Error borrando turno antiguo: ' + text);
+    }
+
+    console.log('🗑️ TURNO ANTIGUO BORRADO OK');
+
+    // 2️⃣ CREAR TURNO NUEVO EDITADO
     await saveTurnToBackend(scheduleId, {
       days: [editingShift.day],
       startTime,
       endTime,
     });
 
-    // 🟢 3️⃣ REGISTRAR ESTE CAMBIO EN EL FRONT (CLAVE)
-    setTurns(prev =>
-      prev
-        // quitamos el turno antiguo
-        .filter(
-          t =>
-            !(
-              t.days.includes(editingShift.day) &&
-              t.startTime === editingShift.startTime &&
-              t.endTime === editingShift.endTime
-            )
-        )
-        // añadimos el nuevo turno editado
-        .concat([
-          {
-            days: [editingShift.day],
-            startTime,
-            endTime,
-            type: 'regular',
-            source: 'saved',
-          },
-        ])
-    );
+    console.log('🟢 TURNO EDITADO GUARDADO OK');
 
-    // 4️⃣ Limpiar modo edición
+    // 3️⃣ LIMPIAR MODO EDICIÓN
     setEditingShift(null);
     setEditingPreview(null);
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
-  }
 
+    // 🔓 QUITAR ATENUACIÓN
+    // (editingShift = null ya quita editing-mode)
+
+  } catch (err) {
+    console.error('❌ ERROR EN EDICIÓN DE TURNO', err);
+    alert(err.message || 'Error editando turno');
+  }
+}
+º
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
 
@@ -1342,7 +1347,7 @@ export default function EmployeeSchedules() {
               onClick={completeSchedule}
               className="complete-button full-width"
             >
-              Horario completado
+              Confirmar horario
             </button>
             {deleteConfirmStep && (
               <div className="delete-confirm">
@@ -1557,7 +1562,17 @@ export default function EmployeeSchedules() {
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
+                    // 🔴 SI ESTE TURNO ESTÁ MARCADO COMO BORRADO, NO LO DIBUJAMOS
+                    const isRemoved = removedTurns.some(rt =>
+                      rt.day === day &&
+                      rt.startTime === t.startTime &&
+                      rt.endTime === t.endTime &&
+                      rt.date === weekDates[col - 1].toISOString().slice(0, 10)
+                    );
 
+                    if (isRemoved) {
+                      return null;
+                    }
                     return (
                       <div
                         key={`saved-${t.id}-${day}`}
@@ -1580,15 +1595,19 @@ export default function EmployeeSchedules() {
                         onClick={e => {
                           e.stopPropagation();
 
-                          console.log('✏️ EDITANDO TURNO:', {
+                          console.log('🟥 CLICK EN TURNO GUARDADO REAL', {
                             id: t.id,
                             day,
                             startTime: t.startTime,
                             endTime: t.endTime,
                           });
 
-                          // 1️⃣ Guardamos el turno que estamos editando
-                          setEditingShift({
+                          // 🔑 SI ESTÁBAMOS EDITANDO ALGO, SALIMOS DE ESE MODO
+                          setEditingShift(null);
+                          setEditingPreview(null);
+
+                          // 👉 Abrimos el POPUP DE OPCIONES
+                          setShiftToDelete({
                             id: t.id,
                             day,
                             date: weekDates[col - 1].toISOString().slice(0, 10),
@@ -1596,15 +1615,8 @@ export default function EmployeeSchedules() {
                             endTime: t.endTime,
                           });
 
-                          // 2️⃣ Cargamos los datos en el panel superior
-                          setSelectedDays([day]);
-                          setStartTime(t.startTime);
-                          setEndTime(t.endTime);
-                          setDateFrom(weekDates[col - 1].toISOString().slice(0, 10));
-                          setDateTo('');
-
-                          // 3️⃣ Activamos preview vacío de momento
-                          setEditingPreview(null);
+                          setDeleteShiftMode('ONLY_THIS_BLOCK');
+                          setShowShiftDeleteConfirm(true);
                         }}
                       >
                         {t.startTime} – {t.endTime}
@@ -1807,20 +1819,13 @@ export default function EmployeeSchedules() {
               {/* 🖊️ BOTÓN EDITAR */}
               <button
                 onClick={() => {
-                  // cerrar popup de opciones
+                  // cerramos popup de opciones
                   setShowShiftDeleteConfirm(false);
 
-                  // activar modo edición
-                  setEditingShift(shiftToDelete);
-
-                  // precargar panel superior
-                  setStartTime(shiftToDelete.startTime);
-                  setEndTime(shiftToDelete.endTime);
-                  setDateFrom(shiftToDelete.date);
-                  setDateTo(shiftToDelete.date);
-
-                  // limpiar preview
-                  setEditingPreview(null);
+                  // 👉 NO activamos editingShift todavía
+                  // simplemente dejamos shiftToDelete como está
+                  // y mostramos el popup informativo
+                  setShowEditInfo(true);
                 }}
               >
                 ✏️ Editar turno
@@ -1846,8 +1851,9 @@ export default function EmployeeSchedules() {
           </div>
         </div>
       )}
+
       {/* ✏️ POP-UP — MODO EDICIÓN DE TURNO */}
-      {editingShift && (
+      {showEditInfo && shiftToDelete && (
         <div className="modal-overlay">
           <div className="modal">
             <h3>Editar turno</h3>
@@ -1856,17 +1862,37 @@ export default function EmployeeSchedules() {
               Edita el turno en el panel superior y pulsa en{' '}
               <strong>Añadir turno</strong>.<br /><br />
               Cuando termines todos los cambios del horario, pulsa en{' '}
-              <strong>Horario completado</strong>.
+              <strong>Confirmar horario</strong>.
             </p>
 
             <div className="modal-buttons">
               <button
                 onClick={() => {
-                  setEditingShift(null);
+                  // 🔔 AQUÍ empieza de verdad la edición
+
+                  setEditingShift(shiftToDelete);
+
+                  setStartTime(shiftToDelete.startTime);
+                  setEndTime(shiftToDelete.endTime);
+                  setDateFrom(shiftToDelete.date);
+                  setDateTo('');
+
                   setEditingPreview(null);
+
+                  setShowEditInfo(false);
                 }}
               >
-                Cancelar edición
+                Aceptar
+              </button>
+
+              <button
+                onClick={() => {
+                  // cancelar edición antes de empezar
+                  setShowEditInfo(false);
+                  setShiftToDelete(null);
+                }}
+              >
+                Cancelar
               </button>
             </div>
           </div>

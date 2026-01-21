@@ -729,10 +729,18 @@ HEADER EMPRESA / EMPLEADO
   border: 2px dashed #000000;
 }
 
-/* 🔒 MODO EDICIÓN DE TURNO */
+/* 🔒 MODO EDICIÓN DE TURNO — capa de atenuación, NO blur */
 .editing-mode {
-  filter: blur(2px);
-  opacity: 0.4;
+  position: relative;
+}
+
+/* Capa oscura encima de todo el grid */
+.editing-mode::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 5;
   pointer-events: none;
 }
 
@@ -740,4 +748,11 @@ HEADER EMPRESA / EMPLEADO
   outline: 3px solid #111827;
   z-index: 50;
   position: relative;
+}
+
+/* 🟢 En modo edición, el turno seleccionado NO se atenúa */
+.editing-mode .editing-highlight {
+  filter: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
