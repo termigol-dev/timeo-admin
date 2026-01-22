@@ -519,7 +519,41 @@ export default function EmployeeSchedules() {
       source: 'draft',
     };
 
-    // ⛔ VALIDACIÓN DE SOLAPAMIENTO
+    // ======================================================
+    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
+    // ======================================================
+    if (editingShift) {
+      console.log('✏️ ADD TURN DESDE EDICIÓN → reemplazando turno antiguo');
+
+      // 1️⃣ Marcar turno antiguo como eliminado SOLO EN FRONT
+      setRemovedTurns(prev => [
+        ...prev,
+        {
+          day: editingShift.day,
+          startTime: editingShift.startTime,
+          endTime: editingShift.endTime,
+          date: editingShift.date,
+        },
+      ]);
+
+      // 2️⃣ Añadir el nuevo turno editado al draft
+      setDraftTurns(prev => [...prev, newTurn]);
+
+      // 3️⃣ Limpiar modo edición
+      setEditingShift(null);
+      setEditingPreview(null);
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+
+      return; // 🔑 IMPORTANTE: salir aquí, no seguir
+    }
+
+    // ======================================================
+    // 🟢 CASO AÑADIR TURNO NORMAL
+    // ======================================================
+
+    // ⛔ VALIDACIÓN DE SOLAPAMIENTO SOLO AQUÍ
     if (hasOverlap(newTurn)) {
       alert(
         'El turno que intentas añadir se solapa parcial o totalmente con otro ya existente.'
@@ -532,12 +566,7 @@ export default function EmployeeSchedules() {
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
-
-    // 🔑 SALIR DE MODO EDICIÓN AQUÍ
-    setEditingShift(null);
-    setEditingPreview(null);
   }
-
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
     if (!dateFrom && !dateTo && (startTime || endTime)) {
@@ -750,68 +779,86 @@ export default function EmployeeSchedules() {
   }
 
   async function handleConfirmEditShift() {
-  if (!editingShift || !scheduleId) return;
+    if (!editingShift || !scheduleId) return;
 
-  console.log('💾 CONFIRMANDO EDICIÓN DE TURNO:', {
-    old: editingShift,
-    newStart: startTime,
-    newEnd: endTime,
-  });
-
-  const token = localStorage.getItem('token');
-
-  try {
-    // 1️⃣ BORRAR TURNO ANTIGUO (solo este bloque)
-    const deleteRes = await fetch(
-      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          source: 'CALENDAR',
-          mode: 'ONLY_THIS_BLOCK',
-          dateFrom: editingShift.date,
-          startTime: editingShift.startTime,
-          endTime: editingShift.endTime,
-        }),
-      }
-    );
-
-    if (!deleteRes.ok) {
-      const text = await deleteRes.text();
-      throw new Error('Error borrando turno antiguo: ' + text);
-    }
-
-    console.log('🗑️ TURNO ANTIGUO BORRADO OK');
-
-    // 2️⃣ CREAR TURNO NUEVO EDITADO
-    await saveTurnToBackend(scheduleId, {
-      days: [editingShift.day],
-      startTime,
-      endTime,
+    console.log('💾 CONFIRMANDO EDICIÓN DE TURNO:', {
+      old: editingShift,
+      newStart: startTime,
+      newEnd: endTime,
     });
 
-    console.log('🟢 TURNO EDITADO GUARDADO OK');
+    const token = localStorage.getItem('token');
 
-    // 3️⃣ LIMPIAR MODO EDICIÓN
-    setEditingShift(null);
-    setEditingPreview(null);
-    setSelectedDays([]);
-    setStartTime('');
-    setEndTime('');
+    try {
+      // 1️⃣ BORRAR TURNO ANTIGUO (solo este bloque)
+      const deleteRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            source: 'CALENDAR',
+            mode: 'ONLY_THIS_BLOCK',
+            dateFrom: editingShift.date,
+            startTime: editingShift.startTime,
+            endTime: editingShift.endTime,
+          }),
+        }
+      );
 
-    // 🔓 QUITAR ATENUACIÓN
-    // (editingShift = null ya quita editing-mode)
+      if (!deleteRes.ok) {
+        const text = await deleteRes.text();
+        throw new Error('Error borrando turno antiguo: ' + text);
+      }
 
-  } catch (err) {
-    console.error('❌ ERROR EN EDICIÓN DE TURNO', err);
-    alert(err.message || 'Error editando turno');
+      console.log('🗑️ TURNO ANTIGUO BORRADO OK');
+
+      // 2️⃣ CREAR TURNO NUEVO EDITADO
+      await saveTurnToBackend(scheduleId, {
+        days: [editingShift.day],
+        startTime,
+        endTime,
+      });
+
+      console.log('🟢 TURNO EDITADO GUARDADO OK');
+      // 🔑 ACTUALIZAR savedTurns EN MEMORIA PARA REFLEJAR LA EDICIÓN
+      setSavedTurns(prev =>
+        prev
+          // 1️⃣ Quitamos el turno antiguo (el que acabamos de editar)
+          .filter(t =>
+            !(
+              t.startTime === editingShift.startTime &&
+              t.endTime === editingShift.endTime &&
+              t.days.includes(editingShift.day)
+            )
+          )
+          // 2️⃣ Añadimos el nuevo turno editado
+          .concat([{
+            id: 'edited-local',          // solo frontend
+            days: [editingShift.day],
+            startTime: startTime,        // nuevo inicio
+            endTime: endTime,            // nuevo fin
+          }])
+      );
+      // 3️⃣ LIMPIAR MODO EDICIÓN
+      setEditingShift(null);
+      setEditingPreview(null);
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+
+      // 🔓 QUITAR ATENUACIÓN
+      // (editingShift = null ya quita editing-mode)
+
+    } catch (err) {
+      console.error('❌ ERROR EN EDICIÓN DE TURNO', err);
+      alert(err.message || 'Error editando turno');
+    }
   }
-}
-º
+
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
 
@@ -977,11 +1024,31 @@ export default function EmployeeSchedules() {
       let id = scheduleId;
 
       // 1️⃣ Crear borrador si no existe
-      /*if (!id) {
-        console.log('🟡 creando draft schedule...');
-        id = await createDraftSchedule();
-        console.log('🟢 draft creado', id);
-      }*/
+      // =========================
+      // 1️⃣ BORRAR TURNOS EDITADOS (removedTurns) EN BACKEND
+      // =========================
+
+      console.log('🗑️ borrando turnos editados en backend:', removedTurns.length);
+
+      for (const rt of removedTurns) {
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${activeScheduleId}/shifts`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              source: 'CALENDAR',
+              mode: 'ONLY_THIS_BLOCK',
+              dateFrom: rt.date,
+              startTime: rt.startTime,
+              endTime: rt.endTime,
+            }),
+          }
+        );
+      }
 
       // =========================
       // 2️⃣ TURNOS
@@ -1319,11 +1386,8 @@ export default function EmployeeSchedules() {
 
                 <button
                   onClick={() => {
-                    if (editingShift) {
-                      handleConfirmEditShift();
-                    } else {
-                      addTurn();
-                    }
+                    // SIEMPRE solo frontend
+                    addTurn();
                   }}
                   className="primary-button add-turn"
                 >
@@ -1569,8 +1633,19 @@ export default function EmployeeSchedules() {
                       rt.endTime === t.endTime &&
                       rt.date === weekDates[col - 1].toISOString().slice(0, 10)
                     );
-
+                    // 🔑 NO dibujar si está marcado como borrado
                     if (isRemoved) {
+                      return null;
+                    }
+
+                    // 🔑 NO dibujar si es el turno que estamos editando (lo sustituye el draft)
+                    if (
+                      editingShift &&
+                      editingShift.day === day &&
+                      editingShift.startTime === t.startTime &&
+                      editingShift.endTime === t.endTime &&
+                      editingPreview !== null   // 👈 CLAVE
+                    ) {
                       return null;
                     }
                     return (
@@ -1602,11 +1677,7 @@ export default function EmployeeSchedules() {
                             endTime: t.endTime,
                           });
 
-                          // 🔑 SI ESTÁBAMOS EDITANDO ALGO, SALIMOS DE ESE MODO
-                          setEditingShift(null);
-                          setEditingPreview(null);
-
-                          // 👉 Abrimos el POPUP DE OPCIONES
+                          // 👉 SOLO abrimos el popup de opciones
                           setShiftToDelete({
                             id: t.id,
                             day,
@@ -1871,7 +1942,7 @@ export default function EmployeeSchedules() {
                   // 🔔 AQUÍ empieza de verdad la edición
 
                   setEditingShift(shiftToDelete);
-
+                  setSelectedDays([shiftToDelete.day]);
                   setStartTime(shiftToDelete.startTime);
                   setEndTime(shiftToDelete.endTime);
                   setDateFrom(shiftToDelete.date);
