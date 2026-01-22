@@ -648,10 +648,11 @@ export default function EmployeeSchedules() {
       endTime: shiftToDelete.endTime,
     });
 
-    // 1️⃣ Guardar borrado en removedTurns
+    // 1️⃣ Guardar borrado en removedTurns (CON day, CLAVE)
     setRemovedTurns(prev => [
       ...prev,
       {
+        day: shiftToDelete.day,              // 🔥 ESTO ES IMPRESCINDIBLE
         date: shiftToDelete.date,
         startTime: shiftToDelete.startTime,
         endTime: shiftToDelete.endTime,
@@ -659,9 +660,9 @@ export default function EmployeeSchedules() {
       },
     ]);
 
-    // 🔥 2️⃣ ACTIVAR PREVIEW DELETE (ESTO ES LO QUE FALTABA)
+    // 2️⃣ Activar preview de borrado (borde negro)
     setEditingPreview({
-      type: 'DELETE',               // 👈 CLAVE
+      type: 'DELETE',
       day: shiftToDelete.day,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
@@ -1009,45 +1010,6 @@ export default function EmployeeSchedules() {
       // =========================
 
       console.log('🗑️ borrando turnos editados en backend:', removedTurns.length);
-
-      function handleConfirmDeleteShift() {
-        if (!shiftToDelete || !deleteShiftMode) return;
-
-        const mode = deleteShiftMode;
-
-        // 🔒 NUNCA PERMITIR BORRAR HACIA ATRÁS EN EL TIEMPO EN BLOQUE
-        const today = new Date().toISOString().slice(0, 10);
-        if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
-          alert('No se pueden borrar turnos del pasado en bloque');
-          return;
-        }
-
-        console.log('🟡 MARCANDO BORRADO EN DRAFT:', {
-          mode,
-          date: shiftToDelete.date,
-          startTime: shiftToDelete.startTime,
-          endTime: shiftToDelete.endTime,
-        });
-
-        // 1️⃣ Guardar borrado en removedTurns (DRAFT)
-        setRemovedTurns(prev => [
-          ...prev,
-          {
-            date: shiftToDelete.date,
-            startTime: shiftToDelete.startTime,
-            endTime: shiftToDelete.endTime,
-            mode, // 🔥 CLAVE: guardar el modo elegido
-          },
-        ]);
-
-        // 2️⃣ (Opcional pero recomendable) Quitar visualmente el turno del calendario
-        // Aquí ya tienes lógica que no lo dibuja / dibuja hueco negro
-
-        // 3️⃣ Cerrar modal
-        setShowShiftDeleteConfirm(false);
-        setShiftToDelete(null);
-        setDeleteShiftMode('ONLY_THIS_BLOCK');
-      }
 
       // =========================
       // 2️⃣ TURNOS
