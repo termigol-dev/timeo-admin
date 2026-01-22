@@ -364,11 +364,34 @@ export default function EmployeeSchedules() {
               }));
 
               // 🔥 FILTRAR TURNOS MARCADOS COMO BORRADOS EN DRAFT
+
+              console.log('🔍 DEBUG removedTurns RAW:', removedTurns);
+
+              console.log('🔍 DEBUG loadedTurns RAW:', loadedTurns);
+
+              removedTurns.forEach(rt => {
+                loadedTurns.forEach(turn => {
+                  console.log('🔎 COMPARANDO', {
+                    rt_date: rt.date,
+                    rt_day: rt.day,
+                    rt_start: rt.startTime,
+                    rt_end: rt.endTime,
+                    turn_day: turn.days[0],
+                    turn_start: turn.startTime,
+                    turn_end: turn.endTime,
+                    match_day: rt.day === turn.days[0],
+                    match_start: rt.startTime === turn.startTime,
+                    match_end: rt.endTime === turn.endTime,
+                  });
+                });
+              });
+
               const visibleTurns = loadedTurns.filter(turn => {
                 return !removedTurns.some(rt =>
                   rt.startTime === turn.startTime &&
                   rt.endTime === turn.endTime &&
-                  rt.day === turn.days[0]
+                  rt.day === turn.days[0] &&
+                  rt.date === fechaColumna
                 );
               });
 
@@ -398,7 +421,7 @@ export default function EmployeeSchedules() {
     }
 
     loadHeaderData();
-  }, [companyId, employeeId]);
+  }, [companyId, employeeId, removedTurns]);
 
   /* SCROLL INICIAL DEL CALENDARIO */
   useEffect(() => {
