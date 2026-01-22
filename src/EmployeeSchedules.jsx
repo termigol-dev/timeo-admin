@@ -363,8 +363,18 @@ export default function EmployeeSchedules() {
                 source: 'saved',
               }));
 
-              console.log('🟢 TURNOS NORMALIZADOS FRONT:', loadedTurns);
-              setTurns(loadedTurns);
+              // 🔥 FILTRAR TURNOS MARCADOS COMO BORRADOS EN DRAFT
+              const visibleTurns = loadedTurns.filter(turn => {
+                return !removedTurns.some(rt =>
+                  rt.startTime === turn.startTime &&
+                  rt.endTime === turn.endTime &&
+                  rt.day === turn.days[0]
+                );
+              });
+
+              console.log('🟢 TURNOS VISIBLES (tras aplicar removedTurns):', visibleTurns);
+
+              setTurns(visibleTurns);
               setScheduleId(schedule.id);
             }
 
@@ -620,78 +630,48 @@ export default function EmployeeSchedules() {
     setDateTo('');
   }
 
-  async function handleConfirmDeleteShift() {
-    if (!shiftToDelete || !scheduleId) return;
+  function handleConfirmDeleteShift() {
+    if (!shiftToDelete || !deleteShiftMode) return;
 
-    const token = localStorage.getItem('token');
-
-    // 🔑 ESTE BORRADO VIENE DEL CALENDARIO → SIEMPRE BORRAMOS SOLO ESTE TURNO
-    // 🔑 MODO ELEGIDO EN EL POPUP
     const mode = deleteShiftMode;
-    if (!mode) {
-      alert('Debes seleccionar una opción de borrado');
-      return;
-    }
-    // 🔒 NUNCA PERMITIR BORRAR HACIA ATRÁS EN EL TIEMPO
-    const today = new Date().toISOString().slice(0, 10);
 
+    const today = new Date().toISOString().slice(0, 10);
     if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
       alert('No se pueden borrar turnos del pasado en bloque');
       return;
     }
-    console.log('🟡 BORRANDO TURNO (DESDE CALENDARIO):', {
+
+    console.log('🟡 MARCANDO BORRADO EN DRAFT:', {
       mode,
-      dateFrom: shiftToDelete.date,
+      date: shiftToDelete.date,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
     });
 
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            source: 'CALENDAR',
-            mode,                               // 👈 SOLO ESTE DÍA
-            dateFrom: shiftToDelete.date,       // 👈 FECHA EXACTA CLICADA
-            dateTo: null,
-            startTime: shiftToDelete.startTime,
-            endTime: shiftToDelete.endTime,
-          }),
-        }
-      );
+    // 1️⃣ Guardar borrado en removedTurns
+    setRemovedTurns(prev => [
+      ...prev,
+      {
+        date: shiftToDelete.date,
+        startTime: shiftToDelete.startTime,
+        endTime: shiftToDelete.endTime,
+        mode,
+      },
+    ]);
 
-      const text = await res.text();
-      console.log('⬅️ RESPUESTA DELETE SHIFT:', res.status, text || '(empty)');
+    // 🔥 2️⃣ ACTIVAR PREVIEW DELETE (ESTO ES LO QUE FALTABA)
+    setEditingPreview({
+      type: 'DELETE',               // 👈 CLAVE
+      day: shiftToDelete.day,
+      startTime: shiftToDelete.startTime,
+      endTime: shiftToDelete.endTime,
+    });
 
-      if (!res.ok) {
-        throw new Error(text || 'Error borrando turno');
-      }
-
-      // 🔄 RECARGAR HORARIO REAL DESDE BACKEND (FUENTE DE VERDAD)
-      await reloadActiveSchedule();
-
-      // 🔚 CERRAR POPUP SIEMPRE
-      setShowShiftDeleteConfirm(false);
-      setShiftToDelete(null);
-      setDeleteShiftMode('ONLY_THIS_BLOCK');
-
-    } catch (err) {
-      console.error('❌ ERROR BORRANDO TURNO', err);
-      alert(err.message || 'Error borrando turno');
-
-      // 🔚 CERRAR POPUP AUNQUE HAYA ERROR
-      setShowShiftDeleteConfirm(false);
-      setShiftToDelete(null);
-      setDeleteShiftMode('ONLY_THIS_BLOCK');
-    }
+    // 3️⃣ Cerrar modal
+    setShowShiftDeleteConfirm(false);
+    setShiftToDelete(null);
+    setDeleteShiftMode('ONLY_THIS_BLOCK');
   }
-
   async function handleConfirmDeleteVacation() {
     if (!vacationToDelete || !scheduleId) return;
 
@@ -1030,24 +1010,43 @@ export default function EmployeeSchedules() {
 
       console.log('🗑️ borrando turnos editados en backend:', removedTurns.length);
 
-      for (const rt of removedTurns) {
-        await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${activeScheduleId}/shifts`,
+      function handleConfirmDeleteShift() {
+        if (!shiftToDelete || !deleteShiftMode) return;
+
+        const mode = deleteShiftMode;
+
+        // 🔒 NUNCA PERMITIR BORRAR HACIA ATRÁS EN EL TIEMPO EN BLOQUE
+        const today = new Date().toISOString().slice(0, 10);
+        if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
+          alert('No se pueden borrar turnos del pasado en bloque');
+          return;
+        }
+
+        console.log('🟡 MARCANDO BORRADO EN DRAFT:', {
+          mode,
+          date: shiftToDelete.date,
+          startTime: shiftToDelete.startTime,
+          endTime: shiftToDelete.endTime,
+        });
+
+        // 1️⃣ Guardar borrado en removedTurns (DRAFT)
+        setRemovedTurns(prev => [
+          ...prev,
           {
-            method: 'DELETE',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              source: 'CALENDAR',
-              mode: 'ONLY_THIS_BLOCK',
-              dateFrom: rt.date,
-              startTime: rt.startTime,
-              endTime: rt.endTime,
-            }),
-          }
-        );
+            date: shiftToDelete.date,
+            startTime: shiftToDelete.startTime,
+            endTime: shiftToDelete.endTime,
+            mode, // 🔥 CLAVE: guardar el modo elegido
+          },
+        ]);
+
+        // 2️⃣ (Opcional pero recomendable) Quitar visualmente el turno del calendario
+        // Aquí ya tienes lógica que no lo dibuja / dibuja hueco negro
+
+        // 3️⃣ Cerrar modal
+        setShowShiftDeleteConfirm(false);
+        setShiftToDelete(null);
+        setDeleteShiftMode('ONLY_THIS_BLOCK');
       }
 
       // =========================
@@ -1886,34 +1885,62 @@ export default function EmployeeSchedules() {
               </strong>
             </p>
 
+            {/* 🔽 NUEVA SECCIÓN: SELECCIÓN DE MODO */}
+            <div className="delete-modes">
+              <label>
+                <input
+                  type="radio"
+                  name="deleteMode"
+                  value="ONLY_THIS_BLOCK"
+                  checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
+                  onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
+                />
+                <strong>Solo este turno</strong>
+                <div className="hint">
+                  El borrado se aplicará únicamente a este día.
+                </div>
+              </label>
+
+              <label>
+                <input
+                  type="radio"
+                  name="deleteMode"
+                  value="FROM_THIS_DAY_ON"
+                  checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
+                  onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
+                />
+                <strong>Desde este día en adelante</strong>
+                <div className="hint">
+                  El turno desaparecerá de todos los días futuros.
+                </div>
+              </label>
+            </div>
+
+            {/* 🔘 BOTONES */}
             <div className="modal-buttons" style={{ justifyContent: 'space-between' }}>
-              {/* 🖊️ BOTÓN EDITAR */}
+              {/* 🖊️ EDITAR */}
               <button
                 onClick={() => {
-                  // cerramos popup de opciones
                   setShowShiftDeleteConfirm(false);
-
-                  // 👉 NO activamos editingShift todavía
-                  // simplemente dejamos shiftToDelete como está
-                  // y mostramos el popup informativo
                   setShowEditInfo(true);
                 }}
               >
                 ✏️ Editar turno
               </button>
 
-              {/* 🗑️ BOTÓN BORRAR */}
+              {/* 🗑️ CONFIRMAR BORRADO */}
               <button
                 className="delete-block"
                 onClick={handleConfirmDeleteShift}
               >
-                Borrar turno
+                Confirmar borrado
               </button>
 
               <button
                 onClick={() => {
                   setShowShiftDeleteConfirm(false);
                   setShiftToDelete(null);
+                  setDeleteShiftMode('ONLY_THIS_BLOCK');
                 }}
               >
                 Cancelar
