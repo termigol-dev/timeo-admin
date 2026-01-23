@@ -188,6 +188,8 @@ export default function EmployeeSchedules() {
   });
   const [saving, setSaving] = useState(false);
 
+  const [draftExceptions, setDraftExceptions] = useState([]);
+
   const ROW_HEIGHT = 24;
   const INITIAL_SCROLL_HOUR = 8;
   const [calendarFocused, setCalendarFocused] = useState(false);
@@ -196,6 +198,16 @@ export default function EmployeeSchedules() {
     d.setDate(weekStart.getDate() + i);
     return d;
   });
+
+  function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
+    return draftExceptions.some(ex =>
+      ex.mode === 'ONLY_THIS_BLOCK' &&
+      ex.day === day &&
+      ex.date === date &&
+      ex.startTime === startTime &&
+      ex.endTime === endTime
+    );
+  }
 
   // 🛡️ BLINDAJE: nunca permitir edición activa si abrimos el popup de opciones
   useEffect(() => {
@@ -363,7 +375,8 @@ export default function EmployeeSchedules() {
                 source: 'saved',
               }));
 
-              // 🔥 FILTRAR TURNOS MARCADOS COMO BORRADOS EN DRAFT
+
+              /*// 🔥 FILTRAR TURNOS MARCADOS COMO BORRADOS EN DRAFT
 
               console.log('🔍 DEBUG removedTurns RAW:', removedTurns);
 
@@ -394,10 +407,10 @@ export default function EmployeeSchedules() {
                   rt.date === fechaColumna
                 );
               });
+              */
+              console.log('🟢 TURNOS VISIBLES (tras aplicar removedTurns):', loadedTurns);
 
-              console.log('🟢 TURNOS VISIBLES (tras aplicar removedTurns):', visibleTurns);
-
-              setTurns(visibleTurns);
+              setTurns(loadedTurns);
               setScheduleId(schedule.id);
             }
 
@@ -658,32 +671,35 @@ export default function EmployeeSchedules() {
 
     const mode = deleteShiftMode;
 
+    // 🔒 Nunca permitir borrar hacia atrás en bloque
     const today = new Date().toISOString().slice(0, 10);
     if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
       alert('No se pueden borrar turnos del pasado en bloque');
       return;
     }
 
-    console.log('🟡 MARCANDO BORRADO EN DRAFT:', {
+    console.log('🟡 CREANDO DRAFT EXCEPTION (BORRADO):', {
       mode,
       date: shiftToDelete.date,
+      day: shiftToDelete.day,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
     });
 
-    // 1️⃣ Guardar borrado en removedTurns (CON day, CLAVE)
-    setRemovedTurns(prev => [
+    // 🧩 1️⃣ Crear excepción en DRAFT (NO tocar turns)
+    setDraftExceptions(prev => [
       ...prev,
       {
-        day: shiftToDelete.day,              // 🔥 ESTO ES IMPRESCINDIBLE
-        date: shiftToDelete.date,
+        type: 'MODIFIED_SHIFT',
+        date: shiftToDelete.date,          // "2026-01-26"
+        day: shiftToDelete.day,            // 'L', 'M', ...
         startTime: shiftToDelete.startTime,
         endTime: shiftToDelete.endTime,
-        mode,
+        mode,                              // ONLY_THIS_BLOCK | FROM_THIS_DAY_ON
       },
     ]);
 
-    // 2️⃣ Activar preview de borrado (borde negro)
+    // 🖊️ 2️⃣ Activar preview de borrado (visual)
     setEditingPreview({
       type: 'DELETE',
       day: shiftToDelete.day,
@@ -985,6 +1001,7 @@ export default function EmployeeSchedules() {
       scheduleId,
       turns: turns.length,
       vacations: vacations.length,
+      draftExceptions: draftExceptions.length,
     });
 
     let activeScheduleId = scheduleId;
@@ -992,8 +1009,6 @@ export default function EmployeeSchedules() {
     // 🔑 SI NO HAY HORARIO ACTIVO → CREAR BORRADOR PRIMERO
     if (!activeScheduleId) {
       console.log('🆕 NO HAY SCHEDULE → CREANDO DRAFT');
-
-      const token = localStorage.getItem('token');
 
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
@@ -1025,17 +1040,16 @@ export default function EmployeeSchedules() {
 
     try {
       setSaving(true);
-      let id = scheduleId;
+      let id = activeScheduleId;
 
-      // 1️⃣ Crear borrador si no existe
       // =========================
       // 1️⃣ BORRAR TURNOS EDITADOS (removedTurns) EN BACKEND
       // =========================
-
       console.log('🗑️ borrando turnos editados en backend:', removedTurns.length);
+      // (Aquí ahora mismo no haces nada, lo dejamos como está)
 
       // =========================
-      // 2️⃣ TURNOS
+      // 2️⃣ TURNOS NUEVOS / EDITADOS
       // =========================
       console.log('🟡 guardando turnos:', draftTurnsSafe.length);
 
@@ -1046,13 +1060,7 @@ export default function EmployeeSchedules() {
       // =========================
       // 3️⃣ VACACIONES (DÍAS SUELTOS)
       // =========================
-
-
-      //console.log('🟠 GUARDANDO VACACIONES (draft):', draftVacations);
-
       for (const v of draftVacations) {
-        //console.log('➡️ POST VACATION DAY:', v.date);
-
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/vacations`,
           {
@@ -1073,10 +1081,51 @@ export default function EmployeeSchedules() {
           throw new Error(`Error guardando vacaciones (${v.date}): ${text}`);
         }
       }
+
       // =========================
-      // 4️⃣ CONFIRMAR (solo si hay turnos)
+      // 4️⃣ 🟥 GUARDAR EXCEPCIONES DE TURNO (BORRADOS / MODIFIED_SHIFT)
       // =========================
-      if (draftTurnsSafe.length > 0) {
+      if (draftExceptions.length > 0) {
+        console.log('🟥 guardando excepciones de turno:', draftExceptions.length);
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              exceptions: draftExceptions.map(ex => ({
+                type: ex.type,            // 'MODIFIED_SHIFT'
+                date: ex.date,            // '2026-01-27'
+                startTime: ex.startTime, // '09:00'
+                endTime: ex.endTime,     // '11:00'
+                mode: ex.mode,           // ONLY_THIS_BLOCK / FROM_THIS_DAY_ON
+              })),
+            }),
+          }
+        );
+
+        const text = await res.text();
+        console.log('⬅️ EXCEPTIONS SAVE RESPONSE:', res.status, text || '(empty)');
+
+        if (!res.ok) {
+          throw new Error(`Error guardando excepciones de turno: ${text}`);
+        }
+      }
+
+      // =========================
+      // 5️⃣ CONFIRMAR HORARIO (SI HAY CUALQUIER CAMBIO REAL)
+      // =========================
+
+      const hasAnyChange =
+        draftTurnsSafe.length > 0 ||
+        draftVacations.length > 0 ||
+        draftExceptions.length > 0;
+
+      if (hasAnyChange) {
         console.log('🟡 confirmando horario...');
 
         const confirmRes = await fetch(
@@ -1094,11 +1143,12 @@ export default function EmployeeSchedules() {
           throw new Error('CONFIRM FAILED: ' + text);
         }
       } else {
-        console.log('ℹ️ Horario sin turnos: no se confirma (solo vacaciones)');
+        console.log('ℹ️ Horario sin cambios reales: no se confirma');
       }
 
       console.log('✅ TODO OK — saliendo');
       setDraftTurns([]);
+      setDraftExceptions([]);   // 🔑 importante limpiar excepciones
       window.history.back();
 
     } catch (err) {
@@ -1108,7 +1158,6 @@ export default function EmployeeSchedules() {
       setSaving(false);
     }
   }
-
   // 🔄 RECARGAR HORARIO REAL DESDE BACKEND
   async function reloadActiveSchedule() {
     const token = localStorage.getItem('token');
@@ -1604,14 +1653,39 @@ export default function EmployeeSchedules() {
                       day,
                       indexInWeekDays: weekDays.indexOf(day),
                       colCalculada: col,
-                      fechaColumna: weekDates[col - 1]?.toISOString().slice(0, 10),
+                      fechaColumna: weekDates[col - 1].toISOString().slice(0, 10),
+                      removedTurns,
                     });
+
+
 
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
-                    // 🔴 SI ESTE TURNO ESTÁ MARCADO COMO BORRADO, NO LO DIBUJAMOS
-                    const isRemoved = removedTurns.some(rt =>
+
+                    const currentDate = weekDates[col - 1].toISOString().slice(0, 10);
+
+                    // 🔴 SI HAY UNA EXCEPCIÓN DE BORRADO PARA ESTE TURNO, NO LO DIBUJAMOS
+                    const isRemovedByException = draftExceptions.some(ex =>
+                      ex.type === 'MODIFIED_SHIFT' &&
+                      ex.day === day &&
+                      ex.startTime === t.startTime &&
+                      ex.endTime === t.endTime &&
+                      ex.date === currentDate &&
+                      ex.mode === 'ONLY_THIS_BLOCK'
+                    );
+
+                    if (isRemovedByException) {
+                      console.log('🟥 TURNO OCULTO POR EXCEPCIÓN:', {
+                        day,
+                        startTime: t.startTime,
+                        endTime: t.endTime,
+                        date: currentDate,
+                      });
+                      return null;
+                    }
+
+                    /*const isRemoved = removedTurns.some(rt =>
                       rt.day === day &&
                       rt.startTime === t.startTime &&
                       rt.endTime === t.endTime &&
@@ -1620,16 +1694,32 @@ export default function EmployeeSchedules() {
                     // 🔑 NO dibujar si está marcado como borrado
                     if (isRemoved) {
                       return null;
-                    }
+                    }*/
 
-                    // 🔑 NO dibujar si es el turno que estamos editando (lo sustituye el draft)
+                    console.log('🟣 CHECK PREVIEW VS TURNO', {
+                      editingPreview,
+                      turno: {
+                        day,
+                        startTime: t.startTime,
+                        endTime: t.endTime,
+                        date: currentDate,
+                      }
+                    });
+
+                    // 🔴 NO dibujar si este turno está siendo borrado en preview
                     if (
-                      editingShift &&
-                      editingShift.day === day &&
-                      editingShift.startTime === t.startTime &&
-                      editingShift.endTime === t.endTime &&
-                      editingPreview !== null   // 👈 CLAVE
+                      editingPreview &&
+                      editingPreview.type === 'DELETE' &&
+                      editingPreview.day === day &&
+                      editingPreview.startTime === t.startTime &&
+                      editingPreview.endTime === t.endTime
                     ) {
+                      console.log('🟥 TURNO OCULTO POR PREVIEW DELETE', {
+                        day,
+                        startTime: t.startTime,
+                        endTime: t.endTime,
+                        date: currentDate,
+                      });
                       return null;
                     }
                     return (
@@ -1680,8 +1770,8 @@ export default function EmployeeSchedules() {
                   })
                 )}
 
-                {/* ✏️ PREVIEW DE EDICIÓN */}
-                {editingPreview && (
+                {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
+                {editingPreview && editingPreview.type !== 'DELETE' && (
                   (() => {
                     const col = weekDays.indexOf(editingPreview.day) + 1;
                     const start = timeToRow(editingPreview.startTime);
