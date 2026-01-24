@@ -202,7 +202,7 @@ export default function EmployeeSchedules() {
   function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
     return draftExceptions.some(ex =>
       ex.mode === 'ONLY_THIS_BLOCK' &&
-      ex.day === day &&
+      //ex.day === day &&
       ex.date === date &&
       ex.startTime === startTime &&
       ex.endTime === endTime
@@ -692,7 +692,7 @@ export default function EmployeeSchedules() {
       {
         type: 'MODIFIED_SHIFT',
         date: shiftToDelete.date,          // "2026-01-26"
-        day: shiftToDelete.day,            // 'L', 'M', ...
+        //day: shiftToDelete.day,            // 'L', 'M', ...
         startTime: shiftToDelete.startTime,
         endTime: shiftToDelete.endTime,
         mode,                              // ONLY_THIS_BLOCK | FROM_THIS_DAY_ON
@@ -1087,7 +1087,14 @@ export default function EmployeeSchedules() {
       // =========================
       if (draftExceptions.length > 0) {
         console.log('🟥 guardando excepciones de turno:', draftExceptions.length);
-
+        console.log('🟦 FRONTEND EXCEPTIONS TO BACKEND:', draftExceptions.map(ex => ({
+          type: ex.type,
+          date: ex.date,
+          //day: ex.day,
+          startTime: ex.startTime,
+          endTime: ex.endTime,
+          mode: ex.mode,
+        })));
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
           {
@@ -1099,7 +1106,8 @@ export default function EmployeeSchedules() {
             body: JSON.stringify({
               exceptions: draftExceptions.map(ex => ({
                 type: ex.type,            // 'MODIFIED_SHIFT'
-                date: ex.date,            // '2026-01-27'
+                date: ex.date,
+                //day: ex.day,           // '2026-01-27'
                 startTime: ex.startTime, // '09:00'
                 endTime: ex.endTime,     // '11:00'
                 mode: ex.mode,           // ONLY_THIS_BLOCK / FROM_THIS_DAY_ON
@@ -1668,7 +1676,7 @@ export default function EmployeeSchedules() {
                     // 🔴 SI HAY UNA EXCEPCIÓN DE BORRADO PARA ESTE TURNO, NO LO DIBUJAMOS
                     const isRemovedByException = draftExceptions.some(ex =>
                       ex.type === 'MODIFIED_SHIFT' &&
-                      ex.day === day &&
+                      //ex.day === day &&
                       ex.startTime === t.startTime &&
                       ex.endTime === t.endTime &&
                       ex.date === currentDate &&
