@@ -383,7 +383,7 @@ export default function EmployeeSchedules() {
           return;
         }
 
-        // 🧪 Log de control de fechas que el front va a dibujar
+        // 🧪 Fechas reales que el front va a dibujar
         const currentWeekDates = Array.from({ length: 7 }).map((_, i) => {
           const d = new Date(weekStart);
           d.setDate(weekStart.getDate() + i);
@@ -393,13 +393,15 @@ export default function EmployeeSchedules() {
         console.log('📆 WEEKDATES ACTUALES (FRONT):', currentWeekDates);
 
         // ============================
-        // 🟢 CONSTRUIR TURNOS DESDE schedule.days
+        // 🟢 CONSTRUIR TURNOS Y VACACIONES DESDE schedule.days
         // ============================
         const loadedTurns = [];
+        const loadedVacations = [];
 
         schedule.days.forEach(day => {
           const dayKey = weekDays[day.weekday - 1]; // 'L', 'M', 'X', ...
 
+          // 🔹 TURNOS NORMALES
           day.turns.forEach(t => {
             loadedTurns.push({
               id: `${day.date}-${t.startTime}-${t.endTime}`,
@@ -408,33 +410,26 @@ export default function EmployeeSchedules() {
               endTime: t.endTime,
               type: 'regular',
               source: t.source || 'saved',
-              date: day.date, // 🔑 clave absoluta para posicionar
+              date: day.date,
             });
           });
+
+          // 🔹 VACACIONES DESDE BACKEND
+          if (day.isVacation) {
+            loadedVacations.push({
+              date: day.date,
+              source: 'saved',
+            });
+          }
         });
 
         console.log('🟢 TURNOS DESDE BACKEND (RELOAD SEMANA):', loadedTurns);
-
-        setTurns(loadedTurns);
-        setScheduleId(schedule.scheduleId);
-
-        // 🟠 VACACIONES DESDE BACKEND (isVacation)
-        const loadedVacations = [];
-
-        if (schedule?.days?.length) {
-          schedule.days.forEach(day => {
-            if (day.isVacation) {
-              loadedVacations.push({
-                date: day.date,
-                source: 'saved',
-              });
-            }
-          });
-        }
-
         console.log('🟠 VACACIONES DESDE BACKEND:', loadedVacations);
 
+        setTurns(loadedTurns);
         setVacations(loadedVacations);
+        setScheduleId(schedule.scheduleId);
+
       } catch (err) {
         console.error('❌ Error recargando horario por cambio de semana', err);
         setTurns([]);
