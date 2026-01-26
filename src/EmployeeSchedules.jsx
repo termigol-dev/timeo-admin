@@ -363,20 +363,27 @@ export default function EmployeeSchedules() {
 
         console.log('🔄 RELOAD SCHEDULE STATUS:', scheduleRes.status);
 
-        if (!scheduleRes.ok) return;
+        if (!scheduleRes.ok) {
+          console.warn('⚠️ No se pudo cargar horario activo');
+          setTurns([]);
+          setVacations([]);
+          setScheduleId(null);
+          return;
+        }
 
         const schedule = await safeJson(scheduleRes);
 
         console.log('🔄 BACKEND WEEK DATA:', schedule);
-        console.log('🔄 RELOAD SCHEDULE RAW:', schedule);
 
-        if (!schedule) {
+        if (!schedule || !schedule.days || !schedule.days.length) {
+          console.log('🟡 SEMANA SIN TURNOS');
           setTurns([]);
           setVacations([]);
+          setScheduleId(null);
           return;
         }
 
-        // 🧪 LOG CRÍTICO: ver qué días estamos dibujando realmente
+        // 🧪 Log de control de fechas que el front va a dibujar
         const currentWeekDates = Array.from({ length: 7 }).map((_, i) => {
           const d = new Date(weekStart);
           d.setDate(weekStart.getDate() + i);
@@ -386,47 +393,59 @@ export default function EmployeeSchedules() {
         console.log('📆 WEEKDATES ACTUALES (FRONT):', currentWeekDates);
 
         // ============================
-        // 🟢 NUEVO MODELO SEMANAL
+        // 🟢 CONSTRUIR TURNOS DESDE schedule.days
         // ============================
-        if (schedule?.days?.length) {
-          const loadedTurns = [];
+        const loadedTurns = [];
 
-          schedule.days.forEach(day => {
-            const dayKey = weekDays[day.weekday - 1]; // 'L', 'M', 'X', ...
+        schedule.days.forEach(day => {
+          const dayKey = weekDays[day.weekday - 1]; // 'L', 'M', 'X', ...
 
-            day.turns.forEach(t => {
-              loadedTurns.push({
-                id: `${day.date}-${t.startTime}-${t.endTime}`,
-                days: [dayKey],
-                startTime: t.startTime,
-                endTime: t.endTime,
-                type: 'regular',
-                source: t.source || 'saved',
-                date: day.date, // 🔑 clave para posicionar bien
-              });
+          day.turns.forEach(t => {
+            loadedTurns.push({
+              id: `${day.date}-${t.startTime}-${t.endTime}`,
+              days: [dayKey],
+              startTime: t.startTime,
+              endTime: t.endTime,
+              type: 'regular',
+              source: t.source || 'saved',
+              date: day.date, // 🔑 clave absoluta para posicionar
             });
           });
+        });
 
-          console.log('🟢 TURNOS DESDE BACKEND (RELOAD SEMANA):', loadedTurns);
+        console.log('🟢 TURNOS DESDE BACKEND (RELOAD SEMANA):', loadedTurns);
 
-          setTurns(loadedTurns);
-          setScheduleId(schedule.scheduleId);
-        } else {
-          console.log('🟡 SEMANA SIN TURNOS');
-          setTurns([]);
+        setTurns(loadedTurns);
+        setScheduleId(schedule.scheduleId);
+
+        // 🟠 VACACIONES DESDE BACKEND (isVacation)
+        const loadedVacations = [];
+
+        if (schedule?.days?.length) {
+          schedule.days.forEach(day => {
+            if (day.isVacation) {
+              loadedVacations.push({
+                date: day.date,
+                source: 'saved',
+              });
+            }
+          });
         }
 
-        // 🟠 VACACIONES — de momento vacías (ya vienen aplicadas en backend)
-        setVacations([]);
+        console.log('🟠 VACACIONES DESDE BACKEND:', loadedVacations);
 
+        setVacations(loadedVacations);
       } catch (err) {
         console.error('❌ Error recargando horario por cambio de semana', err);
+        setTurns([]);
+        setVacations([]);
+        setScheduleId(null);
       }
     }
 
     reloadActiveSchedule();
 
-  }, [weekStart, employeeId, employee?.branchId]);
+  }, [weekStart, employeeId, employee?.branchId, companyId]);
 
   /* SCROLL INICIAL DEL CALENDARIO */
   useEffect(() => {
@@ -1147,47 +1166,7 @@ export default function EmployeeSchedules() {
       setSaving(false);
     }
   }
-  // 🔄 RECARGAR HORARIO REAL DESDE BACKEND
 
-  async function reloadActiveSchedule() {
-    const token = localStorage.getItem('token');
-
-    // usamos TU weekStart actual
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-
-    const scheduleRes = await fetch(
-      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!scheduleRes.ok) {
-      console.error('❌ Error cargando horario activo');
-      return;
-    }
-
-    const data = await scheduleRes.json();
-
-    console.log('🟢 BACKEND SEMANA CALCULADA:', data);
-
-    /**
-     * data tiene esta forma:
-     * {
-     *   scheduleId,
-     *   weekStart,
-     *   days: [
-     *     { date, type: 'WORK' | 'OFF' | 'VACATION', blocks: [{startTime, endTime}] }
-     *   ]
-     * }
-     */
-
-    // Guardamos directamente lo que hay que dibujar
-    setScheduleId(data.scheduleId);
-    setCalendarDays(data.days);
-  }
 
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
