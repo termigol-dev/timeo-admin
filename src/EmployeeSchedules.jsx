@@ -343,11 +343,9 @@ export default function EmployeeSchedules() {
   // 🔄 RECARGAR HORARIO CUANDO CAMBIA LA SEMANA
   useEffect(() => {
     if (!employee?.branchId || !employeeId) return;
-
     async function reloadActiveSchedule() {
       try {
         const token = localStorage.getItem('token');
-
         const weekStartStr = weekStart.toISOString().slice(0, 10);
 
         console.log('📅 weekStart cambió → recargando semana:', weekStartStr);
@@ -367,7 +365,6 @@ export default function EmployeeSchedules() {
           console.warn('⚠️ No se pudo cargar horario activo');
           setTurns([]);
           setVacations([]);
-          setScheduleId(null);
           return;
         }
 
@@ -375,46 +372,44 @@ export default function EmployeeSchedules() {
 
         console.log('🔄 BACKEND WEEK DATA:', schedule);
 
-        if (!schedule || !schedule.days || !schedule.days.length) {
-          console.log('🟡 SEMANA SIN TURNOS');
+        if (!schedule || !schedule.days) {
+          console.warn('⚠️ Respuesta inválida del backend');
           setTurns([]);
           setVacations([]);
-          setScheduleId(null);
           return;
         }
 
-        // 🧪 Fechas reales que el front va a dibujar
-        const currentWeekDates = Array.from({ length: 7 }).map((_, i) => {
-          const d = new Date(weekStart);
-          d.setDate(weekStart.getDate() + i);
-          return d.toISOString().slice(0, 10);
-        });
-
-        console.log('📆 WEEKDATES ACTUALES (FRONT):', currentWeekDates);
-
         // ============================
-        // 🟢 CONSTRUIR TURNOS Y VACACIONES DESDE schedule.days
+        // 🟢 CONSTRUIR TURNOS
         // ============================
         const loadedTurns = [];
+
+        schedule.days.forEach(day => {
+          const dayKey = weekDays[day.weekday - 1];
+
+          if (day.turns && day.turns.length) {
+            day.turns.forEach(t => {
+              loadedTurns.push({
+                id: `${day.date}-${t.startTime}-${t.endTime}`,
+                days: [dayKey],
+                startTime: t.startTime,
+                endTime: t.endTime,
+                type: 'regular',
+                source: t.source || 'saved',
+                date: day.date,
+              });
+            });
+          }
+        });
+
+        console.log('🟢 TURNOS DESDE BACKEND (RELOAD SEMANA):', loadedTurns);
+
+        // ============================
+        // 🟠 CONSTRUIR VACACIONES
+        // ============================
         const loadedVacations = [];
 
         schedule.days.forEach(day => {
-          const dayKey = weekDays[day.weekday - 1]; // 'L', 'M', 'X', ...
-
-          // 🔹 TURNOS NORMALES
-          day.turns.forEach(t => {
-            loadedTurns.push({
-              id: `${day.date}-${t.startTime}-${t.endTime}`,
-              days: [dayKey],
-              startTime: t.startTime,
-              endTime: t.endTime,
-              type: 'regular',
-              source: t.source || 'saved',
-              date: day.date,
-            });
-          });
-
-          // 🔹 VACACIONES DESDE BACKEND
           if (day.isVacation) {
             loadedVacations.push({
               date: day.date,
@@ -423,21 +418,31 @@ export default function EmployeeSchedules() {
           }
         });
 
-        console.log('🟢 TURNOS DESDE BACKEND (RELOAD SEMANA):', loadedTurns);
         console.log('🟠 VACACIONES DESDE BACKEND:', loadedVacations);
+
+        // ============================
+        // 🔑 ACTUALIZAR ESTADO SIEMPRE
+        // ============================
+
+        if (schedule.scheduleId) {
+          setScheduleId(schedule.scheduleId);
+        }
 
         setTurns(loadedTurns);
         setVacations(loadedVacations);
-        setScheduleId(schedule.scheduleId);
+
+        // 🧪 LOG FINAL DE CONTROL
+        console.log('📊 RESULTADO FINAL SEMANA:', {
+          turns: loadedTurns.length,
+          vacations: loadedVacations.length,
+        });
 
       } catch (err) {
         console.error('❌ Error recargando horario por cambio de semana', err);
         setTurns([]);
         setVacations([]);
-        setScheduleId(null);
       }
     }
-
     reloadActiveSchedule();
 
   }, [weekStart, employeeId, employee?.branchId, companyId]);
