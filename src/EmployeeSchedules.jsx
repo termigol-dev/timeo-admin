@@ -39,81 +39,6 @@ function timeToRow(time) {
   return h * 2 + (m >= 30 ? 1 : 0);
 }
 
-/*function mergeTurns(turns) {
-  const byDay = {};
-
-  for (const t of turns) {
-    const day = t.days[0];
-    if (!byDay[day]) byDay[day] = [];
-    byDay[day].push({ ...t });
-  }
-
-  const result = [];
-
-  for (const day in byDay) {
-    const list = byDay[day]
-      .map(t => ({
-        ...t,
-        startMin: timeToMinutes(t.startTime),
-        endMin:
-          timeToMinutes(t.endTime) <= timeToMinutes(t.startTime)
-            ? timeToMinutes(t.endTime) + 1440
-            : timeToMinutes(t.endTime),
-      }))
-      .sort((a, b) => a.startMin - b.startMin);
-
-    let current = null;
-
-    for (const t of list) {
-      if (!current) {
-        current = { ...t };
-        continue;
-      }
-
-      if (t.startMin <= current.endMin) {
-        current.endMin = Math.max(current.endMin, t.endMin);
-      } else {
-        result.push({
-          days: [day],
-          startTime: minutesToTime(current.startMin),
-          endTime: minutesToTime(current.endMin),
-          source: current.source,
-          type: current.type,
-        });
-        current = { ...t };
-      }
-    }
-
-    if (current) {
-      result.push({
-        days: [day],
-        startTime: minutesToTime(current.startMin),
-        endTime: minutesToTime(current.endMin),
-        source: current.source,
-        type: current.type,
-      });
-    }
-  }
-
-  return result;
-}*/
-
-/*function mergeDraftTurns(draftTurns) {
-  const expanded = [];
-
-  // 1️⃣ Expandimos: un turno por día
-  for (const t of draftTurns) {
-    for (const day of t.days) {
-      expanded.push({
-        ...t,
-        days: [day],
-      });
-    }
-  }
-
-  // 2️⃣ Reutilizamos mergeTurns (ahora sí correctamente)
-  return mergeTurns(expanded);
-}*/
 
 function timeToMinutes(time) {
   const [h, m] = time.split(':').map(Number);
@@ -285,7 +210,7 @@ export default function EmployeeSchedules() {
           }
         );
 
-        console.log('🏢 COMPANY STATUS:', companyRes.status); // 👈 LOG 1
+        console.log('🏢 COMPANY STATUS:', companyRes.status);
 
         if (!companyRes.ok) {
           const text = await companyRes.text();
@@ -310,7 +235,7 @@ export default function EmployeeSchedules() {
           }
         );
 
-        console.log('👥 EMPLOYEES STATUS:', employeesRes.status); // 👈 LOG 2
+        console.log('👥 EMPLOYEES STATUS:', employeesRes.status);
 
         if (!employeesRes.ok) {
           const text = await employeesRes.text();
@@ -325,16 +250,15 @@ export default function EmployeeSchedules() {
         }
 
         // 🎯 Empleado concreto
-        const foundEmployee = employees.find(
-          e => e.id === employeeId
-        );
-
+        const foundEmployee = employees.find(e => e.id === employeeId);
         setEmployee(foundEmployee || null);
 
-        // 📅 CARGAR HORARIO ACTIVO DEL EMPLEADO (VISUAL)
+        // 📅 CARGAR HORARIO ACTIVO DEL EMPLEADO (NUEVO MODELO SEMANAL)
         if (foundEmployee?.branchId) {
+          const weekStartStr = weekStart.toISOString().slice(0, 10);
+
           const scheduleRes = await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active`,
+            `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -342,99 +266,75 @@ export default function EmployeeSchedules() {
             }
           );
 
-          console.log('📅 SCHEDULE STATUS:', scheduleRes.status); // 👈 LOG 3
+          console.log('📅 SCHEDULE STATUS:', scheduleRes.status);
 
-          if (scheduleRes.ok) {
-            const schedule = await safeJson(scheduleRes);   // 👈 AQUÍ ESTÁ LA CLAVE
+          if (!scheduleRes.ok) {
+            const text = await scheduleRes.text();
+            console.error('Error cargando horario:', text);
+            return;
+          }
 
-            if (!schedule) {
-              console.log('🟡 NO HAY HORARIO ACTIVO (respuesta vacía)');
-              setTurns([]);
-              setVacations([]);
-              return;
-            }
+          const schedule = await safeJson(scheduleRes);
 
-            console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
-            console.log('🧪 SHIFTS RAW BACKEND:', schedule.shifts);
-            console.log(
-              '🧪 WEEKDAYS BACKEND (CRUDO):',
-              schedule.shifts.map(s => ({
-                id: s.id,
-                weekday: s.weekday,
-                startTime: s.startTime,
-                endTime: s.endTime,
-              }))
-            );
+          if (!schedule) {
+            console.log('🟡 NO HAY HORARIO ACTIVO (respuesta vacía)');
+            setTurns([]);
+            setVacations([]);
+            return;
+          }
 
-            // TURNOS
-            if (schedule?.shifts?.length) {
-              const loadedTurns = schedule.shifts.map(shift => ({
-                id: shift.id,
-                days: [weekDays[shift.weekday - 1]],
-                startTime: shift.startTime,
-                endTime: shift.endTime,
-                type: 'regular',
-                source: 'saved',
-              }));
+          console.log('🧪 SCHEDULE ACTIVO RAW (NUEVO MODELO):', schedule);
 
+          // ======================================================
+          // 🟢 TURNOS DESDE NUEVO MODELO SEMANAL (schedule.days)
+          // ======================================================
 
-              /*// 🔥 FILTRAR TURNOS MARCADOS COMO BORRADOS EN DRAFT
+          if (Array.isArray(schedule.days)) {
+            const loadedTurns = [];
 
-              console.log('🔍 DEBUG removedTurns RAW:', removedTurns);
+            schedule.days.forEach(day => {
+              const dayIndex = day.weekday - 1; // 1=lunes → 0
+              const dayKey = weekDays[dayIndex]; // 'L', 'M', 'X', ...
 
-              console.log('🔍 DEBUG loadedTurns RAW:', loadedTurns);
+              // Si es día libre total, no hay turnos
+              if (!Array.isArray(day.turns)) return;
 
-              removedTurns.forEach(rt => {
-                loadedTurns.forEach(turn => {
-                  console.log('🔎 COMPARANDO', {
-                    rt_date: rt.date,
-                    rt_day: rt.day,
-                    rt_start: rt.startTime,
-                    rt_end: rt.endTime,
-                    turn_day: turn.days[0],
-                    turn_start: turn.startTime,
-                    turn_end: turn.endTime,
-                    match_day: rt.day === turn.days[0],
-                    match_start: rt.startTime === turn.startTime,
-                    match_end: rt.endTime === turn.endTime,
-                  });
+              day.turns.forEach(t => {
+                loadedTurns.push({
+                  // id sintético, suficiente para React
+                  id: `${day.date}-${t.startTime}-${t.endTime}`,
+                  days: [dayKey],              // un solo día
+                  startTime: t.startTime,
+                  endTime: t.endTime,
+                  type: t.source === 'extra' ? 'extra' : 'regular',
+                  source: 'saved',
+                  date: day.date,              // 🔑 clave para tu lógica futura
                 });
               });
+            });
 
-              const visibleTurns = loadedTurns.filter(turn => {
-                return !removedTurns.some(rt =>
-                  rt.startTime === turn.startTime &&
-                  rt.endTime === turn.endTime &&
-                  rt.day === turn.days[0] &&
-                  rt.date === fechaColumna
-                );
-              });
-              */
-              console.log('🟢 TURNOS VISIBLES (tras aplicar removedTurns):', loadedTurns);
+            console.log('🟢 TURNOS DESDE BACKEND (NUEVO MODELO):', loadedTurns);
 
-              setTurns(loadedTurns);
-              setScheduleId(schedule.id);
-            }
-
-            // 🟠 VACACIONES (guardadas)
-            if (schedule?.exceptions?.length) {
-              const loadedVacations = schedule.exceptions
-                .filter(e => e.type === 'VACATION')
-                .map(v => ({
-                  date: v.date.slice(0, 10),
-                  source: 'saved',
-                }));
-
-              setVacations(loadedVacations);
-            }
+            setTurns(loadedTurns);
+            setScheduleId(schedule.scheduleId);
+          } else {
+            console.warn('⚠️ schedule.days no es un array:', schedule.days);
+            setTurns([]);
           }
+
+          // ======================================================
+          // 🟠 VACACIONES
+          // De momento NO las usamos aquí.
+          // Más adelante las pintaremos desde day.isDayOff
+          // ======================================================
+
+          setVacations([]);
         }
 
       } catch (err) {
         console.error('Error cargando empresa / empleado', err);
       }
     }
-
     loadHeaderData();
   }, [companyId, employeeId, removedTurns]);
 
@@ -689,6 +589,7 @@ export default function EmployeeSchedules() {
     setStartTime('');
     setEndTime('');
   }
+
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
     if (!dateFrom && !dateTo && (startTime || endTime)) {
@@ -1283,56 +1184,7 @@ export default function EmployeeSchedules() {
     setScheduleId(data.scheduleId);
     setCalendarDays(data.days);
   }
-  /*async function reloadActiveSchedule() {
-    const token = localStorage.getItem('token');
-
-    const scheduleRes = await fetch(
-      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!scheduleRes.ok) return;
-
-    const schedule = await scheduleRes.json();
-
-    console.log('🔄 RECARGANDO HORARIO DESDE BACKEND:', schedule);
-
-    // TURNOS
-    if (schedule?.shifts?.length) {
-      const loadedTurns = schedule.shifts.map(shift => ({
-        id: shift.id,
-        days: [weekDays[shift.weekday - 1]],
-        startTime: shift.startTime,
-        endTime: shift.endTime,
-        type: 'regular',
-        source: 'saved',
-      }));
-
-      setTurns(loadedTurns);
-      setScheduleId(schedule.id);
-    } else {
-      setTurns([]);
-    }
-
-    // VACACIONES
-    if (schedule?.exceptions?.length) {
-      const loadedVacations = schedule.exceptions
-        .filter(e => e.type === 'VACATION')
-        .map(v => ({
-          date: v.date.slice(0, 10),
-          source: 'saved',
-        }));
-
-      setVacations(loadedVacations);
-    } else {
-      setVacations([]);
-    }
-  }*/
-
+  
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
 
@@ -1804,18 +1656,7 @@ export default function EmployeeSchedules() {
                       return null;
                     }
 
-                    /*const isRemoved = removedTurns.some(rt =>
-                      rt.day === day &&
-                      rt.startTime === t.startTime &&
-                      rt.endTime === t.endTime &&
-                      rt.date === weekDates[col - 1].toISOString().slice(0, 10)
-                    );
-                    // 🔑 NO dibujar si está marcado como borrado
-                    if (isRemoved) {
-                      return null;
-                    }*/
-
-                    console.log('🟣 CHECK PREVIEW VS TURNO', {
+                      console.log('🟣 CHECK PREVIEW VS TURNO', {
                       editingPreview,
                       turno: {
                         day,
