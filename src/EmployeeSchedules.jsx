@@ -138,6 +138,96 @@ export default function EmployeeSchedules() {
     );
   }
 
+  async function reloadActiveSchedule() {
+    // 🛑 BLINDAJE DE INICIALIZACIÓN
+    if (!employee || !employee.branchId || !employeeId) return;
+    if (!employee || !employee.branchId || !employeeId) {
+      console.log('⏸️ reloadActiveSchedule cancelado: employee no listo aún');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const weekStartStr = weekStart.toISOString().slice(0, 10);
+      console.log('📅 reloadActiveSchedule → semana:', weekStartStr);
+
+      const scheduleRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log('🔄 RELOAD STATUS:', scheduleRes.status);
+
+      if (!scheduleRes.ok) {
+        console.warn('⚠️ Error cargando semana activa');
+        setTurns([]);
+        setVacations([]);
+        setScheduleId(null);
+        return;
+      }
+
+      const schedule = await safeJson(scheduleRes);
+
+      console.log('🔄 BACKEND WEEK DATA:', schedule);
+
+      // 🔑 LIMPIAR SIEMPRE ESTADO ANTES DE CONSTRUIR
+      const loadedTurns = [];
+      const loadedVacations = [];
+
+      if (schedule && Array.isArray(schedule.days)) {
+
+        schedule.days.forEach(day => {
+          const dayKey = weekDays[day.weekday - 1]; // 'L', 'M', ...
+
+          // 🟢 TURNOS
+          if (Array.isArray(day.turns)) {
+            day.turns.forEach(t => {
+              loadedTurns.push({
+                id: `${day.date}-${t.startTime}-${t.endTime}`,
+                days: [dayKey],
+                startTime: t.startTime,
+                endTime: t.endTime,
+                type: t.source === 'extra' ? 'extra' : 'regular',
+                source: t.source || 'saved',
+                date: day.date,
+              });
+            });
+          }
+
+          // 🟠 VACACIONES
+          if (day.isVacation) {
+            loadedVacations.push({
+              date: day.date,
+              source: 'saved',
+            });
+          }
+        });
+      } else {
+        console.warn('⚠️ schedule.days no válido:', schedule);
+      }
+
+      console.log('📊 RESULTADO FINAL SEMANA:', {
+        turns: loadedTurns.length,
+        vacations: loadedVacations.length,
+      });
+
+      // 🔑 ACTUALIZAR ESTADO SIEMPRE, SIN CONDICIONES
+      setScheduleId(schedule?.scheduleId || null);
+      setTurns(loadedTurns);
+      setVacations(loadedVacations);
+
+    } catch (err) {
+      console.error('❌ Error en reloadActiveSchedule', err);
+      setTurns([]);
+      setVacations([]);
+      setScheduleId(null);
+    }
+  }
+
   // 🛡️ BLINDAJE: nunca permitir edición activa si abrimos el popup de opciones
   useEffect(() => {
     if (showShiftDeleteConfirm) {
@@ -255,7 +345,7 @@ export default function EmployeeSchedules() {
         const foundEmployee = employees.find(e => e.id === employeeId);
         setEmployee(foundEmployee || null);
 
-        // 📅 CARGAR HORARIO ACTIVO DEL EMPLEADO (NUEVO MODELO SEMANAL)
+        // 📅 CARGAR HORARIO ACTIVO DEL EMPLEADO
         if (foundEmployee?.branchId) {
           const weekStartStr = weekStart.toISOString().slice(0, 10);
 
@@ -282,55 +372,14 @@ export default function EmployeeSchedules() {
             console.log('🟡 NO HAY HORARIO ACTIVO (respuesta vacía)');
             setTurns([]);
             setVacations([]);
+            setScheduleId(null);
             return;
           }
 
           console.log('🧪 SCHEDULE ACTIVO RAW (NUEVO MODELO):', schedule);
 
-          // ======================================================
-          // 🟢 TURNOS DESDE NUEVO MODELO SEMANAL (schedule.days)
-          // ======================================================
-
-          if (Array.isArray(schedule.days)) {
-            const loadedTurns = [];
-
-            schedule.days.forEach(day => {
-              const dayIndex = day.weekday - 1; // 1=lunes → 0
-              const dayKey = weekDays[dayIndex]; // 'L', 'M', 'X', ...
-
-              // Si es día libre total, no hay turnos
-              if (!Array.isArray(day.turns)) return;
-
-              day.turns.forEach(t => {
-                loadedTurns.push({
-                  // id sintético, suficiente para React
-                  id: `${day.date}-${t.startTime}-${t.endTime}`,
-                  days: [dayKey],              // un solo día
-                  startTime: t.startTime,
-                  endTime: t.endTime,
-                  type: t.source === 'extra' ? 'extra' : 'regular',
-                  source: 'saved',
-                  date: day.date,              // 🔑 clave para tu lógica futura
-                });
-              });
-            });
-
-            console.log('🟢 TURNOS DESDE BACKEND (NUEVO MODELO):', loadedTurns);
-
-            setTurns(loadedTurns);
-            setScheduleId(schedule.scheduleId);
-          } else {
-            console.warn('⚠️ schedule.days no es un array:', schedule.days);
-            setTurns([]);
-          }
-
-          // ======================================================
-          // 🟠 VACACIONES
-          // De momento NO las usamos aquí.
-          // Más adelante las pintaremos desde day.isDayOff
-          // ======================================================
-
-          setVacations([]);
+          // 🔑 CLAVE: aquí NO se construyen turnos ni vacaciones
+          // 🔑 TODO el dibujo se delega a reloadActiveSchedule
         }
 
       } catch (err) {
@@ -340,112 +389,6 @@ export default function EmployeeSchedules() {
     loadHeaderData();
   }, [companyId, employeeId, removedTurns]);
 
-  // 🔄 RECARGAR HORARIO CUANDO CAMBIA LA SEMANA
-  useEffect(() => {
-    if (!employee?.branchId || !employeeId) return;
-    async function reloadActiveSchedule() {
-      try {
-        const token = localStorage.getItem('token');
-        const weekStartStr = weekStart.toISOString().slice(0, 10);
-
-        console.log('📅 weekStart cambió → recargando semana:', weekStartStr);
-
-        const scheduleRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        console.log('🔄 RELOAD SCHEDULE STATUS:', scheduleRes.status);
-
-        if (!scheduleRes.ok) {
-          console.warn('⚠️ No se pudo cargar horario activo');
-          setTurns([]);
-          setVacations([]);
-          return;
-        }
-
-        const schedule = await safeJson(scheduleRes);
-
-        console.log('🔄 BACKEND WEEK DATA:', schedule);
-
-        if (!schedule || !schedule.days) {
-          console.warn('⚠️ Respuesta inválida del backend');
-          setTurns([]);
-          setVacations([]);
-          return;
-        }
-
-        // ============================
-        // 🟢 CONSTRUIR TURNOS
-        // ============================
-        const loadedTurns = [];
-
-        schedule.days.forEach(day => {
-          const dayKey = weekDays[day.weekday - 1];
-
-          if (day.turns && day.turns.length) {
-            day.turns.forEach(t => {
-              loadedTurns.push({
-                id: `${day.date}-${t.startTime}-${t.endTime}`,
-                days: [dayKey],
-                startTime: t.startTime,
-                endTime: t.endTime,
-                type: 'regular',
-                source: t.source || 'saved',
-                date: day.date,
-              });
-            });
-          }
-        });
-
-        console.log('🟢 TURNOS DESDE BACKEND (RELOAD SEMANA):', loadedTurns);
-
-        // ============================
-        // 🟠 CONSTRUIR VACACIONES
-        // ============================
-        const loadedVacations = [];
-
-        schedule.days.forEach(day => {
-          if (day.isVacation) {
-            loadedVacations.push({
-              date: day.date,
-              source: 'saved',
-            });
-          }
-        });
-
-        console.log('🟠 VACACIONES DESDE BACKEND:', loadedVacations);
-
-        // ============================
-        // 🔑 ACTUALIZAR ESTADO SIEMPRE
-        // ============================
-
-        if (schedule.scheduleId) {
-          setScheduleId(schedule.scheduleId);
-        }
-
-        setTurns(loadedTurns);
-        setVacations(loadedVacations);
-
-        // 🧪 LOG FINAL DE CONTROL
-        console.log('📊 RESULTADO FINAL SEMANA:', {
-          turns: loadedTurns.length,
-          vacations: loadedVacations.length,
-        });
-
-      } catch (err) {
-        console.error('❌ Error recargando horario por cambio de semana', err);
-        setTurns([]);
-        setVacations([]);
-      }
-    }
-    reloadActiveSchedule();
-
-  }, [weekStart, employeeId, employee?.branchId, companyId]);
 
   /* SCROLL INICIAL DEL CALENDARIO */
   useEffect(() => {
@@ -519,6 +462,16 @@ export default function EmployeeSchedules() {
       document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 🔄 RECARGAR HORARIO CADA VEZ QUE CAMBIA LA SEMANA
+  useEffect(() => {
+    if (!employee?.branchId || !employeeId) return;
+
+    console.log('🟦 FRONT → weekStart cambió, recargando semana:', weekStart.toISOString().slice(0, 10));
+
+    reloadActiveSchedule();
+
+  }, [weekStart, employeeId, employee?.branchId]);
+
   useEffect(() => {
     const header = headerXRef.current;
     const grid = calendarRef.current;
@@ -535,6 +488,8 @@ export default function EmployeeSchedules() {
       header.removeEventListener('scroll', syncHorizontalScroll);
     };
   }, []);
+
+
 
   function toggleDay(day) {
     setSelectedDays(d =>
