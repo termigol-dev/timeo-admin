@@ -23,7 +23,7 @@ const days = [
   { key: 'D', label: 'Domingo' },
 ];
 
-const weekDays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const weekDays = [null, 'L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 
 
@@ -652,6 +652,13 @@ export default function EmployeeSchedules() {
     setDateFrom('');
     setDateTo('');
   }
+
+  function formatDateLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
   function handleConfirmDeleteShift() {
     if (!shiftToDelete || !deleteShiftMode) return;
@@ -1404,12 +1411,12 @@ export default function EmployeeSchedules() {
         <div className="calendar-header">
           <div className="calendar-week-text">
             Semana del{' '}
-            {weekDates[0].toLocaleDateString('es-ES', {
+            {weekDates[1].toLocaleDateString('es-ES', {
               day: '2-digit',
               month: 'short',
             })}{' '}
             –{' '}
-            {weekDates[6].toLocaleDateString('es-ES', {
+            {weekDates[7].toLocaleDateString('es-ES', {
               day: '2-digit',
               month: 'short',
             })}
@@ -1495,8 +1502,8 @@ export default function EmployeeSchedules() {
               <div />
 
               {/* 🔹 CABECERAS DE LOS 7 DÍAS */}
-              {weekDates.map((date, i) => (
-                <div key={i} className="calendar-day-header">
+              {weekDates.slice(1).map((date, i) => (
+                <div key={i + 1} className="calendar-day-header">
                   {date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })}
                 </div>
               ))}
@@ -1573,29 +1580,29 @@ export default function EmployeeSchedules() {
                 {savedTurns.map((t, i) =>
                   t.days.map(day => {
 
-                    // 🔑 col = 1..7 (lunes = 1)
-                    const col = weekDays.indexOf(day) + 1;
+                    const col = weekDays.indexOf(day); // 1..7
 
-                    console.log('🎯 DIBUJANDO TURNO:', {
-                      day,
-                      indexInWeekDays: weekDays.indexOf(day),
-                      colCalculada: col,
-                      fechaColumna: weekDates[col - 1].toISOString().slice(0, 10),
-                      removedTurns,
-                    });
+                    if (col < 1 || col > 7) return null;
 
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
 
-                    // 🔑 fecha correcta del día (col - 1)
-                    const currentDate = new Date(
+                    // 🔑 fecha correcta del día
+                    const currentDateObj = new Date(
                       weekStart.getFullYear(),
                       weekStart.getMonth(),
                       weekStart.getDate() + (col - 1)
-                    ).toISOString().slice(0, 10);
+                    );
 
-                    // 🔴 SI HAY UNA EXCEPCIÓN DE BORRADO PARA ESTE TURNO, NO LO DIBUJAMOS
+                    const currentDate = formatDateLocal(currentDateObj);
+                    console.log('🧪 MAPEO DÍA → FECHA', {
+                      dayBackend: day,        // 1..7
+                      col,
+                      weekStart: formatDateLocal(weekStart),
+                      fechaCalculada: currentDate,
+                    });
+
                     const isRemovedByException = draftExceptions.some(ex =>
                       ex.type === 'MODIFIED_SHIFT' &&
                       ex.startTime === t.startTime &&
@@ -1604,27 +1611,8 @@ export default function EmployeeSchedules() {
                       ex.mode === 'ONLY_THIS_BLOCK'
                     );
 
-                    if (isRemovedByException) {
-                      console.log('🟥 TURNO OCULTO POR EXCEPCIÓN:', {
-                        day,
-                        startTime: t.startTime,
-                        endTime: t.endTime,
-                        date: currentDate,
-                      });
-                      return null;
-                    }
+                    if (isRemovedByException) return null;
 
-                    console.log('🟣 CHECK PREVIEW VS TURNO', {
-                      editingPreview,
-                      turno: {
-                        day,
-                        startTime: t.startTime,
-                        endTime: t.endTime,
-                        date: currentDate,
-                      }
-                    });
-
-                    // 🔴 NO dibujar si este turno está siendo borrado en preview
                     if (
                       editingPreview &&
                       editingPreview.type === 'DELETE' &&
@@ -1632,12 +1620,6 @@ export default function EmployeeSchedules() {
                       editingPreview.startTime === t.startTime &&
                       editingPreview.endTime === t.endTime
                     ) {
-                      console.log('🟥 TURNO OCULTO POR PREVIEW DELETE', {
-                        day,
-                        startTime: t.startTime,
-                        endTime: t.endTime,
-                        date: currentDate,
-                      });
                       return null;
                     }
 
@@ -1652,37 +1634,21 @@ export default function EmployeeSchedules() {
                           : ''
                           }`}
                         style={{
-                          // 🔑 gridColumn = col (1..7)
-                          gridColumn: col,
+                          gridColumn: col,                 // 1..7
                           gridRow: `${start + 1} / ${end + 1}`,
                         }}
-
                         onMouseDown={e => {
                           e.stopPropagation();
                         }}
                         onClick={e => {
                           e.stopPropagation();
 
-                          console.log('🟥 CLICK EN TURNO GUARDADO REAL', {
-                            id: t.id,
-                            day,
-                            startTime: t.startTime,
-                            endTime: t.endTime,
-                          });
-
-                          // 🔑 fecha correcta: weekDates[col - 1]
                           setShiftToDelete({
                             id: t.id,
                             day,
                             date: weekDates[col - 1].toISOString().slice(0, 10),
                             startTime: t.startTime,
                             endTime: t.endTime,
-                          });
-
-                          console.log('🧪 DEBUG weekStart y col', {
-                            weekStart: weekStart.toISOString().slice(0, 10),
-                            col,
-                            weekDates: weekDates.map(d => d.toISOString().slice(0, 10)),
                           });
 
                           setDeleteShiftMode('ONLY_THIS_BLOCK');
@@ -1694,6 +1660,79 @@ export default function EmployeeSchedules() {
                     );
                   })
                 )}
+
+                {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
+                {editingPreview && editingPreview.type !== 'DELETE' && (() => {
+
+                  const col = weekDays.indexOf(editingPreview.day);
+                  if (col <= 0) return null;
+
+                  const start = timeToRow(editingPreview.startTime);
+                  let end = timeToRow(editingPreview.endTime);
+                  if (end <= start) end += 48;
+
+                  return (
+                    <div
+                      className="turn-draft editing-highlight"
+                      style={{
+                        gridColumn: col,
+                        gridRow: `${start + 1} / ${end + 1}`,
+                        background: '#22c55e',
+                        opacity: 0.7,
+                      }}
+                    >
+                      {editingPreview.startTime} – {editingPreview.endTime}
+                    </div>
+                  );
+                })()}
+
+                {/* 🖊️ PREVIEW DE EDICIÓN */}
+                {editingPreview && (() => {
+
+                  const col = weekDays.indexOf(editingPreview.day);
+                  if (col <= 0) return null;
+
+                  return (
+                    <div
+                      className={`turn-preview ${editingPreview.type === 'ADD' ? 'preview-add' : 'preview-delete'
+                        }`}
+                      style={{
+                        gridColumn: col,
+                        gridRow: `${timeToRow(editingPreview.startTime) + 1} / ${timeToRow(editingPreview.endTime) + 1}`,
+                      }}
+                    >
+                      {editingPreview.startTime} – {editingPreview.endTime}
+                    </div>
+                  );
+                })()}
+
+                {/* TURNOS BORRADOR */}
+                {mergedDraftTurns.map((t, i) =>
+                  t.days.map(day => {
+
+                    const col = weekDays.indexOf(day); // 1..7
+
+                    if (col < 1 || col > 7) return null;
+
+                    const start = timeToRow(t.startTime);
+                    let end = timeToRow(t.endTime);
+                    if (end <= start) end += 48;
+
+                    return (
+                      <div
+                        key={`draft-${i}-${day}`}
+                        className="turn-draft"
+                        style={{
+                          gridColumn: col,
+                          gridRow: `${start + 1} / ${end + 1}`,
+                        }}
+                      >
+                        {t.startTime} – {t.endTime}
+                      </div>
+                    );
+                  })
+                )})
+
 
                 {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
                 {editingPreview && editingPreview.type !== 'DELETE' && (
