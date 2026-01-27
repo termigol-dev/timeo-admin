@@ -56,6 +56,15 @@ function minutesToTime(min) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function normalizeToWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 domingo, 1 lunes...
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
 export default function EmployeeSchedules() {
   const { companyId, employeeId } = useParams();
   const headerXRef = useRef(null);
@@ -107,12 +116,7 @@ export default function EmployeeSchedules() {
   const [draftTurns, setDraftTurns] = useState([]);
 
   // 📅 Semana actual (lunes)
-  const [weekStart, setWeekStart] = useState(() => {
-    const d = new Date();
-    const day = d.getDay(); // 0 domingo, 1 lunes...
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
-  });
+  const [weekStart, setWeekStart] = useState(() => normalizeToWeekStart(new Date()));
   const [saving, setSaving] = useState(false);
 
   const [draftExceptions, setDraftExceptions] = useState([]);
@@ -1401,7 +1405,7 @@ export default function EmployeeSchedules() {
                 setWeekStart(d => {
                   const prev = new Date(d);
                   prev.setDate(prev.getDate() - 7);
-                  return prev;
+                  return normalizeToWeekStart(prev);
                 })
               }
               className="calendar-button"
@@ -1414,7 +1418,7 @@ export default function EmployeeSchedules() {
                 setWeekStart(d => {
                   const next = new Date(d);
                   next.setDate(next.getDate() + 7);
-                  return next;
+                  return normalizeToWeekStart(next);
                 })
               }
               className="calendar-button"
@@ -1427,7 +1431,7 @@ export default function EmployeeSchedules() {
               onChange={e => {
                 const d = new Date(weekStart);
                 d.setMonth(Number(e.target.value));
-                setWeekStart(d);
+                setWeekStart(normalizeToWeekStart(d));
               }}
               className="calendar-select"
             >
@@ -1443,7 +1447,7 @@ export default function EmployeeSchedules() {
               onChange={e => {
                 const d = new Date(weekStart);
                 d.setFullYear(Number(e.target.value));
-                setWeekStart(d);
+                setWeekStart(normalizeToWeekStart(d));
               }}
               className="calendar-select"
             >
