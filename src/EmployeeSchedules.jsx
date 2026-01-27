@@ -65,15 +65,6 @@ function normalizeToWeekStart(date) {
   return monday;
 }
 
-function getMonday(d) {
-  const date = new Date(d);
-  const day = date.getDay(); // 0 domingo, 1 lunes...
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(date.setDate(diff));
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-}
-
 export default function EmployeeSchedules() {
   const { companyId, employeeId } = useParams();
   const headerXRef = useRef(null);
@@ -140,6 +131,8 @@ export default function EmployeeSchedules() {
       return d;
     });
   }, [weekStart]);
+
+  console.log('🧪 DEBUG weekDates CALCULADAS:', weekDates.map(d => d.toISOString().slice(0, 10)));
 
   function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
     console.log('🧪 CHECK DELETE MATCH', {
@@ -1582,11 +1575,10 @@ export default function EmployeeSchedules() {
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
-                    const monday = getMonday(weekStart);
                     const currentDate = new Date(
-                      monday.getFullYear(),
-                      monday.getMonth(),
-                      monday.getDate() + (col - 1)
+                      weekStart.getFullYear(),
+                      weekStart.getMonth(),
+                      weekStart.getDate() + (col - 1)
                     ).toISOString().slice(0, 10);
                     // 🔴 SI HAY UNA EXCEPCIÓN DE BORRADO PARA ESTE TURNO, NO LO DIBUJAMOS
                     const isRemovedByException = draftExceptions.some(ex =>
@@ -1670,6 +1662,12 @@ export default function EmployeeSchedules() {
                             date: weekDates[col - 1].toISOString().slice(0, 10),
                             startTime: t.startTime,
                             endTime: t.endTime,
+                          });
+
+                          console.log('🧪 DEBUG weekStart y col', {
+                            weekStart: weekStart.toISOString().slice(0, 10),
+                            col,
+                            weekDates: weekDates.map(d => d.toISOString().slice(0, 10)),
                           });
 
                           setDeleteShiftMode('ONLY_THIS_BLOCK');
