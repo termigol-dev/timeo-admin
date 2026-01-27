@@ -65,6 +65,15 @@ function normalizeToWeekStart(date) {
   return monday;
 }
 
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay(); // 0 domingo, 1 lunes...
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(date.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
 export default function EmployeeSchedules() {
   const { companyId, employeeId } = useParams();
   const headerXRef = useRef(null);
@@ -133,6 +142,10 @@ export default function EmployeeSchedules() {
   }, [weekStart]);
 
   function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
+    console.log('🧪 CHECK DELETE MATCH', {
+      turno: { day, date, startTime, endTime },
+      exceptions: draftExceptions,
+    });
     return draftExceptions.some(ex =>
       ex.mode === 'ONLY_THIS_BLOCK' &&
       //ex.day === day &&
@@ -144,15 +157,16 @@ export default function EmployeeSchedules() {
 
   async function reloadActiveSchedule() {
     // 🛑 BLINDAJE DE INICIALIZACIÓN
-    if (!employee || !employee.branchId || !employeeId) return;
     if (!employee || !employee.branchId || !employeeId) {
       console.log('⏸️ reloadActiveSchedule cancelado: employee no listo aún');
       return;
     }
-
+    console.log('🧪 DEBUG weekStart raw:', weekStart.toISOString().slice(0, 10));
     try {
       const token = localStorage.getItem('token');
       const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+      console.log('🧪 DEBUG weekStartStr enviado al backend:', weekStartStr);
       console.log('📅 reloadActiveSchedule → semana:', weekStartStr);
 
       const scheduleRes = await fetch(
@@ -1568,9 +1582,12 @@ export default function EmployeeSchedules() {
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
-
-                    const currentDate = weekDates[col - 1].toISOString().slice(0, 10);
-
+                    const monday = getMonday(weekStart);
+                    const currentDate = new Date(
+                      monday.getFullYear(),
+                      monday.getMonth(),
+                      monday.getDate() + (col - 1)
+                    ).toISOString().slice(0, 10);
                     // 🔴 SI HAY UNA EXCEPCIÓN DE BORRADO PARA ESTE TURNO, NO LO DIBUJAMOS
                     const isRemovedByException = draftExceptions.some(ex =>
                       ex.type === 'MODIFIED_SHIFT' &&
