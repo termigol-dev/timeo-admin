@@ -57,12 +57,11 @@ function minutesToTime(min) {
 }
 
 function normalizeToWeekStart(date) {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 domingo, 1 lunes...
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d.setDate(diff));
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); // fecha local limpia
+  const jsDay = d.getDay(); // 0 domingo, 1 lunes...
+  const offset = jsDay === 0 ? -6 : 1 - jsDay; // mover al lunes
+  d.setDate(d.getDate() + offset);
+  return d; // lunes a las 00:00 local
 }
 
 export default function EmployeeSchedules() {
@@ -125,15 +124,25 @@ export default function EmployeeSchedules() {
   const INITIAL_SCROLL_HOUR = 8;
   const [calendarFocused, setCalendarFocused] = useState(false);
   const weekDates = useMemo(() => {
-    return Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
-      return d;
-    });
+    if (!weekStart) return [];
+
+    const result = [null]; // índice 0 no se usa
+
+    for (let weekday = 1; weekday <= 7; weekday++) {
+      const d = new Date(
+        weekStart.getFullYear(),
+        weekStart.getMonth(),
+        weekStart.getDate() + (weekday - 1)
+      );
+      result[weekday] = d;
+    }
+
+    return result; // usamos solo 1..7
   }, [weekStart]);
-
-  console.log('🧪 DEBUG weekDates CALCULADAS:', weekDates.map(d => d.toISOString().slice(0, 10)));
-
+  console.log(
+    '🧪 DEBUG weekDates CALCULADAS:',
+    weekDates.slice(1).map(d => d.toISOString().slice(0, 10))
+  );
   function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
     console.log('🧪 CHECK DELETE MATCH', {
       turno: { day, date, startTime, endTime },
@@ -1518,18 +1527,21 @@ export default function EmployeeSchedules() {
 
                 {/* CELDAS */}
                 {Array.from({ length: 48 }).map((_, row) =>
-                  weekDays.map((_, col) => (
-                    <div
-                      key={`${row}-${col}`}
-                      className="calendar-cell"
-                      style={{
-                        gridColumn: col + 1,
-                        gridRow: row + 1,
-                      }}
-                    />
-                  ))
-                )}
+                  Array.from({ length: 7 }).map((_, i) => {
+                    const col = i + 1; // 1..7
 
+                    return (
+                      <div
+                        key={`${row}-${col}`}
+                        className="calendar-cell"
+                        style={{
+                          gridColumn: col,
+                          gridRow: row + 1,
+                        }}
+                      />
+                    );
+                  })
+                )}
                 {weekVacationBlocks.map(v => (
                   <div
                     key={v.key}
@@ -1560,6 +1572,8 @@ export default function EmployeeSchedules() {
                 {/* TURNOS GUARDADOS (REALES, BORRABLES) */}
                 {savedTurns.map((t, i) =>
                   t.days.map(day => {
+
+                    // 🔑 col = 1..7 (lunes = 1)
                     const col = weekDays.indexOf(day) + 1;
 
                     console.log('🎯 DIBUJANDO TURNO:', {
@@ -1570,20 +1584,20 @@ export default function EmployeeSchedules() {
                       removedTurns,
                     });
 
-
-
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
+
+                    // 🔑 fecha correcta del día (col - 1)
                     const currentDate = new Date(
                       weekStart.getFullYear(),
                       weekStart.getMonth(),
                       weekStart.getDate() + (col - 1)
                     ).toISOString().slice(0, 10);
+
                     // 🔴 SI HAY UNA EXCEPCIÓN DE BORRADO PARA ESTE TURNO, NO LO DIBUJAMOS
                     const isRemovedByException = draftExceptions.some(ex =>
                       ex.type === 'MODIFIED_SHIFT' &&
-                      //ex.day === day &&
                       ex.startTime === t.startTime &&
                       ex.endTime === t.endTime &&
                       ex.date === currentDate &&
@@ -1626,6 +1640,7 @@ export default function EmployeeSchedules() {
                       });
                       return null;
                     }
+
                     return (
                       <div
                         key={`saved-${t.id}-${day}`}
@@ -1637,11 +1652,11 @@ export default function EmployeeSchedules() {
                           : ''
                           }`}
                         style={{
+                          // 🔑 gridColumn = col (1..7)
                           gridColumn: col,
                           gridRow: `${start + 1} / ${end + 1}`,
                         }}
 
-                        // 🔑 EVITAR QUE EL GRID ROBE EL FOCO
                         onMouseDown={e => {
                           e.stopPropagation();
                         }}
@@ -1655,7 +1670,7 @@ export default function EmployeeSchedules() {
                             endTime: t.endTime,
                           });
 
-                          // 👉 SOLO abrimos el popup de opciones
+                          // 🔑 fecha correcta: weekDates[col - 1]
                           setShiftToDelete({
                             id: t.id,
                             day,
@@ -1683,7 +1698,10 @@ export default function EmployeeSchedules() {
                 {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
                 {editingPreview && editingPreview.type !== 'DELETE' && (
                   (() => {
+
+                    // 🔑 col = 1..7
                     const col = weekDays.indexOf(editingPreview.day) + 1;
+
                     const start = timeToRow(editingPreview.startTime);
                     let end = timeToRow(editingPreview.endTime);
                     if (end <= start) end += 48;
@@ -1705,24 +1723,33 @@ export default function EmployeeSchedules() {
                 )}
 
                 {/* 🖊️ PREVIEW DE EDICIÓN */}
-                {editingPreview && (
-                  <div
-                    className={`turn-preview ${editingPreview.type === 'ADD' ? 'preview-add' : 'preview-delete'
-                      }`}
-                    style={{
-                      gridColumn: weekDays.indexOf(editingPreview.day) + 1,
-                      gridRow: `${timeToRow(editingPreview.startTime) + 1} / ${timeToRow(editingPreview.endTime) + 1
-                        }`,
-                    }}
-                  >
-                    {editingPreview.startTime} – {editingPreview.endTime}
-                  </div>
-                )}
+                {editingPreview && (() => {
+                  // 🔑 col = 1..7 (lunes = 1)
+                  const col = weekDays.indexOf(editingPreview.day) + 1;
+
+                  return (
+                    <div
+                      className={`turn-preview ${editingPreview.type === 'ADD' ? 'preview-add' : 'preview-delete'
+                        }`}
+                      style={{
+                        gridColumn: col,
+                        gridRow: `${timeToRow(editingPreview.startTime) + 1
+                          } / ${timeToRow(editingPreview.endTime) + 1
+                          }`,
+                      }}
+                    >
+                      {editingPreview.startTime} – {editingPreview.endTime}
+                    </div>
+                  );
+                })()}
 
                 {/* TURNOS BORRADOR */}
                 {mergedDraftTurns.map((t, i) =>
                   t.days.map(day => {
+
+                    // 🔑 col = 1..7
                     const col = weekDays.indexOf(day) + 1;
+
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
