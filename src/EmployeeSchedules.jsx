@@ -654,11 +654,11 @@ export default function EmployeeSchedules() {
   }
 
   function formatDateLocal(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   function handleConfirmDeleteShift() {
     if (!shiftToDelete || !deleteShiftMode) return;
@@ -1596,8 +1596,9 @@ export default function EmployeeSchedules() {
                     );
 
                     const currentDate = formatDateLocal(currentDateObj);
+
                     console.log('🧪 MAPEO DÍA → FECHA', {
-                      dayBackend: day,        // 1..7
+                      dayBackend: day,
                       col,
                       weekStart: formatDateLocal(weekStart),
                       fechaCalculada: currentDate,
