@@ -661,39 +661,49 @@ export default function EmployeeSchedules() {
   }
 
   function handleConfirmDeleteShift() {
-    if (!shiftToDelete || !deleteShiftMode) return;
+  if (!shiftToDelete || !deleteShiftMode) return;
 
-    const mode = deleteShiftMode;
+  const mode = deleteShiftMode;
 
-    const today = new Date().toISOString().slice(0, 10);
-    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
-      alert('No se pueden borrar turnos del pasado en bloque');
-      return;
-    }
+  const today = new Date().toISOString().slice(0, 10);
+  if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
+    alert('No se pueden borrar turnos del pasado en bloque');
+    return;
+  }
 
-    setDraftExceptions(prev => [
-      ...prev,
-      {
-        type: 'MODIFIED_SHIFT',
-        date: shiftToDelete.date,
-        startTime: shiftToDelete.startTime,
-        endTime: shiftToDelete.endTime,
-        mode,   // 🔑 esto se mandará al backend
-      },
-    ]);
-
-    // 🖊️ Preview visual de borrado
-    setEditingPreview({
-      type: 'DELETE',
-      day: shiftToDelete.day,
+  setDraftExceptions(prev => [
+    ...prev,
+    {
+      type: 'MODIFIED_SHIFT',
+      date: shiftToDelete.date,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
-    });
+      mode,
+    },
+  ]);
 
-    setShowShiftDeleteConfirm(false);
-    setShiftToDelete(null);
-    setDeleteShiftMode('ONLY_THIS_BLOCK');
-  }
+  // 🖊️ Preview visual de borrado
+  // 🔑 calculamos la columna AQUÍ y solo aquí
+  const col = weekDays.indexOf(shiftToDelete.day);
+
+  console.log('⬛ PREVIEW DELETE', {
+    day: shiftToDelete.day,
+    col,
+    date: shiftToDelete.date,
+  });
+
+  setEditingPreview({
+    type: 'DELETE',
+    day: shiftToDelete.day,
+    col, // 👈 CLAVE
+    startTime: shiftToDelete.startTime,
+    endTime: shiftToDelete.endTime,
+  });
+
+  setShowShiftDeleteConfirm(false);
+  setShiftToDelete(null);
+  setDeleteShiftMode('ONLY_THIS_BLOCK');
+}
   async function handleConfirmDeleteVacation() {
     if (!vacationToDelete || !scheduleId) return;
 
