@@ -661,49 +661,57 @@ export default function EmployeeSchedules() {
   }
 
   function handleConfirmDeleteShift() {
-  if (!shiftToDelete || !deleteShiftMode) return;
+    if (!shiftToDelete || !deleteShiftMode) return;
 
-  const mode = deleteShiftMode;
+    const mode = deleteShiftMode;
 
-  const today = new Date().toISOString().slice(0, 10);
-  if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
-    alert('No se pueden borrar turnos del pasado en bloque');
-    return;
-  }
+    // ✅ FECHA DE HOY EN LOCAL (sin UTC, sin toISOString)
+    const now = new Date();
+    const today =
+      now.getFullYear() +
+      '-' +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(now.getDate()).padStart(2, '0');
 
-  setDraftExceptions(prev => [
-    ...prev,
-    {
-      type: 'MODIFIED_SHIFT',
+    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
+      alert('No se pueden borrar turnos del pasado en bloque');
+      return;
+    }
+
+    // 🧾 Registrar excepción (UNA fecha, UN bloque)
+    setDraftExceptions(prev => [
+      ...prev,
+      {
+        type: 'MODIFIED_SHIFT',
+        date: shiftToDelete.date,       // 👈 fecha ya calculada al click
+        startTime: shiftToDelete.startTime,
+        endTime: shiftToDelete.endTime,
+        mode,
+      },
+    ]);
+
+    console.log('🧪 DELETE CONFIRMADO', {
+      day: shiftToDelete.day,
+      col: shiftToDelete.col,           // 👈 columna única (1..7)
       date: shiftToDelete.date,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
-      mode,
-    },
-  ]);
+    });
 
-  // 🖊️ Preview visual de borrado
-  // 🔑 calculamos la columna AQUÍ y solo aquí
-  const col = weekDays.indexOf(shiftToDelete.day);
+    // 🖊️ Preview visual de borrado
+    setEditingPreview({
+      type: 'DELETE',
+      day: shiftToDelete.day,
+      col: shiftToDelete.col,           // 👈 NO recalculamos
+      startTime: shiftToDelete.startTime,
+      endTime: shiftToDelete.endTime,
+    });
 
-  console.log('⬛ PREVIEW DELETE', {
-    day: shiftToDelete.day,
-    col,
-    date: shiftToDelete.date,
-  });
-
-  setEditingPreview({
-    type: 'DELETE',
-    day: shiftToDelete.day,
-    col, // 👈 CLAVE
-    startTime: shiftToDelete.startTime,
-    endTime: shiftToDelete.endTime,
-  });
-
-  setShowShiftDeleteConfirm(false);
-  setShiftToDelete(null);
-  setDeleteShiftMode('ONLY_THIS_BLOCK');
-}
+    setShowShiftDeleteConfirm(false);
+    setShiftToDelete(null);
+    setDeleteShiftMode('ONLY_THIS_BLOCK');
+  }
   async function handleConfirmDeleteVacation() {
     if (!vacationToDelete || !scheduleId) return;
 
@@ -767,6 +775,7 @@ export default function EmployeeSchedules() {
       alert(err.message || 'Error borrando vacaciones');
     }
   }
+
   async function createDraftSchedule() {
     const token = localStorage.getItem('token');
 
@@ -875,16 +884,22 @@ export default function EmployeeSchedules() {
     const token = localStorage.getItem('token');
 
     // 🔑 FECHAS QUE VIENEN DEL PANEL SUPERIOR
-    // dateFrom y dateTo ya existen en tu estado
-    const fromDate = dateFrom;                // obligatorio
-    const toDate = dateTo || null;             // puede ser null
+    const fromDate = dateFrom;        // obligatorio
+    const toDate = dateTo || null;    // puede ser null
 
     if (!fromDate) {
       throw new Error('No hay fecha de inicio (dateFrom) para el turno');
     }
 
     for (const day of turn.days) {
-      const weekdayNumber = weekDays.indexOf(day) + 1;
+
+      // ✅ weekday YA es 1..7 (lunes = 1)
+      const weekdayNumber = weekDays.indexOf(day);
+
+      if (weekdayNumber < 1 || weekdayNumber > 7) {
+        console.warn('⚠️ Día inválido, se ignora:', day);
+        continue;
+      }
 
       console.log('➡️ POST TURN:', {
         day,
@@ -904,11 +919,11 @@ export default function EmployeeSchedules() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            weekday: weekdayNumber,
+            weekday: weekdayNumber,   // 👈 1..7, sin +1
             startTime: turn.startTime,
             endTime: turn.endTime,
-            validFrom: fromDate,   // 👈 CLAVE
-            validTo: toDate,       // 👈 CLAVE (null o fecha)
+            validFrom: fromDate,
+            validTo: toDate,
           }),
         }
       );
@@ -1587,24 +1602,23 @@ export default function EmployeeSchedules() {
                 ))}
 
                 {/* TURNOS GUARDADOS (REALES, BORRABLES) */}
-                {savedTurns.map((t, i) =>
+                {savedTurns.map(t =>
                   t.days.map(day => {
 
-                    const col = weekDays.indexOf(day); // 1..7
-
+                    // ✅ col REAL: 1..7 (lunes = 1)
+                    const col = weekDays.indexOf(day);
                     if (col < 1 || col > 7) return null;
 
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
 
-                    // 🔑 fecha correcta del día
+                    // ✅ fecha local correcta (sin UTC, sin toISOString)
                     const currentDateObj = new Date(
                       weekStart.getFullYear(),
                       weekStart.getMonth(),
                       weekStart.getDate() + (col - 1)
                     );
-
                     const currentDate = formatDateLocal(currentDateObj);
 
                     console.log('🧪 MAPEO DÍA → FECHA', {
@@ -1614,6 +1628,7 @@ export default function EmployeeSchedules() {
                       fechaCalculada: currentDate,
                     });
 
+                    // 🔴 ocultar si hay excepción ONLY_THIS_BLOCK
                     const isRemovedByException = draftExceptions.some(ex =>
                       ex.type === 'MODIFIED_SHIFT' &&
                       ex.startTime === t.startTime &&
@@ -1621,13 +1636,13 @@ export default function EmployeeSchedules() {
                       ex.date === currentDate &&
                       ex.mode === 'ONLY_THIS_BLOCK'
                     );
-
                     if (isRemovedByException) return null;
 
+                    // 🔴 ocultar SOLO el bloque exacto que se está borrando
                     if (
                       editingPreview &&
                       editingPreview.type === 'DELETE' &&
-                      editingPreview.day === day &&
+                      editingPreview.col === col &&
                       editingPreview.startTime === t.startTime &&
                       editingPreview.endTime === t.endTime
                     ) {
@@ -1645,19 +1660,18 @@ export default function EmployeeSchedules() {
                           : ''
                           }`}
                         style={{
-                          gridColumn: col,                 // 1..7
+                          gridColumn: col,                 // ✅ 1..7
                           gridRow: `${start + 1} / ${end + 1}`,
                         }}
-                        onMouseDown={e => {
-                          e.stopPropagation();
-                        }}
+                        onMouseDown={e => e.stopPropagation()}
                         onClick={e => {
                           e.stopPropagation();
 
                           setShiftToDelete({
                             id: t.id,
                             day,
-                            date: weekDates[col - 1].toISOString().slice(0, 10),
+                            col, // ✅ IDENTIDAD REAL
+                            date: currentDate,
                             startTime: t.startTime,
                             endTime: t.endTime,
                           });
@@ -1675,8 +1689,9 @@ export default function EmployeeSchedules() {
                 {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
                 {editingPreview && editingPreview.type !== 'DELETE' && (() => {
 
-                  const col = weekDays.indexOf(editingPreview.day);
-                  if (col <= 0) return null;
+                  // ✅ USAMOS LA COLUMNA REAL
+                  const col = editingPreview.col;
+                  if (!col) return null;
 
                   const start = timeToRow(editingPreview.startTime);
                   let end = timeToRow(editingPreview.endTime);
@@ -1697,19 +1712,23 @@ export default function EmployeeSchedules() {
                   );
                 })()}
 
-                {/* 🖊️ PREVIEW DE EDICIÓN */}
+                {/* 🖊️ PREVIEW DE EDICIÓN (ADD / DELETE) */}
                 {editingPreview && (() => {
 
-                  const col = weekDays.indexOf(editingPreview.day);
-                  if (col <= 0) return null;
+                  const col = editingPreview.col;
+                  if (!col) return null;
 
                   return (
                     <div
-                      className={`turn-preview ${editingPreview.type === 'ADD' ? 'preview-add' : 'preview-delete'
+                      className={`turn-preview ${editingPreview.type === 'ADD'
+                          ? 'preview-add'
+                          : 'preview-delete'
                         }`}
                       style={{
                         gridColumn: col,
-                        gridRow: `${timeToRow(editingPreview.startTime) + 1} / ${timeToRow(editingPreview.endTime) + 1}`,
+                        gridRow: `${timeToRow(editingPreview.startTime) + 1
+                          } / ${timeToRow(editingPreview.endTime) + 1
+                          }`,
                       }}
                     >
                       {editingPreview.startTime} – {editingPreview.endTime}
@@ -1721,8 +1740,7 @@ export default function EmployeeSchedules() {
                 {mergedDraftTurns.map((t, i) =>
                   t.days.map(day => {
 
-                    const col = weekDays.indexOf(day); // 1..7
-
+                    const col = weekDays.indexOf(day); // ✅ 1..7
                     if (col < 1 || col > 7) return null;
 
                     const start = timeToRow(t.startTime);
