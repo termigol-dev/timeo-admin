@@ -164,12 +164,14 @@ export default function EmployeeSchedules() {
       console.log('⏸️ reloadActiveSchedule cancelado: employee no listo aún');
       return;
     }
-    console.log('🧪 DEBUG weekStart raw:', weekStart.toISOString().slice(0, 10));
+
     try {
       const token = localStorage.getItem('token');
-      const weekStartStr = weekStart.toISOString().slice(0, 10);
 
-      console.log('🧪 DEBUG weekStartStr enviado al backend:', weekStartStr);
+      // 🔑 SIEMPRE FECHA LOCAL — NUNCA ISO
+      const weekStartStr = formatDateLocal(weekStart);
+
+      console.log('🧪 DEBUG weekStart raw (LOCAL):', weekStartStr);
       console.log('📅 reloadActiveSchedule → semana:', weekStartStr);
 
       const scheduleRes = await fetch(
@@ -192,7 +194,6 @@ export default function EmployeeSchedules() {
       }
 
       const schedule = await safeJson(scheduleRes);
-
       console.log('🔄 BACKEND WEEK DATA:', schedule);
 
       // 🔑 LIMPIAR SIEMPRE ESTADO ANTES DE CONSTRUIR
@@ -200,9 +201,8 @@ export default function EmployeeSchedules() {
       const loadedVacations = [];
 
       if (schedule && Array.isArray(schedule.days)) {
-
         schedule.days.forEach(day => {
-          const dayKey = weekDays[day.weekday - 1]; // 'L', 'M', ...
+          const dayKey = weekDays[day.weekday]; // 🔑 weekday 1..7
 
           // 🟢 TURNOS
           if (Array.isArray(day.turns)) {
@@ -227,8 +227,6 @@ export default function EmployeeSchedules() {
             });
           }
         });
-      } else {
-        console.warn('⚠️ schedule.days no válido:', schedule);
       }
 
       console.log('📊 RESULTADO FINAL SEMANA:', {
@@ -236,7 +234,6 @@ export default function EmployeeSchedules() {
         vacations: loadedVacations.length,
       });
 
-      // 🔑 ACTUALIZAR ESTADO SIEMPRE, SIN CONDICIONES
       setScheduleId(schedule?.scheduleId || null);
       setTurns(loadedTurns);
       setVacations(loadedVacations);
@@ -338,7 +335,7 @@ export default function EmployeeSchedules() {
         }
         setCompany(companyData);
 
-        // 👤 Empleados de la empresa
+        // 👤 Empleados
         const employeesRes = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/employees`,
           {
@@ -366,9 +363,13 @@ export default function EmployeeSchedules() {
         const foundEmployee = employees.find(e => e.id === employeeId);
         setEmployee(foundEmployee || null);
 
-        // 📅 CARGAR HORARIO ACTIVO DEL EMPLEADO
+        // 📅 CARGAR HORARIO ACTIVO
         if (foundEmployee?.branchId) {
-          const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+          // 🔑 SIEMPRE FECHA LOCAL — NUNCA ISO
+          const weekStartStr = formatDateLocal(weekStart);
+
+          console.log('🧪 DEBUG weekStart enviado (LOCAL):', weekStartStr);
 
           const scheduleRes = await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
@@ -399,8 +400,9 @@ export default function EmployeeSchedules() {
 
           console.log('🧪 SCHEDULE ACTIVO RAW (NUEVO MODELO):', schedule);
 
-          // 🔑 CLAVE: aquí NO se construyen turnos ni vacaciones
-          // 🔑 TODO el dibujo se delega a reloadActiveSchedule
+          // 🔑 IMPORTANTE:
+          // ❌ aquí NO se construyen turnos ni vacaciones
+          // ✅ TODO el dibujo lo hace reloadActiveSchedule
         }
 
       } catch (err) {
@@ -487,8 +489,10 @@ export default function EmployeeSchedules() {
   useEffect(() => {
     if (!employee?.branchId || !employeeId) return;
 
-    console.log('🟦 FRONT → weekStart cambió, recargando semana:', weekStart.toISOString().slice(0, 10));
-
+    console.log('🚨 FRONT weekStart PRE-ENVÍO', {
+      weekStartStr,
+      jsDay: new Date(weekStartStr).getDay(),
+    });
     reloadActiveSchedule();
 
   }, [weekStart, employeeId, employee?.branchId]);
@@ -642,12 +646,10 @@ export default function EmployeeSchedules() {
 
     for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
       days.push({
-        date: d.toISOString().slice(0, 10),
+        date: formatDateLocal(d), // 🔑 LOCAL, NO ISO
         source: 'draft',
       });
     }
-
-    //console.log('🟠 VACATION DAYS ADDED:', days);
 
     setVacations(prev => [...prev, ...days]);
     setDateFrom('');
@@ -1183,7 +1185,6 @@ export default function EmployeeSchedules() {
   // VACACIONES VISUALES (por día exacto)
   // =========================
   const weekVacationBlocks = [];
-  //console.log('📅 SEMANA EN PANTALLA:', weekDates.map(d => d.toISOString().slice(0, 10)));
 
   vacations.forEach((v, index) => {
     const day = new Date(v.date + 'T00:00:00');
@@ -1451,6 +1452,7 @@ export default function EmployeeSchedules() {
           <div className="calendar-controls">
             <button
               onClick={() =>
+
                 setWeekStart(d => {
                   const prev = new Date(d);
                   prev.setDate(prev.getDate() - 7);
@@ -1480,6 +1482,16 @@ export default function EmployeeSchedules() {
               onChange={e => {
                 const d = new Date(weekStart);
                 d.setMonth(Number(e.target.value));
+
+                const candidate = normalizeToWeekStart(d);
+
+                console.log('🚨 FRONT setWeekStart', {
+                  candidate: formatDateLocal(candidate),
+                  jsDay: candidate.getDay(),      // 0 = domingo
+                  stack: new Error().stack,       // 🔥 para saber desde dónde se llama
+                });
+
+                setWeekStart(candidate);
                 setWeekStart(normalizeToWeekStart(d));
               }}
               className="calendar-select"
@@ -1496,6 +1508,13 @@ export default function EmployeeSchedules() {
               onChange={e => {
                 const d = new Date(weekStart);
                 d.setFullYear(Number(e.target.value));
+                const candidate = normalizeToWeekStart(d);
+
+                console.log('🚨 FRONT setWeekStart', {
+                  candidate: formatDateLocal(candidate),
+                  jsDay: candidate.getDay(),      // 0 = domingo
+                  stack: new Error().stack,       // 🔥 para saber desde dónde se llama
+                });
                 setWeekStart(normalizeToWeekStart(d));
               }}
               className="calendar-select"
