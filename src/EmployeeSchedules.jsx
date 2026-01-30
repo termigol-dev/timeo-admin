@@ -369,8 +369,6 @@ export default function EmployeeSchedules() {
           // 🔑 SIEMPRE FECHA LOCAL — NUNCA ISO
           const weekStartStr = formatDateLocal(weekStart);
 
-          console.log('🧪 DEBUG weekStart enviado (LOCAL):', weekStartStr);
-
           const scheduleRes = await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
             {
@@ -489,10 +487,7 @@ export default function EmployeeSchedules() {
   useEffect(() => {
     if (!employee?.branchId || !employeeId) return;
 
-    console.log('🚨 FRONT weekStart PRE-ENVÍO', {
-      weekStartStr,
-      jsDay: new Date(weekStartStr).getDay(),
-    });
+    
     reloadActiveSchedule();
 
   }, [weekStart, employeeId, employee?.branchId]);
