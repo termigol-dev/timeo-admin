@@ -1574,6 +1574,8 @@ export default function EmployeeSchedules() {
                     );
                   })
                 )}
+
+                {/* VACACIONES */}
                 {weekVacationBlocks.map(v => (
                   <div
                     key={v.key}
@@ -1582,30 +1584,22 @@ export default function EmployeeSchedules() {
                       gridColumn: v.col,
                       gridRow: '1 / 49',
                     }}
-                    onMouseDown={e => {
-                      // 🔑 CLAVE: evitamos que el grid robe el foco
-                      e.stopPropagation();
-                    }}
+                    onMouseDown={e => e.stopPropagation()}
                     onClick={e => {
                       e.stopPropagation();
-
-                      //console.log('🟥 CLICK EN BLOQUE DE VACACIONES', v);
-                      //console.log('📅 Fecha clicada (REAL):', v.date);
-
-                      setVacationToDelete({ date: v.date });   // 🔑 USAMOS LA FECHA REAL
-                      setShowVacationConfirm(true);            // 👉 POPUP 1
-                      //console.log('🟣 showVacationConfirm = true');
+                      setVacationToDelete({ date: v.date });
+                      setShowVacationConfirm(true);
                     }}
                   >
                     Vacaciones
                   </div>
                 ))}
 
-                {/* TURNOS GUARDADOS (REALES, BORRABLES) */}
+                {/* TURNOS GUARDADOS (REALES) */}
                 {savedTurns.map(t =>
                   t.days.map(day => {
 
-                    // ✅ col REAL: 1..7 (lunes = 1)
+                    // ✅ columna REAL 1..7
                     const col = weekDays.indexOf(day);
                     if (col < 1 || col > 7) return null;
 
@@ -1613,7 +1607,7 @@ export default function EmployeeSchedules() {
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
 
-                    // ✅ fecha local correcta (sin UTC, sin toISOString)
+                    // ✅ fecha local correcta
                     const currentDateObj = new Date(
                       weekStart.getFullYear(),
                       weekStart.getMonth(),
@@ -1621,14 +1615,7 @@ export default function EmployeeSchedules() {
                     );
                     const currentDate = formatDateLocal(currentDateObj);
 
-                    console.log('🧪 MAPEO DÍA → FECHA', {
-                      dayBackend: day,
-                      col,
-                      weekStart: formatDateLocal(weekStart),
-                      fechaCalculada: currentDate,
-                    });
-
-                    // 🔴 ocultar si hay excepción ONLY_THIS_BLOCK
+                    // 🔴 ocultar por excepción ONLY_THIS_BLOCK
                     const isRemovedByException = draftExceptions.some(ex =>
                       ex.type === 'MODIFIED_SHIFT' &&
                       ex.startTime === t.startTime &&
@@ -1638,7 +1625,7 @@ export default function EmployeeSchedules() {
                     );
                     if (isRemovedByException) return null;
 
-                    // 🔴 ocultar SOLO el bloque exacto que se está borrando
+                    // 🔴 ocultar SOLO el bloque exacto en preview DELETE
                     if (
                       editingPreview &&
                       editingPreview.type === 'DELETE' &&
@@ -1653,14 +1640,14 @@ export default function EmployeeSchedules() {
                       <div
                         key={`saved-${t.id}-${day}`}
                         className={`turn-saved ${editingShift &&
-                          editingShift.day === day &&
-                          editingShift.startTime === t.startTime &&
-                          editingShift.endTime === t.endTime
-                          ? 'editing-highlight'
-                          : ''
+                            editingShift.day === day &&
+                            editingShift.startTime === t.startTime &&
+                            editingShift.endTime === t.endTime
+                            ? 'editing-highlight'
+                            : ''
                           }`}
                         style={{
-                          gridColumn: col,                 // ✅ 1..7
+                          gridColumn: col,
                           gridRow: `${start + 1} / ${end + 1}`,
                         }}
                         onMouseDown={e => e.stopPropagation()}
@@ -1670,7 +1657,7 @@ export default function EmployeeSchedules() {
                           setShiftToDelete({
                             id: t.id,
                             day,
-                            col, // ✅ IDENTIDAD REAL
+                            col, // ✅ identidad REAL
                             date: currentDate,
                             startTime: t.startTime,
                             endTime: t.endTime,
@@ -1686,61 +1673,11 @@ export default function EmployeeSchedules() {
                   })
                 )}
 
-                {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
-                {editingPreview && editingPreview.type !== 'DELETE' && (() => {
-
-                  // ✅ USAMOS LA COLUMNA REAL
-                  const col = editingPreview.col;
-                  if (!col) return null;
-
-                  const start = timeToRow(editingPreview.startTime);
-                  let end = timeToRow(editingPreview.endTime);
-                  if (end <= start) end += 48;
-
-                  return (
-                    <div
-                      className="turn-draft editing-highlight"
-                      style={{
-                        gridColumn: col,
-                        gridRow: `${start + 1} / ${end + 1}`,
-                        background: '#22c55e',
-                        opacity: 0.7,
-                      }}
-                    >
-                      {editingPreview.startTime} – {editingPreview.endTime}
-                    </div>
-                  );
-                })()}
-
-                {/* 🖊️ PREVIEW DE EDICIÓN (ADD / DELETE) */}
-                {editingPreview && (() => {
-
-                  const col = editingPreview.col;
-                  if (!col) return null;
-
-                  return (
-                    <div
-                      className={`turn-preview ${editingPreview.type === 'ADD'
-                          ? 'preview-add'
-                          : 'preview-delete'
-                        }`}
-                      style={{
-                        gridColumn: col,
-                        gridRow: `${timeToRow(editingPreview.startTime) + 1
-                          } / ${timeToRow(editingPreview.endTime) + 1
-                          }`,
-                      }}
-                    >
-                      {editingPreview.startTime} – {editingPreview.endTime}
-                    </div>
-                  );
-                })()}
-
                 {/* TURNOS BORRADOR */}
                 {mergedDraftTurns.map((t, i) =>
                   t.days.map(day => {
 
-                    const col = weekDays.indexOf(day); // ✅ 1..7
+                    const col = weekDays.indexOf(day);
                     if (col < 1 || col > 7) return null;
 
                     const start = timeToRow(t.startTime);
@@ -1760,81 +1697,24 @@ export default function EmployeeSchedules() {
                       </div>
                     );
                   })
-                )})
-
-
-                {/* ✏️ PREVIEW DE EDICIÓN SOLO PARA ADD / EDIT */}
-                {editingPreview && editingPreview.type !== 'DELETE' && (
-                  (() => {
-
-                    // 🔑 col = 1..7
-                    const col = weekDays.indexOf(editingPreview.day) + 1;
-
-                    const start = timeToRow(editingPreview.startTime);
-                    let end = timeToRow(editingPreview.endTime);
-                    if (end <= start) end += 48;
-
-                    return (
-                      <div
-                        className="turn-draft editing-highlight"
-                        style={{
-                          gridColumn: col,
-                          gridRow: `${start + 1} / ${end + 1}`,
-                          background: '#22c55e',
-                          opacity: 0.7,
-                        }}
-                      >
-                        {editingPreview.startTime} – {editingPreview.endTime}
-                      </div>
-                    );
-                  })()
                 )}
 
-                {/* 🖊️ PREVIEW DE EDICIÓN */}
-                {editingPreview && (() => {
-                  // 🔑 col = 1..7 (lunes = 1)
-                  const col = weekDays.indexOf(editingPreview.day) + 1;
-
-                  return (
-                    <div
-                      className={`turn-preview ${editingPreview.type === 'ADD' ? 'preview-add' : 'preview-delete'
-                        }`}
-                      style={{
-                        gridColumn: col,
-                        gridRow: `${timeToRow(editingPreview.startTime) + 1
-                          } / ${timeToRow(editingPreview.endTime) + 1
-                          }`,
-                      }}
-                    >
-                      {editingPreview.startTime} – {editingPreview.endTime}
-                    </div>
-                  );
-                })()}
-
-                {/* TURNOS BORRADOR */}
-                {mergedDraftTurns.map((t, i) =>
-                  t.days.map(day => {
-
-                    // 🔑 col = 1..7
-                    const col = weekDays.indexOf(day) + 1;
-
-                    const start = timeToRow(t.startTime);
-                    let end = timeToRow(t.endTime);
-                    if (end <= start) end += 48;
-
-                    return (
-                      <div
-                        key={`draft-${i}-${day}`}
-                        className="turn-draft"
-                        style={{
-                          gridColumn: col,
-                          gridRow: `${start + 1} / ${end + 1}`,
-                        }}
-                      >
-                        {t.startTime} – {t.endTime}
-                      </div>
-                    );
-                  })
+                {/* 🖊️ PREVIEW ÚNICO (ADD / DELETE / EDIT) */}
+                {editingPreview && (
+                  <div
+                    className={`turn-preview ${editingPreview.type === 'ADD'
+                        ? 'preview-add'
+                        : 'preview-delete'
+                      }`}
+                    style={{
+                      gridColumn: editingPreview.col, // ✅ UNA sola columna
+                      gridRow: `${timeToRow(editingPreview.startTime) + 1
+                        } / ${timeToRow(editingPreview.endTime) + 1
+                        }`,
+                    }}
+                  >
+                    {editingPreview.startTime} – {editingPreview.endTime}
+                  </div>
                 )}
 
               </div>
