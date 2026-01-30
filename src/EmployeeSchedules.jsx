@@ -139,9 +139,10 @@ export default function EmployeeSchedules() {
 
     return result; // usamos solo 1..7
   }, [weekStart]);
+
   console.log(
     '🧪 DEBUG weekDates CALCULADAS:',
-    weekDates.slice(1).map(d => d.toISOString().slice(0, 10))
+    weekDates.slice(1).map(d => formatDateLocal(d))
   );
   function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
     console.log('🧪 CHECK DELETE MATCH', {
@@ -1640,11 +1641,11 @@ export default function EmployeeSchedules() {
                       <div
                         key={`saved-${t.id}-${day}`}
                         className={`turn-saved ${editingShift &&
-                            editingShift.day === day &&
-                            editingShift.startTime === t.startTime &&
-                            editingShift.endTime === t.endTime
-                            ? 'editing-highlight'
-                            : ''
+                          editingShift.day === day &&
+                          editingShift.startTime === t.startTime &&
+                          editingShift.endTime === t.endTime
+                          ? 'editing-highlight'
+                          : ''
                           }`}
                         style={{
                           gridColumn: col,
@@ -1703,8 +1704,8 @@ export default function EmployeeSchedules() {
                 {editingPreview && (
                   <div
                     className={`turn-preview ${editingPreview.type === 'ADD'
-                        ? 'preview-add'
-                        : 'preview-delete'
+                      ? 'preview-add'
+                      : 'preview-delete'
                       }`}
                     style={{
                       gridColumn: editingPreview.col, // ✅ UNA sola columna
