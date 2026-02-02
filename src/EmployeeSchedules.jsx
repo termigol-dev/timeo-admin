@@ -712,6 +712,7 @@ export default function EmployeeSchedules() {
       col: shiftToDelete.col,           // 👈 NO recalculamos
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
+      mode: setDeleteShiftMode
     });
 
     setShowShiftDeleteConfirm(false);
