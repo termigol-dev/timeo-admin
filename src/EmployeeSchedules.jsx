@@ -703,6 +703,7 @@ export default function EmployeeSchedules() {
       date: shiftToDelete.date,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
+      mode: deleteShiftMode,
     });
 
     // 🖊️ Preview visual de borrado
@@ -712,7 +713,7 @@ export default function EmployeeSchedules() {
       col: shiftToDelete.col,           // 👈 NO recalculamos
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
-      mode: setDeleteShiftMode
+      mode: deleteShiftMode,
     });
 
     setShowShiftDeleteConfirm(false);
@@ -1635,16 +1636,32 @@ export default function EmployeeSchedules() {
                     );
                     const currentDate = formatDateLocal(currentDateObj);
 
-                    // 🔴 ocultar por excepción ONLY_THIS_BLOCK
-                    const isRemovedByException = draftExceptions.some(ex =>
-                      ex.type === 'MODIFIED_SHIFT' &&
-                      ex.startTime === t.startTime &&
-                      ex.endTime === t.endTime &&
-                      ex.date === currentDate &&
-                      ex.mode === 'ONLY_THIS_BLOCK'
-                    );
-                    if (isRemovedByException) return null;
+                    const isRemovedByException = draftExceptions.some(ex => {
 
+                      if (ex.type !== 'MODIFIED_SHIFT') return false;
+
+                      if (
+                        ex.startTime !== t.startTime ||
+                        ex.endTime !== t.endTime
+                      ) return false;
+
+                      // ONLY_THIS_BLOCK
+                      if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
+                        return ex.date === currentDate;
+                      }
+
+                      // FROM_THIS_DAY_ON
+                      if (ex.mode === 'FROM_THIS_DAY_ON') {
+
+                        // 🔑 mismo weekday (misma columna)
+                        if (ex.col !== col) return false;
+
+                        return currentDate >= ex.date;
+                      }
+
+                      return false;
+                    });
+                    if (isRemovedByException) return null;
                     // 🔴 ocultar SOLO el bloque exacto en preview DELETE
                     if (
                       editingPreview &&
@@ -1730,47 +1747,65 @@ export default function EmployeeSchedules() {
                   })
                 )}
 
-                {/* 🖊️ PREVIEW ÚNICO (ADD / DELETE / EDIT) */}
-                {editingPreview && (() => {
+                {/* 🟥 BLOQUES NEGROS (EXCEPCIONES) */}
+                {draftExceptions.map((ex, i) => {
 
-                  // 👉 fecha real de la celda donde se está pintando el preview
-                  const cellDateObj = weekDates[editingPreview.col];
-                  if (!cellDateObj) return null;
+                  if (ex.type !== 'MODIFIED_SHIFT') return null;
 
-                  const cellDateStr = formatDateLocal(cellDateObj);
+                  const start = timeToRow(ex.startTime);
+                  let end = timeToRow(ex.endTime);
+                  if (end <= start) end += 48;
 
-                  // ===================================================
-                  // 🛡️ BLINDAJE CLAVE:
-                  // si es borrado "desde este día en adelante"
-                  // NO se puede pintar en semanas anteriores
-                  // ===================================================
-                  if (
-                    editingPreview.type === 'DELETE' &&
-                    editingPreview.mode === 'FROM_THIS_DAY_ON' &&
-                    editingPreview.date &&
-                    cellDateStr < editingPreview.date
-                  ) {
-                    return null;
-                  }
+                  return weekDates.map((cellDateObj, colIndex) => {
 
-                  return (
-                    <div
-                      className={`turn-preview ${editingPreview.type === 'ADD'
-                          ? 'preview-add'
-                          : 'preview-delete'
-                        }`}
-                      style={{
-                        gridColumn: editingPreview.col,
-                        gridRow: `${timeToRow(editingPreview.startTime) + 1
-                          } / ${timeToRow(editingPreview.endTime) + 1
-                          }`,
-                      }}
-                    >
-                      {editingPreview.startTime} – {editingPreview.endTime}
-                    </div>
-                  );
+                    const col = colIndex + 1;   // 🔑 columna REAL 1..7
 
-                })()}
+                    if (!cellDateObj) return null;
+                    if (col < 1 || col > 7) return null;
+
+                    const cellDateStr = formatDateLocal(cellDateObj);
+
+                    if (ex.col !== col) return null;
+                    // ─────────────────────────────
+                    // ONLY_THIS_BLOCK
+                    // ─────────────────────────────
+                    if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
+                      if (cellDateStr !== ex.date) return null;
+                    }
+
+                    // ─────────────────────────────
+                    // FROM_THIS_DAY_ON
+                    // ─────────────────────────────
+                    if (ex.mode === 'FROM_THIS_DAY_ON') {
+                      if (cellDateStr < ex.date) return null;
+                    }
+
+                    return (
+                      <div
+                        key={`ex-${i}-${col}`}
+                        className="turn-preview preview-delete"
+                        style={{
+                          gridColumn: col,
+                          gridRow: `${start + 1} / ${end + 1}`,
+                        }}
+                      />
+                    );
+                  });
+                })}
+
+                {/* 🖊️ PREVIEW SOLO PARA ADD / EDIT */}
+                {editingPreview && editingPreview.type !== 'DELETE' && (
+                  <div
+                    className={`turn-preview preview-add`}
+                    style={{
+                      gridColumn: editingPreview.col,
+                      gridRow: `${timeToRow(editingPreview.startTime) + 1}
+        / ${timeToRow(editingPreview.endTime) + 1}`,
+                    }}
+                  >
+                    {editingPreview.startTime} – {editingPreview.endTime}
+                  </div>
+                )}
 
               </div>
             </div>
