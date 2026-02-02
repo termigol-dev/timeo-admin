@@ -671,7 +671,7 @@ export default function EmployeeSchedules() {
 
     const mode = deleteShiftMode;
 
-    // ✅ FECHA DE HOY EN LOCAL (sin UTC, sin toISOString)
+    // ✅ FECHA DE HOY EN LOCAL
     const now = new Date();
     const today =
       now.getFullYear() +
@@ -685,41 +685,72 @@ export default function EmployeeSchedules() {
       return;
     }
 
-    // 🧾 Registrar excepción (UNA fecha, UN bloque)
-    setDraftExceptions(prev => [
-      ...prev,
-      {
-        type: 'MODIFIED_SHIFT',
-        date: shiftToDelete.date,       // 👈 fecha ya calculada al click
-        startTime: shiftToDelete.startTime,
-        endTime: shiftToDelete.endTime,
-        mode,
-      },
-    ]);
+    const weekday =
+      weekDays.indexOf(shiftToDelete.day); // 1..7
+
+    if (weekday < 1 || weekday > 7) {
+      console.warn('weekday inválido en borrado', shiftToDelete.day);
+      return;
+    }
+
+    setDraftExceptions(prev => {
+
+      // 🔒 evitar duplicados exactos
+      const alreadyExists = prev.some(ex =>
+        ex.type === 'MODIFIED_SHIFT' &&
+        ex.date === shiftToDelete.date &&
+        ex.startTime === shiftToDelete.startTime &&
+        ex.endTime === shiftToDelete.endTime &&
+        ex.mode === mode &&
+        ex.weekday === weekday
+      );
+
+      if (alreadyExists) return prev;
+
+      return [
+        ...prev,
+        {
+          type: 'MODIFIED_SHIFT',
+          date: shiftToDelete.date,
+          weekday,              // 🔑 CLAVE
+          startTime: shiftToDelete.startTime,
+          endTime: shiftToDelete.endTime,
+          mode,
+        },
+      ];
+    });
 
     console.log('🧪 DELETE CONFIRMADO', {
       day: shiftToDelete.day,
-      col: shiftToDelete.col,           // 👈 columna única (1..7)
+      weekday,
+      col: shiftToDelete.col,
       date: shiftToDelete.date,
       startTime: shiftToDelete.startTime,
       endTime: shiftToDelete.endTime,
-      mode: deleteShiftMode,
+      mode,
     });
 
-    // 🖊️ Preview visual de borrado
-    setEditingPreview({
-      type: 'DELETE',
-      day: shiftToDelete.day,
-      col: shiftToDelete.col,           // 👈 NO recalculamos
-      startTime: shiftToDelete.startTime,
-      endTime: shiftToDelete.endTime,
-      mode: deleteShiftMode,
-    });
+    // ❗ IMPORTANTE
+    // El preview de DELETE solo se usa para ONLY_THIS_BLOCK.
+    // Para FROM_THIS_DAY_ON se pinta usando draftExceptions.
+    if (mode === 'ONLY_THIS_BLOCK') {
+      setEditingPreview({
+        type: 'DELETE',
+        day: shiftToDelete.day,
+        col: shiftToDelete.col,
+        startTime: shiftToDelete.startTime,
+        endTime: shiftToDelete.endTime,
+        mode,
+      });
+    } else {
+      setEditingPreview(null);
+    }
 
     setShowShiftDeleteConfirm(false);
     setShiftToDelete(null);
     setDeleteShiftMode('ONLY_THIS_BLOCK');
   }
+
   async function handleConfirmDeleteVacation() {
     if (!vacationToDelete || !scheduleId) return;
 
@@ -1645,23 +1676,28 @@ export default function EmployeeSchedules() {
                         ex.endTime !== t.endTime
                       ) return false;
 
+                      // 🔑 mismo weekday (misma columna)
+                      if (ex.weekday !== col) return false;
+
+                      // =========================
                       // ONLY_THIS_BLOCK
+                      // =========================
                       if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
                         return ex.date === currentDate;
                       }
 
+                      // =========================
                       // FROM_THIS_DAY_ON
+                      // =========================
                       if (ex.mode === 'FROM_THIS_DAY_ON') {
-
-                        // 🔑 mismo weekday (misma columna)
-                        if (ex.col !== col) return false;
-
                         return currentDate >= ex.date;
                       }
 
                       return false;
                     });
+
                     if (isRemovedByException) return null;
+
                     // 🔴 ocultar SOLO el bloque exacto en preview DELETE
                     if (
                       editingPreview &&
@@ -1709,7 +1745,6 @@ export default function EmployeeSchedules() {
                     );
                   })
                 )}
-
                 {/* TURNOS BORRADOR */}
                 {mergedDraftTurns.map((t, i) =>
                   t.days.map(day => {
@@ -1756,41 +1791,39 @@ export default function EmployeeSchedules() {
                   let end = timeToRow(ex.endTime);
                   if (end <= start) end += 48;
 
-                  return weekDates.map((cellDateObj, colIndex) => {
+                  const col = ex.weekday; // 🔑 1..7
 
-                    const col = colIndex + 1;   // 🔑 columna REAL 1..7
+                  if (!col || col < 1 || col > 7) return null;
 
-                    if (!cellDateObj) return null;
-                    if (col < 1 || col > 7) return null;
+                  const cellDateObj = weekDates[col];
+                  if (!cellDateObj) return null;
 
-                    const cellDateStr = formatDateLocal(cellDateObj);
+                  const cellDateStr = formatDateLocal(cellDateObj);
 
-                    if (ex.col !== col) return null;
-                    // ─────────────────────────────
-                    // ONLY_THIS_BLOCK
-                    // ─────────────────────────────
-                    if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
-                      if (cellDateStr !== ex.date) return null;
-                    }
+                  // ─────────────────────────────
+                  // ONLY_THIS_BLOCK
+                  // ─────────────────────────────
+                  if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
+                    if (cellDateStr !== ex.date) return null;
+                  }
 
-                    // ─────────────────────────────
-                    // FROM_THIS_DAY_ON
-                    // ─────────────────────────────
-                    if (ex.mode === 'FROM_THIS_DAY_ON') {
-                      if (cellDateStr < ex.date) return null;
-                    }
+                  // ─────────────────────────────
+                  // FROM_THIS_DAY_ON
+                  // ─────────────────────────────
+                  if (ex.mode === 'FROM_THIS_DAY_ON') {
+                    if (cellDateStr < ex.date) return null;
+                  }
 
-                    return (
-                      <div
-                        key={`ex-${i}-${col}`}
-                        className="turn-preview preview-delete"
-                        style={{
-                          gridColumn: col,
-                          gridRow: `${start + 1} / ${end + 1}`,
-                        }}
-                      />
-                    );
-                  });
+                  return (
+                    <div
+                      key={`ex-${i}-${col}`}
+                      className="turn-preview preview-delete"
+                      style={{
+                        gridColumn: col,
+                        gridRow: `${start + 1} / ${end + 1}`,
+                      }}
+                    />
+                  );
                 })}
 
                 {/* 🖊️ PREVIEW SOLO PARA ADD / EDIT */}
