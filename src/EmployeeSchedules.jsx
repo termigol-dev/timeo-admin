@@ -487,7 +487,7 @@ export default function EmployeeSchedules() {
   useEffect(() => {
     if (!employee?.branchId || !employeeId) return;
 
-    
+
     reloadActiveSchedule();
 
   }, [weekStart, employeeId, employee?.branchId]);
@@ -544,11 +544,20 @@ export default function EmployeeSchedules() {
   async function addTurn() {
     if (!startTime || !endTime || selectedDays.length === 0) return;
 
+    if (!dateFrom) {
+      alert('Debes indicar una fecha de inicio');
+      return;
+    }
+
     const newTurn = {
       days: selectedDays,
       startTime,
       endTime,
       source: 'draft',
+
+      // 🔑 CLAVE
+      // este turno solo existe a partir de esta fecha
+      validFrom: dateFrom, // YYYY-MM-DD
     };
 
     // ======================================================
@@ -578,7 +587,7 @@ export default function EmployeeSchedules() {
       setStartTime('');
       setEndTime('');
 
-      return; // 🔑 IMPORTANTE: salir aquí, no seguir
+      return;
     }
 
     // ======================================================
@@ -599,7 +608,6 @@ export default function EmployeeSchedules() {
     setStartTime('');
     setEndTime('');
   }
-
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
     if (!dateFrom && !dateTo && (startTime || endTime)) {
@@ -1092,14 +1100,10 @@ export default function EmployeeSchedules() {
       // =========================
       if (draftExceptions.length > 0) {
         console.log('🟥 guardando excepciones de turno:', draftExceptions.length);
-        console.log('🟦 FRONTEND EXCEPTIONS TO BACKEND:', draftExceptions.map(ex => ({
-          type: ex.type,
-          date: ex.date,
-          //day: ex.day,
-          startTime: ex.startTime,
-          endTime: ex.endTime,
-          mode: ex.mode,
-        })));
+        console.log(
+          '🟦 FRONTEND EXCEPTIONS RAW (state):',
+          JSON.stringify(draftExceptions, null, 2)
+        );
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
           {
@@ -1695,13 +1699,24 @@ export default function EmployeeSchedules() {
                     const col = weekDays.indexOf(day);
                     if (col < 1 || col > 7) return null;
 
+                    // 🔑 fecha real de esta columna
+                    const cellDateObj = weekDates[col];
+                    if (!cellDateObj) return null;
+
+                    const cellDateStr = formatDateLocal(cellDateObj);
+
+                    // 🔑 NO dibujar antes de validFrom
+                    if (t.validFrom && cellDateStr < t.validFrom) {
+                      return null;
+                    }
+
                     const start = timeToRow(t.startTime);
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
 
                     return (
                       <div
-                        key={`draft-${i}-${day}`}
+                        key={`draft-${i}-${day}-${cellDateStr}`}
                         className="turn-draft"
                         style={{
                           gridColumn: col,
