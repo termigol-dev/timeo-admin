@@ -884,30 +884,54 @@ export default function EmployeeSchedules() {
       alert('La hora de inicio debe ser anterior a la de fin');
       return;
     }
+
+    const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
+
     setDraftExceptions(prev => {
 
       const next = [...prev];
-
-      const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
 
       // ------------------------------------------------
       // CASO A — ACORTAR
       // ------------------------------------------------
       if (isShorter) {
 
-        // Eliminamos el turno original
+        if (mode === 'ONLY_THIS_BLOCK') {
+
+          // quitamos el bloque original SOLO este día
+          next.push({
+            type: 'MODIFIED_SHIFT',
+            date,
+            startTime: oldStart,
+            endTime: oldEnd,
+            mode: 'ONLY_THIS_BLOCK',
+            weekday: col,
+          });
+
+          // añadimos el nuevo bloque SOLO este día
+          next.push({
+            type: 'EXTRA_SHIFT',
+            date,
+            startTime: newStart,
+            endTime: newEnd,
+            weekday: col,
+          });
+
+          return next;
+        }
+
+        // ------------------------------------------------
+        // FROM_THIS_DAY_ON
+        // ------------------------------------------------
+
+        // quitamos el turno original desde este día en adelante
         next.push({
           type: 'MODIFIED_SHIFT',
-
-          // rango de aplicación
-          date,                 // validFrom
-          validTo: mode === 'ONLY_THIS_BLOCK' ? date : null,
-
+          date,
           startTime: oldStart,
           endTime: oldEnd,
-
-          mode,
-          col,
+          mode: 'FROM_THIS_DAY_ON',
+          weekday: col,
         });
 
         return next;
@@ -918,21 +942,32 @@ export default function EmployeeSchedules() {
       // ------------------------------------------------
       if (isLonger) {
 
-        // 👉 Solo añadimos el tramo nuevo
-        // 👉 el turno original NO se elimina
+        if (mode === 'ONLY_THIS_BLOCK') {
 
+          // solo añadimos el tramo nuevo para este día
+          next.push({
+            type: 'EXTRA_SHIFT',
+            date,
+            startTime: newStart,
+            endTime: newEnd,
+            weekday: col,
+          });
+
+          return next;
+        }
+
+        // ------------------------------------------------
+        // FROM_THIS_DAY_ON
+        // ------------------------------------------------
+
+        // quitamos el turno original desde este día en adelante
         next.push({
-          type: 'EXTRA_SHIFT',
-
-          // rango de aplicación
-          date,                 // validFrom
-          validTo: mode === 'ONLY_THIS_BLOCK' ? date : null,
-
-          startTime: newStart,
-          endTime: newEnd,
-
-          mode,
-          col,
+          type: 'MODIFIED_SHIFT',
+          date,
+          startTime: oldStart,
+          endTime: oldEnd,
+          mode: 'FROM_THIS_DAY_ON',
+          weekday: col,
         });
 
         return next;
@@ -941,10 +976,11 @@ export default function EmployeeSchedules() {
       return next;
     });
 
+
     // ------------------------------------------------
-    // CASO ACORTAR → el nuevo bloque se pinta como draft
+    // 👉 SOLO PARA FROM_THIS_DAY_ON creamos draftTurns
     // ------------------------------------------------
-    if (isShorter) {
+    if (mode === 'FROM_THIS_DAY_ON' && (isShorter || isLonger)) {
 
       setDraftTurns(prev => [
         ...prev,
@@ -958,11 +994,6 @@ export default function EmployeeSchedules() {
       ]);
     }
 
-    // ------------------------------------------------
-    // CASO ALARGAR
-    // → NO usamos draftTurns
-    // → se pinta solo por EXTRA_SHIFT
-    // ------------------------------------------------
 
     // ============================
     // Limpieza
