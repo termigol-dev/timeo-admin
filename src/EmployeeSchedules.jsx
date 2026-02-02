@@ -889,40 +889,38 @@ export default function EmployeeSchedules() {
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
 
-    // 🔑 FECHAS QUE VIENEN DEL PANEL SUPERIOR
-    const fromDate = dateFrom;        // obligatorio
-    const toDate = dateTo || null;    // puede ser null
-
-    console.log('🧪 ADD SHIFT PARSED DATES', {
-      validFromRaw: validFrom,
-      fromDateLocal: fromDate.toString(),
-      fromDateISO: fromDate.toISOString(),
-      validToRaw: validTo,
-      toDateLocal: toDate?.toString(),
-    });
+    // 🔑 fechas del panel (YA SON YYYY-MM-DD)
+    const fromDate = dateFrom;        // string: '2026-02-03'
+    const toDate = dateTo || null;    // string | null
 
     if (!fromDate) {
       throw new Error('No hay fecha de inicio (dateFrom) para el turno');
     }
 
+    console.log('🧪 ADD SHIFT FECHAS (LOCAL STRING)', {
+      validFrom: fromDate,
+      validTo: toDate,
+    });
+
     for (const day of turn.days) {
 
-      // ✅ weekday YA es 1..7 (lunes = 1)
-      const weekdayNumber = weekDays.indexOf(day);
+      // weekDays = ['','L','M','X','J','V','S','D']
+      const weekdayNumber = weekDays.indexOf(day); // 1..7
 
       if (weekdayNumber < 1 || weekdayNumber > 7) {
         console.warn('⚠️ Día inválido, se ignora:', day);
         continue;
       }
 
-      console.log('➡️ POST TURN:', {
-        day,
-        weekday: weekdayNumber,
+      const payload = {
+        weekday: weekdayNumber,     // 1..7
         startTime: turn.startTime,
         endTime: turn.endTime,
-        validFrom: fromDate,
-        validTo: toDate,
-      });
+        validFrom: fromDate,        // ✅ STRING LOCAL
+        validTo: toDate,            // ✅ STRING LOCAL | null
+      };
+
+      console.log('➡️ POST TURN:', payload);
 
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${scheduleId}/shifts`,
@@ -932,13 +930,7 @@ export default function EmployeeSchedules() {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            weekday: weekdayNumber,   // 👈 1..7, sin +1
-            startTime: turn.startTime,
-            endTime: turn.endTime,
-            validFrom: fromDate,
-            validTo: toDate,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
@@ -1738,22 +1730,46 @@ export default function EmployeeSchedules() {
                 )}
 
                 {/* 🖊️ PREVIEW ÚNICO (ADD / DELETE / EDIT) */}
-                {editingPreview && (
-                  <div
-                    className={`turn-preview ${editingPreview.type === 'ADD'
-                      ? 'preview-add'
-                      : 'preview-delete'
-                      }`}
-                    style={{
-                      gridColumn: editingPreview.col, // ✅ UNA sola columna
-                      gridRow: `${timeToRow(editingPreview.startTime) + 1
-                        } / ${timeToRow(editingPreview.endTime) + 1
-                        }`,
-                    }}
-                  >
-                    {editingPreview.startTime} – {editingPreview.endTime}
-                  </div>
-                )}
+                {editingPreview && (() => {
+
+                  // 👉 fecha real de la celda donde se está pintando el preview
+                  const cellDateObj = weekDates[editingPreview.col];
+                  if (!cellDateObj) return null;
+
+                  const cellDateStr = formatDateLocal(cellDateObj);
+
+                  // ==================================================
+                  // 🛡️ BLINDAJE CLAVE:
+                  // si es borrado "desde este día en adelante"
+                  // NO se puede pintar en semanas anteriores
+                  // ==================================================
+                  if (
+                    editingPreview.type === 'DELETE' &&
+                    editingPreview.mode === 'FROM_THIS_DAY_ON' &&
+                    editingPreview.date &&
+                    cellDateStr < editingPreview.date
+                  ) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      className={`turn-preview ${editingPreview.type === 'ADD'
+                          ? 'preview-add'
+                          : 'preview-delete'
+                        }`}
+                      style={{
+                        gridColumn: editingPreview.col,
+                        gridRow: `${timeToRow(editingPreview.startTime) + 1
+                          } / ${timeToRow(editingPreview.endTime) + 1
+                          }`,
+                      }}
+                    >
+                      {editingPreview.startTime} – {editingPreview.endTime}
+                    </div>
+                  );
+
+                })()}
 
               </div>
             </div>
