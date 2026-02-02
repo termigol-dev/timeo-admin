@@ -90,7 +90,7 @@ export default function EmployeeSchedules() {
   const [pendingEditShift, setPendingEditShift] = useState(null);
   // 🗑️ BORRADO DE VACACIONES (UX)
   const [vacationToDelete, setVacationToDelete] = useState(null);
-  
+
 
   // { shiftId, day, startTime, endTime }
   const [showShiftDeleteConfirm, setShowShiftDeleteConfirm] = useState(false);
@@ -842,124 +842,137 @@ export default function EmployeeSchedules() {
   }
 
   async function handleConfirmEditShift() {
-  if (!editingShift) return;
+    if (!editingShift) return;
 
-  const oldStart = editingShift.startTime;
-  const oldEnd   = editingShift.endTime;
-  const newStart = startTime;
-  const newEnd   = endTime;
+    const oldStart = editingShift.startTime;
+    const oldEnd = editingShift.endTime;
+    const newStart = startTime;
+    const newEnd = endTime;
 
-  const date = editingShift.date;
-  const col  = editingShift.col;
-  const day  = editingShift.day;
+    const date = editingShift.date;
+    const col = editingShift.col;
+    const day = editingShift.day;
 
-  console.log('✏️ EDIT SHIFT (modelo real Timeo)', {
-    date,
-    day,
-    oldStart,
-    oldEnd,
-    newStart,
-    newEnd,
-  });
+    console.log('✏️ EDIT SHIFT (modelo real Timeo)', {
+      date,
+      day,
+      oldStart,
+      oldEnd,
+      newStart,
+      newEnd,
+    });
 
-  // ============================
-  // 1️⃣ Acortar
-  // ============================
-  const isShorter =
-    newStart >= oldStart &&
-    newEnd   <= oldEnd &&
-    (newStart !== oldStart || newEnd !== oldEnd);
+    // ============================
+    // 1️⃣ Acortar
+    // ============================
+    const isShorter =
+      newStart >= oldStart &&
+      newEnd <= oldEnd &&
+      (newStart !== oldStart || newEnd !== oldEnd);
 
-  // ============================
-  // 2️⃣ Alargar
-  // ============================
-  const isLonger =
-    newStart < oldStart ||
-    newEnd   > oldEnd;
+    // ============================
+    // 2️⃣ Alargar
+    // ============================
+    const isLonger =
+      newStart < oldStart ||
+      newEnd > oldEnd;
 
-  // ============================
-  // Validación básica
-  // ============================
-  if (newStart >= newEnd) {
-    alert('La hora de inicio debe ser anterior a la de fin');
-    return;
-  }
+    // ============================
+    // Validación básica
+    // ============================
+    if (newStart >= newEnd) {
+      alert('La hora de inicio debe ser anterior a la de fin');
+      return;
+    }
+    setDraftExceptions(prev => {
 
-  setDraftExceptions(prev => {
+      const next = [...prev];
 
-    const next = [...prev];
+      const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
+
+      // ------------------------------------------------
+      // CASO A — ACORTAR
+      // ------------------------------------------------
+      if (isShorter) {
+
+        // Eliminamos el turno original
+        next.push({
+          type: 'MODIFIED_SHIFT',
+
+          // rango de aplicación
+          date,                 // validFrom
+          validTo: mode === 'ONLY_THIS_BLOCK' ? date : null,
+
+          startTime: oldStart,
+          endTime: oldEnd,
+
+          mode,
+          col,
+        });
+
+        return next;
+      }
+
+      // ------------------------------------------------
+      // CASO B — ALARGAR
+      // ------------------------------------------------
+      if (isLonger) {
+
+        // 👉 Solo añadimos el tramo nuevo
+        // 👉 el turno original NO se elimina
+
+        next.push({
+          type: 'EXTRA_SHIFT',
+
+          // rango de aplicación
+          date,                 // validFrom
+          validTo: mode === 'ONLY_THIS_BLOCK' ? date : null,
+
+          startTime: newStart,
+          endTime: newEnd,
+
+          mode,
+          col,
+        });
+
+        return next;
+      }
+
+      return next;
+    });
 
     // ------------------------------------------------
-    // CASO A — ACORTAR (solo ese día)
+    // CASO ACORTAR → el nuevo bloque se pinta como draft
     // ------------------------------------------------
     if (isShorter) {
 
-      // quitamos el bloque original SOLO este día
-      next.push({
-        type: 'MODIFIED_SHIFT',
-        date,
-        startTime: oldStart,
-        endTime: oldEnd,
-        mode: 'ONLY_THIS_BLOCK',
-        col,
-      });
-
-      return next;
+      setDraftTurns(prev => [
+        ...prev,
+        {
+          days: [day],
+          startTime: newStart,
+          endTime: newEnd,
+          source: 'draft',
+          validFrom: date,
+        },
+      ]);
     }
 
     // ------------------------------------------------
-    // CASO B — ALARGAR (solo ese día)
-    // 👉 NO se elimina el turno original
-    // 👉 solo se añade un EXTRA_SHIFT
+    // CASO ALARGAR
+    // → NO usamos draftTurns
+    // → se pinta solo por EXTRA_SHIFT
     // ------------------------------------------------
-    if (isLonger) {
 
-      next.push({
-        type: 'EXTRA_SHIFT',
-        date,
-        startTime: newStart,
-        endTime: newEnd,
-        col,
-      });
-
-      return next;
-    }
-
-    return next;
-  });
-
-  // ------------------------------------------------
-  // CASO ACORTAR → el nuevo bloque se pinta como draft
-  // ------------------------------------------------
-  if (isShorter) {
-
-    setDraftTurns(prev => [
-      ...prev,
-      {
-        days: [day],
-        startTime: newStart,
-        endTime: newEnd,
-        source: 'draft',
-        validFrom: date,
-      },
-    ]);
+    // ============================
+    // Limpieza
+    // ============================
+    setEditingShift(null);
+    setEditingPreview(null);
+    setSelectedDays([]);
+    setStartTime('');
+    setEndTime('');
   }
-
-  // ------------------------------------------------
-  // CASO ALARGAR
-  // → NO usamos draftTurns
-  // → se pinta solo por EXTRA_SHIFT
-  // ------------------------------------------------
-
-  // ============================
-  // Limpieza
-  // ============================
-  setEditingShift(null);
-  setEditingPreview(null);
-  setSelectedDays([]);
-  setStartTime('');
-  setEndTime('');
-}
 
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
@@ -1718,24 +1731,16 @@ export default function EmployeeSchedules() {
                         ex.endTime !== t.endTime
                       ) return false;
 
-                      // 🔑 mismo weekday (misma columna)
-                      if (ex.weekday !== col) return false;
+                      // 🔑 misma columna
+                      if (ex.col !== col) return false;
 
-                      // =========================
-                      // ONLY_THIS_BLOCK
-                      // =========================
-                      if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
-                        return ex.date === currentDate;
-                      }
+                      const from = ex.date;
+                      const to = ex.validTo || null;
 
-                      // =========================
-                      // FROM_THIS_DAY_ON
-                      // =========================
-                      if (ex.mode === 'FROM_THIS_DAY_ON') {
-                        return currentDate >= ex.date;
-                      }
+                      if (currentDate < from) return false;
+                      if (to && currentDate > to) return false;
 
-                      return false;
+                      return true;
                     });
 
                     if (isRemovedByException) return null;
@@ -1833,7 +1838,7 @@ export default function EmployeeSchedules() {
                   let end = timeToRow(ex.endTime);
                   if (end <= start) end += 48;
 
-                  const col = ex.weekday; // 🔑 1..7
+                  const col = ex.weekday; // 1..7 (columna real)
 
                   if (!col || col < 1 || col > 7) return null;
 
@@ -1842,23 +1847,19 @@ export default function EmployeeSchedules() {
 
                   const cellDateStr = formatDateLocal(cellDateObj);
 
-                  // ─────────────────────────────
-                  // ONLY_THIS_BLOCK
-                  // ─────────────────────────────
-                  if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
-                    if (cellDateStr !== ex.date) return null;
-                  }
+                  // =========================
+                  // RANGO REAL DE LA EXCEPCIÓN
+                  // =========================
 
-                  // ─────────────────────────────
-                  // FROM_THIS_DAY_ON
-                  // ─────────────────────────────
-                  if (ex.mode === 'FROM_THIS_DAY_ON') {
-                    if (cellDateStr < ex.date) return null;
-                  }
+                  const from = ex.date;
+                  const to = ex.validTo ?? null;
+
+                  if (cellDateStr < from) return null;
+                  if (to && cellDateStr > to) return null;
 
                   return (
                     <div
-                      key={`ex-${i}-${col}`}
+                      key={`ex-${i}-${col}-${cellDateStr}`}
                       className="turn-preview preview-delete"
                       style={{
                         gridColumn: col,
@@ -1995,7 +1996,7 @@ export default function EmployeeSchedules() {
           </div>
         </div>
       )}
-      {/* 🗑️ POP-UP — OPCIONES TURNO */}
+      {/* 🗑️ / ✏️ POP-UP — OPCIONES TURNO */}
       {showShiftDeleteConfirm && shiftToDelete && (
         <div className="modal-overlay">
           <div className="modal">
@@ -2010,44 +2011,68 @@ export default function EmployeeSchedules() {
               </strong>
             </p>
 
-            {/* 🔽 NUEVA SECCIÓN: SELECCIÓN DE MODO */}
+            {/* 🔽 SELECCIÓN DE MODO (se usa para borrar y editar) */}
             <div className="delete-modes">
               <label>
                 <input
                   type="radio"
-                  name="deleteMode"
+                  name="shiftMode"
                   value="ONLY_THIS_BLOCK"
                   checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
                   onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
                 />
-                <strong>Solo este turno</strong>
+                <strong>Solo este día</strong>
                 <div className="hint">
-                  El borrado se aplicará únicamente a este día.
+                  Las modificaciones se aplicarán únicamente a ese día.
                 </div>
               </label>
 
               <label>
                 <input
                   type="radio"
-                  name="deleteMode"
+                  name="shiftMode"
                   value="FROM_THIS_DAY_ON"
                   checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
                   onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
                 />
                 <strong>Desde este día en adelante</strong>
                 <div className="hint">
-                  El turno desaparecerá de todos los días futuros.
+                  Las modificaciones se aplicarán en el turno seleccionado y en los días futuros.
                 </div>
               </label>
             </div>
 
             {/* 🔘 BOTONES */}
-            <div className="modal-buttons" style={{ justifyContent: 'space-between' }}>
-              {/* 🖊️ EDITAR */}
+            <div
+              className="modal-buttons"
+              style={{ justifyContent: 'space-between' }}
+            >
+
+              {/* ✏️ EDITAR */}
               <button
                 onClick={() => {
+
+                  // 👉 arrancamos edición usando el modo elegido aquí
+                  setEditingShift({
+                    ...shiftToDelete,
+                    mode: deleteShiftMode,
+                  });
+
+                  setSelectedDays([shiftToDelete.day]);
+                  setStartTime(shiftToDelete.startTime);
+                  setEndTime(shiftToDelete.endTime);
+                  setDateFrom(shiftToDelete.date);
+
+                  // 🔑 si edita solo ese día, forzamos dateTo = dateFrom
+                  if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+                    setDateTo(shiftToDelete.date);
+                  } else {
+                    setDateTo('');
+                  }
+
+                  setEditingPreview(null);
+
                   setShowShiftDeleteConfirm(false);
-                  setShowEditInfo(true);
                 }}
               >
                 ✏️ Editar turno
@@ -2070,83 +2095,7 @@ export default function EmployeeSchedules() {
               >
                 Cancelar
               </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ✏️ POP-UP — MODO EDICIÓN DE TURNO */}
-      {showEditInfo && shiftToDelete && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Editar turno</h3>
-
-            <p>
-              ¿Cómo quieres aplicar la edición del turno?
-            </p>
-
-            <div className="delete-modes">
-
-              <label>
-                <input
-                  type="radio"
-                  name="editMode"
-                  value="ONLY_THIS_BLOCK"
-                  checked={editShiftMode === 'ONLY_THIS_BLOCK'}
-                  onChange={() => setEditShiftMode('ONLY_THIS_BLOCK')}
-                />
-                <strong>Solo este día</strong>
-              </label>
-
-              <label>
-                <input
-                  type="radio"
-                  name="editMode"
-                  value="FROM_THIS_DAY_ON"
-                  checked={editShiftMode === 'FROM_THIS_DAY_ON'}
-                  onChange={() => setEditShiftMode('FROM_THIS_DAY_ON')}
-                />
-                <strong>Desde este día en adelante</strong>
-              </label>
-
-            </div>
-
-            <p style={{ marginTop: 12 }}>
-              Edita el turno en el panel superior y pulsa en{' '}
-              <strong>Añadir turno</strong>.
-            </p>
-
-            <div className="modal-buttons">
-              <button
-                onClick={() => {
-
-                  setEditingShift({
-                    ...shiftToDelete,
-                    mode: editShiftMode,
-                  });
-
-                  setSelectedDays([shiftToDelete.day]);
-                  setStartTime(shiftToDelete.startTime);
-                  setEndTime(shiftToDelete.endTime);
-                  setDateFrom(shiftToDelete.date);
-                  setDateTo('');
-
-                  setEditingPreview(null);
-                  setShowEditInfo(false);
-                }}
-              >
-                Aceptar
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowEditInfo(false);
-                  setShiftToDelete(null);
-                  setEditShiftMode('ONLY_THIS_BLOCK');
-                }}
-              >
-                Cancelar
-              </button>
             </div>
           </div>
         </div>
