@@ -893,6 +893,14 @@ export default function EmployeeSchedules() {
     const fromDate = dateFrom;        // obligatorio
     const toDate = dateTo || null;    // puede ser null
 
+    console.log('🧪 ADD SHIFT PARSED DATES', {
+      validFromRaw: validFrom,
+      fromDateLocal: fromDate.toString(),
+      fromDateISO: fromDate.toISOString(),
+      validToRaw: validTo,
+      toDateLocal: toDate?.toString(),
+    });
+
     if (!fromDate) {
       throw new Error('No hay fecha de inicio (dateFrom) para el turno');
     }
