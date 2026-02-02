@@ -1738,11 +1738,11 @@ export default function EmployeeSchedules() {
 
                   const cellDateStr = formatDateLocal(cellDateObj);
 
-                  // ==================================================
+                  // ===================================================
                   // 🛡️ BLINDAJE CLAVE:
                   // si es borrado "desde este día en adelante"
                   // NO se puede pintar en semanas anteriores
-                  // ==================================================
+                  // ===================================================
                   if (
                     editingPreview.type === 'DELETE' &&
                     editingPreview.mode === 'FROM_THIS_DAY_ON' &&
