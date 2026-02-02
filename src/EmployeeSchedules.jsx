@@ -557,19 +557,33 @@ export default function EmployeeSchedules() {
       startTime,
       endTime,
       source: 'draft',
-
-      // 🔑 CLAVE
-      // este turno solo existe a partir de esta fecha
-      validFrom: dateFrom, // YYYY-MM-DD
+      validFrom: dateFrom,
     };
 
     // ======================================================
     // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
     // ======================================================
     if (editingShift) {
-      console.log('✏️ ADD TURN DESDE EDICIÓN → reemplazando turno antiguo');
 
-      // 1️⃣ Marcar turno antiguo como eliminado SOLO EN FRONT
+      const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
+
+      console.log('✏️ ADD TURN DESDE EDICIÓN', mode);
+
+      // ------------------------------------------------------
+      // ✅ SOLO ESTE DÍA → todo se resuelve con excepciones
+      // ------------------------------------------------------
+      if (mode === 'ONLY_THIS_BLOCK') {
+
+        await handleConfirmEditShift();
+        return;
+      }
+
+      // ------------------------------------------------------
+      // ✅ DESDE ESTE DÍA EN ADELANTE
+      // → cambio estructural real
+      // ------------------------------------------------------
+      console.log('✏️ ADD TURN DESDE EDICIÓN → FROM_THIS_DAY_ON');
+
       setRemovedTurns(prev => [
         ...prev,
         {
@@ -580,10 +594,8 @@ export default function EmployeeSchedules() {
         },
       ]);
 
-      // 2️⃣ Añadir el nuevo turno editado al draft
       setDraftTurns(prev => [...prev, newTurn]);
 
-      // 3️⃣ Limpiar modo edición
       setEditingShift(null);
       setEditingPreview(null);
       setSelectedDays([]);
@@ -597,7 +609,6 @@ export default function EmployeeSchedules() {
     // 🟢 CASO AÑADIR TURNO NORMAL
     // ======================================================
 
-    // ⛔ VALIDACIÓN DE SOLAPAMIENTO SOLO AQUÍ
     if (hasOverlap(newTurn)) {
       alert(
         'El turno que intentas añadir se solapa parcial o totalmente con otro ya existente.'
@@ -605,12 +616,12 @@ export default function EmployeeSchedules() {
       return;
     }
 
-    // ✅ SOLO VISUAL
     setDraftTurns(prev => [...prev, newTurn]);
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
   }
+
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
     if (!dateFrom && !dateTo && (startTime || endTime)) {
@@ -862,24 +873,6 @@ export default function EmployeeSchedules() {
       newEnd,
     });
 
-    // ============================
-    // 1️⃣ Acortar
-    // ============================
-    const isShorter =
-      newStart >= oldStart &&
-      newEnd <= oldEnd &&
-      (newStart !== oldStart || newEnd !== oldEnd);
-
-    // ============================
-    // 2️⃣ Alargar
-    // ============================
-    const isLonger =
-      newStart < oldStart ||
-      newEnd > oldEnd;
-
-    // ============================
-    // Validación básica
-    // ============================
     if (newStart >= newEnd) {
       alert('La hora de inicio debe ser anterior a la de fin');
       return;
@@ -887,113 +880,93 @@ export default function EmployeeSchedules() {
 
     const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
 
+    // ------------------------------------------------
+    // FROM_THIS_DAY_ON no se resuelve aquí
+    // (lo gestiona addTurn creando draftTurns estructurales)
+    // ------------------------------------------------
+    if (mode === 'FROM_THIS_DAY_ON') {
+      return;
+    }
+
+    const isShorter =
+      newStart >= oldStart &&
+      newEnd <= oldEnd &&
+      (newStart !== oldStart || newEnd !== oldEnd);
+
+    const isLonger =
+      newStart < oldStart ||
+      newEnd > oldEnd;
+
     setDraftExceptions(prev => {
 
       const next = [...prev];
 
-      // ------------------------------------------------
-      // CASO A — ACORTAR
-      // ------------------------------------------------
+      // =====================================================
+      // CASO A — ACORTAR (ONLY_THIS_BLOCK)
+      // quitamos solo el tramo que desaparece
+      // =====================================================
       if (isShorter) {
 
-        if (mode === 'ONLY_THIS_BLOCK') {
-
-          // quitamos el bloque original SOLO este día
+        // tramo eliminado al inicio
+        if (newStart > oldStart) {
           next.push({
             type: 'MODIFIED_SHIFT',
             date,
             startTime: oldStart,
+            endTime: newStart,
+            mode: 'ONLY_THIS_BLOCK',
+            weekday: col,
+          });
+        }
+
+        // tramo eliminado al final
+        if (newEnd < oldEnd) {
+          next.push({
+            type: 'MODIFIED_SHIFT',
+            date,
+            startTime: newEnd,
             endTime: oldEnd,
             mode: 'ONLY_THIS_BLOCK',
             weekday: col,
           });
-
-          // añadimos el nuevo bloque SOLO este día
-          next.push({
-            type: 'EXTRA_SHIFT',
-            date,
-            startTime: newStart,
-            endTime: newEnd,
-            weekday: col,
-          });
-
-          return next;
         }
-
-        // ------------------------------------------------
-        // FROM_THIS_DAY_ON
-        // ------------------------------------------------
-
-        // quitamos el turno original desde este día en adelante
-        next.push({
-          type: 'MODIFIED_SHIFT',
-          date,
-          startTime: oldStart,
-          endTime: oldEnd,
-          mode: 'FROM_THIS_DAY_ON',
-          weekday: col,
-        });
 
         return next;
       }
 
-      // ------------------------------------------------
-      // CASO B — ALARGAR
-      // ------------------------------------------------
+      // =====================================================
+      // CASO B — ALARGAR (ONLY_THIS_BLOCK)
+      // añadimos solo el tramo nuevo
+      // =====================================================
       if (isLonger) {
 
-        if (mode === 'ONLY_THIS_BLOCK') {
-
-          // solo añadimos el tramo nuevo para este día
+        // tramo añadido al inicio
+        if (newStart < oldStart) {
           next.push({
             type: 'EXTRA_SHIFT',
             date,
             startTime: newStart,
+            endTime: oldStart,
+            weekday: col,
+          });
+        }
+
+        // tramo añadido al final
+        if (newEnd > oldEnd) {
+          next.push({
+            type: 'EXTRA_SHIFT',
+            date,
+            startTime: oldEnd,
             endTime: newEnd,
             weekday: col,
           });
-
-          return next;
         }
-
-        // ------------------------------------------------
-        // FROM_THIS_DAY_ON
-        // ------------------------------------------------
-
-        // quitamos el turno original desde este día en adelante
-        next.push({
-          type: 'MODIFIED_SHIFT',
-          date,
-          startTime: oldStart,
-          endTime: oldEnd,
-          mode: 'FROM_THIS_DAY_ON',
-          weekday: col,
-        });
 
         return next;
       }
 
       return next;
     });
-
-
-    // ------------------------------------------------
-    // 👉 SOLO PARA FROM_THIS_DAY_ON creamos draftTurns
-    // ------------------------------------------------
-    if (mode === 'FROM_THIS_DAY_ON' && (isShorter || isLonger)) {
-
-      setDraftTurns(prev => [
-        ...prev,
-        {
-          days: [day],
-          startTime: newStart,
-          endTime: newEnd,
-          source: 'draft',
-          validFrom: date,
-        },
-      ]);
-    }
-
 
     // ============================
     // Limpieza
@@ -1172,25 +1145,26 @@ export default function EmployeeSchedules() {
 
     try {
       setSaving(true);
-      let id = activeScheduleId;
+
+      const id = activeScheduleId;
 
       // =========================
-      // 1️⃣ BORRAR TURNOS EDITADOS (removedTurns) EN BACKEND
+      // 1️⃣ BORRAR TURNOS EDITADOS (pendiente)
       // =========================
       console.log('🗑️ borrando turnos editados en backend:', removedTurns.length);
-      // (Aquí ahora mismo no haces nada, lo dejamos como está)
+      // (de momento no haces nada aquí)
 
       // =========================
-      // 2️⃣ TURNOS NUEVOS / EDITADOS
+      // 2️⃣ TURNOS NUEVOS
       // =========================
       console.log('🟡 guardando turnos:', draftTurnsSafe.length);
 
       for (const turn of draftTurnsSafe) {
-        await saveTurnToBackend(activeScheduleId, turn);
+        await saveTurnToBackend(id, turn);
       }
 
       // =========================
-      // 3️⃣ VACACIONES (DÍAS SUELTOS)
+      // 3️⃣ VACACIONES
       // =========================
       for (const v of draftVacations) {
         const res = await fetch(
@@ -1215,14 +1189,16 @@ export default function EmployeeSchedules() {
       }
 
       // =========================
-      // 4️⃣ 🟥 GUARDAR EXCEPCIONES DE TURNO (BORRADOS / MODIFIED_SHIFT)
+      // 4️⃣ 🟥 EXCEPCIONES (solo backend)
       // =========================
       if (draftExceptions.length > 0) {
+
         console.log('🟥 guardando excepciones de turno:', draftExceptions.length);
         console.log(
           '🟦 FRONTEND EXCEPTIONS RAW (state):',
           JSON.stringify(draftExceptions, null, 2)
         );
+
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
           {
@@ -1233,18 +1209,18 @@ export default function EmployeeSchedules() {
             },
             body: JSON.stringify({
               exceptions: draftExceptions.map(ex => ({
-                type: ex.type,            // 'MODIFIED_SHIFT'
+                type: ex.type,
                 date: ex.date,
-                //day: ex.day,           // '2026-01-27'
-                startTime: ex.startTime, // '09:00'
-                endTime: ex.endTime,     // '11:00'
-                mode: ex.mode,           // ONLY_THIS_BLOCK / FROM_THIS_DAY_ON
+                startTime: ex.startTime,
+                endTime: ex.endTime,
+                mode: ex.mode ?? null,
               })),
             }),
           }
         );
 
         const text = await res.text();
+
         console.log('⬅️ EXCEPTIONS SAVE RESPONSE:', res.status, text || '(empty)');
 
         if (!res.ok) {
@@ -1253,7 +1229,7 @@ export default function EmployeeSchedules() {
       }
 
       // =========================
-      // 5️⃣ CONFIRMAR HORARIO (SI HAY CUALQUIER CAMBIO REAL)
+      // 5️⃣ CONFIRMAR HORARIO
       // =========================
 
       const hasAnyChange =
@@ -1262,6 +1238,7 @@ export default function EmployeeSchedules() {
         draftExceptions.length > 0;
 
       if (hasAnyChange) {
+
         console.log('🟡 confirmando horario...');
 
         const confirmRes = await fetch(
@@ -1283,8 +1260,10 @@ export default function EmployeeSchedules() {
       }
 
       console.log('✅ TODO OK — saliendo');
+
       setDraftTurns([]);
-      setDraftExceptions([]);   // 🔑 importante limpiar excepciones
+      setDraftExceptions([]);
+
       window.history.back();
 
     } catch (err) {
