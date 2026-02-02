@@ -147,6 +147,7 @@ export default function EmployeeSchedules() {
     '🧪 DEBUG weekDates CALCULADAS:',
     weekDates.slice(1).map(d => formatDateLocal(d))
   );
+
   function isTurnDeletedInDraft({ day, date, startTime, endTime }, draftExceptions) {
     console.log('🧪 CHECK DELETE MATCH', {
       turno: { day, date, startTime, endTime },
@@ -552,6 +553,21 @@ export default function EmployeeSchedules() {
       return;
     }
 
+    // ======================================================
+    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
+    // ======================================================
+    if (editingShift) {
+
+      console.log('✏️ ADD TURN DESDE EDICIÓN', editingShift.mode);
+
+      await handleConfirmEditShift();
+      return;
+    }
+
+    // ======================================================
+    // 🟢 ALTA NORMAL
+    // ======================================================
+
     const newTurn = {
       days: selectedDays,
       startTime,
@@ -559,55 +575,6 @@ export default function EmployeeSchedules() {
       source: 'draft',
       validFrom: dateFrom,
     };
-
-    // ======================================================
-    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
-    // ======================================================
-    if (editingShift) {
-
-      const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
-
-      console.log('✏️ ADD TURN DESDE EDICIÓN', mode);
-
-      // ------------------------------------------------------
-      // ✅ SOLO ESTE DÍA → todo se resuelve con excepciones
-      // ------------------------------------------------------
-      if (mode === 'ONLY_THIS_BLOCK') {
-
-        await handleConfirmEditShift();
-        return;
-      }
-
-      // ------------------------------------------------------
-      // ✅ DESDE ESTE DÍA EN ADELANTE
-      // → cambio estructural real
-      // ------------------------------------------------------
-      console.log('✏️ ADD TURN DESDE EDICIÓN → FROM_THIS_DAY_ON');
-
-      setRemovedTurns(prev => [
-        ...prev,
-        {
-          day: editingShift.day,
-          startTime: editingShift.startTime,
-          endTime: editingShift.endTime,
-          date: editingShift.date,
-        },
-      ]);
-
-      setDraftTurns(prev => [...prev, newTurn]);
-
-      setEditingShift(null);
-      setEditingPreview(null);
-      setSelectedDays([]);
-      setStartTime('');
-      setEndTime('');
-
-      return;
-    }
-
-    // ======================================================
-    // 🟢 CASO AÑADIR TURNO NORMAL
-    // ======================================================
 
     if (hasOverlap(newTurn)) {
       alert(
@@ -678,91 +645,6 @@ export default function EmployeeSchedules() {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
-  }
-
-  function handleConfirmDeleteShift() {
-    if (!shiftToDelete || !deleteShiftMode) return;
-
-    const mode = deleteShiftMode;
-
-    // ✅ FECHA DE HOY EN LOCAL
-    const now = new Date();
-    const today =
-      now.getFullYear() +
-      '-' +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      '-' +
-      String(now.getDate()).padStart(2, '0');
-
-    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
-      alert('No se pueden borrar turnos del pasado en bloque');
-      return;
-    }
-
-    const weekday =
-      weekDays.indexOf(shiftToDelete.day); // 1..7
-
-    if (weekday < 1 || weekday > 7) {
-      console.warn('weekday inválido en borrado', shiftToDelete.day);
-      return;
-    }
-
-    setDraftExceptions(prev => {
-
-      // 🔒 evitar duplicados exactos
-      const alreadyExists = prev.some(ex =>
-        ex.type === 'MODIFIED_SHIFT' &&
-        ex.date === shiftToDelete.date &&
-        ex.startTime === shiftToDelete.startTime &&
-        ex.endTime === shiftToDelete.endTime &&
-        ex.mode === mode &&
-        ex.weekday === weekday
-      );
-
-      if (alreadyExists) return prev;
-
-      return [
-        ...prev,
-        {
-          type: 'MODIFIED_SHIFT',
-          date: shiftToDelete.date,
-          weekday,              // 🔑 CLAVE
-          startTime: shiftToDelete.startTime,
-          endTime: shiftToDelete.endTime,
-          mode,
-        },
-      ];
-    });
-
-    console.log('🧪 DELETE CONFIRMADO', {
-      day: shiftToDelete.day,
-      weekday,
-      col: shiftToDelete.col,
-      date: shiftToDelete.date,
-      startTime: shiftToDelete.startTime,
-      endTime: shiftToDelete.endTime,
-      mode,
-    });
-
-    // ❗ IMPORTANTE
-    // El preview de DELETE solo se usa para ONLY_THIS_BLOCK.
-    // Para FROM_THIS_DAY_ON se pinta usando draftExceptions.
-    if (mode === 'ONLY_THIS_BLOCK') {
-      setEditingPreview({
-        type: 'DELETE',
-        day: shiftToDelete.day,
-        col: shiftToDelete.col,
-        startTime: shiftToDelete.startTime,
-        endTime: shiftToDelete.endTime,
-        mode,
-      });
-    } else {
-      setEditingPreview(null);
-    }
-
-    setShowShiftDeleteConfirm(false);
-    setShiftToDelete(null);
-    setDeleteShiftMode('ONLY_THIS_BLOCK');
   }
 
   async function handleConfirmDeleteVacation() {
@@ -880,13 +762,47 @@ export default function EmployeeSchedules() {
 
     const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
 
-    // ------------------------------------------------
-    // FROM_THIS_DAY_ON no se resuelve aquí
-    // (lo gestiona addTurn creando draftTurns estructurales)
-    // ------------------------------------------------
+    // =====================================================
+    // ROUTE 1 — FROM_THIS_DAY_ON  → estructural
+    // =====================================================
     if (mode === 'FROM_THIS_DAY_ON') {
+
+      // 1️⃣ marcar el turno antiguo como eliminado desde este día
+      setRemovedTurns(prev => ([
+        ...prev,
+        {
+          day,
+          startTime: oldStart,
+          endTime: oldEnd,
+          date,
+        },
+      ]));
+
+      // 2️⃣ crear el nuevo turno desde este día
+      setDraftTurns(prev => ([
+        ...prev,
+        {
+          days: [day],
+          startTime: newStart,
+          endTime: newEnd,
+          source: 'draft',
+          validFrom: date,
+        },
+      ]));
+
+      // limpieza
+      setEditingShift(null);
+      setEditingPreview(null);
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+
       return;
     }
+
+    // =====================================================
+    // ROUTE 2 — ONLY_THIS_BLOCK  → excepciones
+    // =====================================================
 
     const isShorter =
       newStart >= oldStart &&
@@ -902,12 +818,10 @@ export default function EmployeeSchedules() {
       const next = [...prev];
 
       // =====================================================
-      // CASO A — ACORTAR (ONLY_THIS_BLOCK)
-      // quitamos solo el tramo que desaparece
+      // ACORTAR (solo quitamos lo que desaparece)
       // =====================================================
       if (isShorter) {
 
-        // tramo eliminado al inicio
         if (newStart > oldStart) {
           next.push({
             type: 'MODIFIED_SHIFT',
@@ -919,7 +833,6 @@ export default function EmployeeSchedules() {
           });
         }
 
-        // tramo eliminado al final
         if (newEnd < oldEnd) {
           next.push({
             type: 'MODIFIED_SHIFT',
@@ -935,12 +848,10 @@ export default function EmployeeSchedules() {
       }
 
       // =====================================================
-      // CASO B — ALARGAR (ONLY_THIS_BLOCK)
-      // añadimos solo el tramo nuevo
+      // ALARGAR (solo añadimos lo nuevo)
       // =====================================================
       if (isLonger) {
 
-        // tramo añadido al inicio
         if (newStart < oldStart) {
           next.push({
             type: 'EXTRA_SHIFT',
@@ -951,7 +862,6 @@ export default function EmployeeSchedules() {
           });
         }
 
-        // tramo añadido al final
         if (newEnd > oldEnd) {
           next.push({
             type: 'EXTRA_SHIFT',
@@ -968,9 +878,7 @@ export default function EmployeeSchedules() {
       return next;
     });
 
-    // ============================
-    // Limpieza
-    // ============================
+    // limpieza
     setEditingShift(null);
     setEditingPreview(null);
     setSelectedDays([]);
@@ -978,18 +886,127 @@ export default function EmployeeSchedules() {
     setEndTime('');
   }
 
+  function handleConfirmDeleteShift() {
+    if (!shiftToDelete || !deleteShiftMode) return;
+
+    const mode = deleteShiftMode;
+
+    const now = new Date();
+    const today =
+      now.getFullYear() +
+      '-' +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(now.getDate()).padStart(2, '0');
+
+    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
+      alert('No se pueden borrar turnos del pasado en bloque');
+      return;
+    }
+
+    const weekday = weekDays.indexOf(shiftToDelete.day);
+
+    if (weekday < 1 || weekday > 7) {
+      console.warn('weekday inválido en borrado', shiftToDelete.day);
+      return;
+    }
+
+    // =====================================================
+    // ROUTE 1 — FROM_THIS_DAY_ON → estructural
+    // =====================================================
+    if (mode === 'FROM_THIS_DAY_ON') {
+
+      setRemovedTurns(prev => ([
+        ...prev,
+        {
+          day: shiftToDelete.day,
+          startTime: shiftToDelete.startTime,
+          endTime: shiftToDelete.endTime,
+          date: shiftToDelete.date,
+        },
+      ]));
+
+      console.log('🧪 DELETE ESTRUCTURAL CONFIRMADO', {
+        day: shiftToDelete.day,
+        date: shiftToDelete.date,
+        startTime: shiftToDelete.startTime,
+        endTime: shiftToDelete.endTime,
+        mode,
+      });
+
+      setEditingPreview(null);
+      setShowShiftDeleteConfirm(false);
+      setShiftToDelete(null);
+      setDeleteShiftMode('ONLY_THIS_BLOCK');
+
+      return;
+    }
+
+    // =====================================================
+    // ROUTE 2 — ONLY_THIS_BLOCK → excepción
+    // =====================================================
+
+    setDraftExceptions(prev => {
+
+      const alreadyExists = prev.some(ex =>
+        ex.type === 'MODIFIED_SHIFT' &&
+        ex.date === shiftToDelete.date &&
+        ex.startTime === shiftToDelete.startTime &&
+        ex.endTime === shiftToDelete.endTime &&
+        ex.mode === mode &&
+        ex.weekday === weekday
+      );
+
+      if (alreadyExists) return prev;
+
+      return [
+        ...prev,
+        {
+          type: 'MODIFIED_SHIFT',
+          date: shiftToDelete.date,
+          weekday,
+          startTime: shiftToDelete.startTime,
+          endTime: shiftToDelete.endTime,
+          mode,
+        },
+      ];
+    });
+
+    console.log('🧪 DELETE CONFIRMADO (ONLY_THIS_BLOCK)', {
+      day: shiftToDelete.day,
+      weekday,
+      date: shiftToDelete.date,
+      startTime: shiftToDelete.startTime,
+      endTime: shiftToDelete.endTime,
+      mode,
+    });
+
+    setEditingPreview({
+      type: 'DELETE',
+      day: shiftToDelete.day,
+      col: shiftToDelete.col,
+      startTime: shiftToDelete.startTime,
+      endTime: shiftToDelete.endTime,
+      mode,
+    });
+
+    setShowShiftDeleteConfirm(false);
+    setShiftToDelete(null);
+    setDeleteShiftMode('ONLY_THIS_BLOCK');
+  }
+
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
 
-    // 🔑 fechas del panel (YA SON YYYY-MM-DD)
-    const fromDate = dateFrom;        // string: '2026-02-03'
-    const toDate = dateTo || null;    // string | null
+    // 🔑 las fechas vienen del turno, no del panel global
+    const fromDate = turn.validFrom;
+    const toDate = turn.validTo ?? null;
 
     if (!fromDate) {
-      throw new Error('No hay fecha de inicio (dateFrom) para el turno');
+      throw new Error('No hay validFrom en el turno');
     }
 
-    console.log('🧪 ADD SHIFT FECHAS (LOCAL STRING)', {
+    console.log('🧪 ADD SHIFT FECHAS (TURN)', {
       validFrom: fromDate,
       validTo: toDate,
     });
@@ -1005,11 +1022,11 @@ export default function EmployeeSchedules() {
       }
 
       const payload = {
-        weekday: weekdayNumber,     // 1..7
+        weekday: weekdayNumber,
         startTime: turn.startTime,
         endTime: turn.endTime,
-        validFrom: fromDate,        // ✅ STRING LOCAL
-        validTo: toDate,            // ✅ STRING LOCAL | null
+        validFrom: fromDate,
+        validTo: toDate,
       };
 
       console.log('➡️ POST TURN:', payload);
@@ -1111,7 +1128,9 @@ export default function EmployeeSchedules() {
 
     let activeScheduleId = scheduleId;
 
-    // 🔑 SI NO HAY HORARIO ACTIVO → CREAR BORRADOR PRIMERO
+    // ======================================================
+    // 0️⃣ asegurar schedule
+    // ======================================================
     if (!activeScheduleId) {
       console.log('🆕 NO HAY SCHEDULE → CREANDO DRAFT');
 
@@ -1140,32 +1159,63 @@ export default function EmployeeSchedules() {
       setScheduleId(newSchedule.id);
     }
 
+    const id = activeScheduleId;
+
     const draftTurnsSafe = Array.isArray(draftTurns) ? draftTurns : [];
     const draftVacations = vacations.filter(v => v.source === 'draft');
 
     try {
       setSaving(true);
 
-      const id = activeScheduleId;
+      // ======================================================
+      // 1️⃣ borrados estructurales (FROM_THIS_DAY_ON)
+      // ======================================================
+      console.log(
+        '🗑️ borrando turnos estructurales en backend:',
+        removedTurns.length
+      );
 
-      // =========================
-      // 1️⃣ BORRAR TURNOS EDITADOS (pendiente)
-      // =========================
-      console.log('🗑️ borrando turnos editados en backend:', removedTurns.length);
-      // (de momento no haces nada aquí)
+      for (const rt of removedTurns) {
 
-      // =========================
-      // 2️⃣ TURNOS NUEVOS
-      // =========================
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              source: 'PANEL',
+              mode: 'FROM_THIS_DAY_ON',
+              dateFrom: rt.date,
+              startTime: rt.startTime,
+              endTime: rt.endTime,
+            }),
+          }
+        );
+
+        const text = await res.text();
+
+        console.log('⬅️ DELETE SHIFT RESPONSE:', res.status, text || '(empty)');
+
+        if (!res.ok) {
+          throw new Error(`Error cerrando turno desde este día: ${text}`);
+        }
+      }
+
+      // ======================================================
+      // 2️⃣ turnos nuevos (estructurales)
+      // ======================================================
       console.log('🟡 guardando turnos:', draftTurnsSafe.length);
 
       for (const turn of draftTurnsSafe) {
         await saveTurnToBackend(id, turn);
       }
 
-      // =========================
-      // 3️⃣ VACACIONES
-      // =========================
+      // ======================================================
+      // 3️⃣ vacaciones
+      // ======================================================
       for (const v of draftVacations) {
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/vacations`,
@@ -1188,11 +1238,10 @@ export default function EmployeeSchedules() {
         }
       }
 
-      // =========================
-      // 4️⃣ 🟥 EXCEPCIONES (solo backend)
-      // =========================
+      // ======================================================
+      // 4️⃣ excepciones (SIEMPRE por lote)
+      // ======================================================
       if (draftExceptions.length > 0) {
-
         console.log('🟥 guardando excepciones de turno:', draftExceptions.length);
         console.log(
           '🟦 FRONTEND EXCEPTIONS RAW (state):',
@@ -1228,17 +1277,16 @@ export default function EmployeeSchedules() {
         }
       }
 
-      // =========================
-      // 5️⃣ CONFIRMAR HORARIO
-      // =========================
-
+      // ======================================================
+      // 5️⃣ confirmar horario
+      // ======================================================
       const hasAnyChange =
+        removedTurns.length > 0 ||
         draftTurnsSafe.length > 0 ||
         draftVacations.length > 0 ||
         draftExceptions.length > 0;
 
       if (hasAnyChange) {
-
         console.log('🟡 confirmando horario...');
 
         const confirmRes = await fetch(
@@ -1263,7 +1311,7 @@ export default function EmployeeSchedules() {
 
       setDraftTurns([]);
       setDraftExceptions([]);
-
+      setRemovedTurns([]);
       window.history.back();
 
     } catch (err) {
