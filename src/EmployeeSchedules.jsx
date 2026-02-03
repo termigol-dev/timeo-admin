@@ -701,8 +701,6 @@ export default function EmployeeSchedules() {
     console.trace('TRACE handleConfirmEditShift');
     if (!editingShift) return;
 
-    // 🔴 MUY IMPORTANTE:
-    // limpiamos cualquier flujo de borrado activo
     setShiftToDelete(null);
     setShowShiftDeleteConfirm(false);
     setDeleteShiftMode('ONLY_THIS_BLOCK');
@@ -733,11 +731,10 @@ export default function EmployeeSchedules() {
     const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
 
     // =====================================================
-    // ROUTE 1 — FROM_THIS_DAY_ON → estructural
+    // ROUTE 1 — FROM_THIS_DAY_ON → estructural + preview
     // =====================================================
     if (mode === 'FROM_THIS_DAY_ON') {
 
-      // 1️⃣ cerrar el turno anterior
       setRemovedTurns(prev => ([
         ...prev,
         {
@@ -748,7 +745,6 @@ export default function EmployeeSchedules() {
         },
       ]));
 
-      // 2️⃣ crear el nuevo turno desde este día
       setDraftTurns(prev => ([
         ...prev,
         {
@@ -760,41 +756,48 @@ export default function EmployeeSchedules() {
         },
       ]));
 
-      // =====================================================
-      // 🧩 PREVIEW DEL HUECO (MISMO CAMINO QUE ONLY_THIS_BLOCK)
-      // =====================================================
-
       const isShorter =
         newStart >= oldStart &&
         newEnd <= oldEnd &&
         (newStart !== oldStart || newEnd !== oldEnd);
 
       if (isShorter) {
+
         setDraftExceptions(prev => {
 
           const next = [...prev];
 
+          const pushIfNotExists = (ex) => {
+            const exists = next.some(e =>
+              e.type === ex.type &&
+              e.date === ex.date &&
+              e.weekday === ex.weekday &&
+              e.startTime === ex.startTime &&
+              e.endTime === ex.endTime &&
+              e.mode === ex.mode
+            );
+            if (!exists) next.push(ex);
+          };
+
           if (newStart > oldStart) {
-            next.push({
+            pushIfNotExists({
               type: 'MODIFIED_SHIFT',
               date,
               startTime: oldStart,
               endTime: newStart,
-              mode: 'ONLY_THIS_BLOCK',
               weekday: col,
-              previewOnly: true, // 🔑 solo para dibujado
+              mode: 'FROM_THIS_DAY_ON',
             });
           }
 
           if (newEnd < oldEnd) {
-            next.push({
+            pushIfNotExists({
               type: 'MODIFIED_SHIFT',
               date,
               startTime: newEnd,
               endTime: oldEnd,
-              mode: 'ONLY_THIS_BLOCK',
               weekday: col,
-              previewOnly: true, // 🔑 solo para dibujado
+              mode: 'FROM_THIS_DAY_ON',
             });
           }
 
@@ -802,7 +805,6 @@ export default function EmployeeSchedules() {
         });
       }
 
-      // limpieza
       setEditingShift(null);
       setEditingPreview(null);
       setSelectedDays([]);
@@ -829,10 +831,22 @@ export default function EmployeeSchedules() {
 
       const next = [...prev];
 
+      const pushIfNotExists = (ex) => {
+        const exists = next.some(e =>
+          e.type === ex.type &&
+          e.date === ex.date &&
+          e.weekday === ex.weekday &&
+          e.startTime === ex.startTime &&
+          e.endTime === ex.endTime &&
+          e.mode === ex.mode
+        );
+        if (!exists) next.push(ex);
+      };
+
       if (isShorter) {
 
         if (newStart > oldStart) {
-          next.push({
+          pushIfNotExists({
             type: 'MODIFIED_SHIFT',
             date,
             startTime: oldStart,
@@ -843,7 +857,7 @@ export default function EmployeeSchedules() {
         }
 
         if (newEnd < oldEnd) {
-          next.push({
+          pushIfNotExists({
             type: 'MODIFIED_SHIFT',
             date,
             startTime: newEnd,
@@ -859,22 +873,24 @@ export default function EmployeeSchedules() {
       if (isLonger) {
 
         if (newStart < oldStart) {
-          next.push({
+          pushIfNotExists({
             type: 'EXTRA_SHIFT',
             date,
             startTime: newStart,
             endTime: oldStart,
             weekday: col,
+            mode: 'ONLY_THIS_BLOCK',
           });
         }
 
         if (newEnd > oldEnd) {
-          next.push({
+          pushIfNotExists({
             type: 'EXTRA_SHIFT',
             date,
             startTime: oldEnd,
             endTime: newEnd,
             weekday: col,
+            mode: 'ONLY_THIS_BLOCK',
           });
         }
 
@@ -884,13 +900,13 @@ export default function EmployeeSchedules() {
       return next;
     });
 
-    // limpieza
     setEditingShift(null);
     setEditingPreview(null);
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
   }
+
   function diffDays(from, to) {
     const d1 = new Date(from);
     const d2 = new Date(to);
@@ -907,9 +923,6 @@ export default function EmployeeSchedules() {
 
     const mode = deleteShiftMode;
 
-    // ======================================================
-    // 🔐 límite para borrado por rango
-    // ======================================================
     if (mode === 'RANGE') {
 
       if (!shiftToDelete.dateFrom || !shiftToDelete.dateTo) {
@@ -951,12 +964,12 @@ export default function EmployeeSchedules() {
     }
 
     // =====================================================
-    // 👉 PINTADO (SIEMPRE por el mismo camino)
+    // 👉 PINTADO
     // =====================================================
 
     setDraftExceptions(prev => {
 
-      const alreadyExists = prev.some(ex =>
+      const exists = prev.some(ex =>
         ex.type === 'MODIFIED_SHIFT' &&
         ex.date === shiftToDelete.date &&
         ex.startTime === shiftToDelete.startTime &&
@@ -965,7 +978,7 @@ export default function EmployeeSchedules() {
         ex.mode === 'ONLY_THIS_BLOCK'
       );
 
-      if (alreadyExists) return prev;
+      if (exists) return prev;
 
       return [
         ...prev,
@@ -975,14 +988,13 @@ export default function EmployeeSchedules() {
           weekday,
           startTime: shiftToDelete.startTime,
           endTime: shiftToDelete.endTime,
-          // 🔴 siempre ONLY_THIS_BLOCK para dibujado
           mode: 'ONLY_THIS_BLOCK',
         },
       ];
     });
 
     // =====================================================
-    // 👉 BORRADO ESTRUCTURAL (solo backend)
+    // 👉 BORRADO ESTRUCTURAL
     // =====================================================
     if (mode === 'FROM_THIS_DAY_ON') {
 
@@ -1016,7 +1028,6 @@ export default function EmployeeSchedules() {
       });
     }
 
-    // 👉 preview siempre igual
     setEditingPreview({
       type: 'DELETE',
       day: shiftToDelete.day,
@@ -1815,29 +1826,31 @@ export default function EmployeeSchedules() {
                       weekStart.getDate() + (col - 1)
                     );
                     const currentDate = formatDateLocal(currentDateObj);
-
                     const isRemovedByException = draftExceptions.some(ex => {
 
                       if (ex.type !== 'MODIFIED_SHIFT') return false;
 
-                      // la excepción debe cubrir completamente el turno
                       if (
-                        ex.startTime > t.startTime ||
-                        ex.endTime < t.endTime
+                        ex.startTime !== t.startTime ||
+                        ex.endTime !== t.endTime
                       ) return false;
 
-                      // 🔑 misma columna
                       if (ex.weekday !== col) return false;
 
+                      // 🔑 SOLO ESTE BLOQUE
+                      if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
+                        return currentDate === ex.date;
+                      }
+
+                      // 🔑 DESDE ESTE DÍA EN ADELANTE
                       const from = ex.date;
-                      const to = ex.validTo || null;
+                      const to = ex.validTo ?? null;
 
                       if (currentDate < from) return false;
                       if (to && currentDate > to) return false;
 
                       return true;
                     });
-
                     if (isRemovedByException) return null;
 
                     // 🔴 ocultar SOLO el bloque exacto en preview DELETE
@@ -1946,11 +1959,21 @@ export default function EmployeeSchedules() {
                   // RANGO REAL DE LA EXCEPCIÓN
                   // =========================
 
-                  const from = ex.date;
-                  const to = ex.validTo ?? null;
+                  // 🔑 SOLO es cascada si el mode es EXACTAMENTE FROM_THIS_DAY_ON
+                  if (ex.mode === 'FROM_THIS_DAY_ON') {
 
-                  if (cellDateStr < from) return null;
-                  if (to && cellDateStr > to) return null;
+                    const from = ex.date;
+                    const to = ex.validTo ?? null;
+
+                    if (cellDateStr < from) return null;
+                    if (to && cellDateStr > to) return null;
+
+                  } else {
+
+                    // 🔑 TODO lo demás es SOLO ESTE DÍA
+                    if (cellDateStr !== ex.date) return null;
+
+                  }
 
                   return (
                     <div
@@ -1963,7 +1986,6 @@ export default function EmployeeSchedules() {
                     />
                   );
                 })}
-
                 {/* 🖊️ PREVIEW SOLO PARA ADD / EDIT */}
                 {editingPreview && editingPreview.type !== 'DELETE' && (
                   <div
