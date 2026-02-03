@@ -886,11 +886,42 @@ export default function EmployeeSchedules() {
     setEndTime('');
   }
 
+  function diffDays(from, to) {
+    const d1 = new Date(from);
+    const d2 = new Date(to);
+
+    d1.setHours(0, 0, 0, 0);
+    d2.setHours(0, 0, 0, 0);
+
+    return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+  }
+
   function handleConfirmDeleteShift() {
     if (!shiftToDelete || !deleteShiftMode) return;
 
     const mode = deleteShiftMode;
+    // ======================================================
+    // 🔐 límite para borrado por rango
+    // ======================================================
+    if (mode === 'RANGE') {
 
+      if (!shiftToDelete.dateFrom || !shiftToDelete.dateTo) {
+        alert('Rango de fechas inválido');
+        return;
+      }
+
+      const days = diffDays(
+        shiftToDelete.dateFrom,
+        shiftToDelete.dateTo
+      );
+
+      if (days > 62) {
+        alert(
+          'El rango máximo permitido para excepciones es de 62 días. Para cambios más largos usa "desde este día en adelante".'
+        );
+        return;
+      }
+    }
     const now = new Date();
     const today =
       now.getFullYear() +
