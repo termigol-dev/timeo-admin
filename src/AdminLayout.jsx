@@ -13,6 +13,7 @@ import {
 import { can } from './permissions';
 
 export default function AdminLayout({ dark, setDark, onLogout }) {
+
   const navigate = useNavigate();
 
   const rawUser = localStorage.getItem('user');
@@ -28,7 +29,11 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
     <div className="app">
       <header className="header">
         {/* LOGO */}
-        <div className="logo">
+        <div
+          className="logo"
+          style={{ cursor: 'pointer' }}
+          onClick={() => navigate('/admin/dashboard')}
+        >
           t<span>i</span>meo
         </div>
 
@@ -49,7 +54,7 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
           )}
 
           {can(user.role, 'employees') && (
-            <button onClick={() => navigate('/admin/companies')}>
+            <button onClick={() => navigate('/admin/employees')}>
               <Users />
               <span>Empleados</span>
             </button>
@@ -75,7 +80,12 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
         </label>
 
         <div className="header-right">
-          <button onClick={() => navigate('/admin/profile')}>
+          <button
+            onClick={() => {
+              if (!user?.id) return;
+              navigate(`/admin/users/${user.id}/profile`);
+            }}
+          >
             <User />
             <span>Mi perfil</span>
           </button>

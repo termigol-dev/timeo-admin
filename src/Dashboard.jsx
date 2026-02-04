@@ -9,7 +9,11 @@ import {
 import './dashboard.css';
 
 export default function Dashboard() {
+
   const navigate = useNavigate();
+
+  const rawUser = localStorage.getItem('user');
+  const user = rawUser ? JSON.parse(rawUser) : null;
 
   return (
     <div className="dashboard-tablet">
@@ -42,7 +46,10 @@ export default function Dashboard() {
 
         <button
           className="dashboard-card"
-          onClick={() => navigate('/admin/profile')}
+          onClick={() => {
+            if (!user?.id) return;
+            navigate(`/admin/users/${user.id}/profile`);
+          }}
         >
           <User size={32} />
           <span>Perfil</span>

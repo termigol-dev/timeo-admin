@@ -82,7 +82,7 @@ export default function Employees() {
     } catch (err) {
       alert(
         err.message ||
-          'No se puede eliminar este empleado. Puede tener historial o pertenecer a otra empresa.',
+        'No se puede eliminar este empleado. Puede tener historial o pertenecer a otra empresa.',
       );
     }
   }
@@ -166,97 +166,138 @@ export default function Employees() {
         </thead>
 
         <tbody>
-          {filtered.map(e => (
-            <tr
-              key={e.id}
-              style={{
-                opacity: isSuperAdmin && !e.active ? 0.5 : 1,
-              }}
-            >
-              <td>
-                <strong>
-                  {e.name} {e.firstSurname || ''}
-                </strong>
-              </td>
+          {filtered.map(e => {
 
-              <td>{e.dni}</td>
+            const initials =
+              `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
 
-              <td>
-                <select
-                  value={e.branchId || ''}
-                  onChange={ev =>
-                    changeBranch(e.id, ev.target.value)
-                  }
-                >
-                  <option value="">— Sin sucursal —</option>
-                  {branches.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-
-              <td>{e.active ? 'Sí' : 'No'}</td>
-
-              <td className="right">
-                <div className="tablet-actions">
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/admin/companies/${companyId}/employees/${e.id}/edit`
-                      )
-                    }
+            return (
+              <tr
+                key={e.id}
+                style={{
+                  opacity: isSuperAdmin && !e.active ? 0.5 : 1,
+                }}
+              >
+                {/* ───────── EMPLEADO (FOTO + NOMBRE) ───────── */}
+                <td>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
                   >
-                    Editar
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/admin/companies/${companyId}/employees/${e.id}/photo`
-                      )
-                    }
-                  >
-                    Foto
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/admin/companies/${companyId}/employees/${e.id}/schedules`
-                      )
-                    }
-                  >
-                    Horarios
-                  </button>
-
-                  {/* BORRADO NORMAL (PRODUCCIÓN) */}
-                  <button
-                    onClick={() => remove(e)}
-                    style={{ backgroundColor: '#ef4444' }}
-                  >
-                    Eliminar
-                  </button>
-
-                  {/* HARD DELETE (PRUEBAS) */}
-                  {isSuperAdmin && (
-                    <button
-                      onClick={() => hardDelete(e)}
-                      title="Borrado total (solo pruebas)"
+                    <div
                       style={{
-                        backgroundColor: '#991b1b',
-                        color: 'white',
-                        fontWeight: 900,
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        background: '#e5e7eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        color: '#475569',
+                        flexShrink: 0,
                       }}
                     >
-                      ✕
+                      {e.photo ? (
+                        <img
+                          src={e.photo}
+                          alt=""
+                          loading="lazy"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      ) : (
+                        initials
+                      )}
+                    </div>
+
+                    <strong>
+                      {e.name} {e.firstSurname || ''}
+                    </strong>
+                  </div>
+                </td>
+
+                <td>{e.dni}</td>
+
+                <td>
+                  <select
+                    value={e.branchId || ''}
+                    onChange={ev =>
+                      changeBranch(e.id, ev.target.value)
+                    }
+                  >
+                    <option value="">— Sin sucursal —</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+
+                <td>{e.active ? 'Sí' : 'No'}</td>
+
+                <td className="right">
+                  <div className="tablet-actions">
+                    <button
+                      onClick={() => navigate(`/admin/users/${e.id}/profile`)}
+                    >
+                      Perfil
                     </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/admin/companies/${companyId}/employees/${e.id}/photo`
+                        )
+                      }
+                    >
+                      Foto
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/admin/companies/${companyId}/employees/${e.id}/schedules`
+                        )
+                      }
+                    >
+                      Horarios
+                    </button>
+
+                    <button
+                      onClick={() => remove(e)}
+                      style={{ backgroundColor: '#ef4444' }}
+                    >
+                      Eliminar
+                    </button>
+
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => hardDelete(e)}
+                        title="Borrado total (solo pruebas)"
+                        style={{
+                          backgroundColor: '#991b1b',
+                          color: 'white',
+                          fontWeight: 900,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
 
           {filtered.length === 0 && (
             <tr>

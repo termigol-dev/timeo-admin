@@ -24,7 +24,7 @@ async function api(path, method = 'GET', body, auth = true) {
     try {
       const data = await res.json();
       msg = data.message || msg;
-    } catch {}
+    } catch { }
     throw new Error(msg);
   }
 
@@ -59,6 +59,8 @@ export function clearToken() {
 }
 
 /* ───────── USERS ───────── */
+
+
 export function getUsers() {
   return api('/users');
 }
@@ -75,12 +77,46 @@ export function resetUserPassword(id) {
   return api(`/users/${id}/reset-password`, 'PATCH');
 }
 
-export function updateUser(id, data) {
-  return api(`/users/${id}`, 'PATCH', data);
+export async function updateUser(userId, data) {
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/users/${userId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Error actualizando usuario');
+  }
+
+  return res.json();
 }
 
 export function deleteUser(id) {
   return api(`/users/${id}`, 'DELETE');
+}
+
+export async function getAllEmployees({ page, pageSize, search }) {
+
+  const params = new URLSearchParams();
+
+  if (page) params.append('page', page);
+  if (pageSize) params.append('pageSize', pageSize);
+  if (search) params.append('search', search);
+
+  const res = await fetch(
+    `${API_URL}/users?${params.toString()}`,
+    auth()
+  );
+
+  if (!res.ok) throw new Error('Error cargando empleados');
+
+  return res.json();
 }
 
 /* ───────── COMPANIES ───────── */
@@ -143,6 +179,23 @@ export function regenerateTabletToken(companyId, branchId) {
 }
 
 /* ───────── EMPLOYEES ───────── */
+export async function getUserById(userId) {
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/users/${userId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Error cargando usuario');
+  }
+
+  return res.json();
+}
+
 export function getEmployees(companyId) {
   return api(`/companies/${companyId}/employees`);
 }
@@ -225,7 +278,7 @@ export async function tabletPunch({ tabletToken, employeeId, type }) {
     }
     return res.json();
   });
-  
+
 }
 
 /* ───────── SCHEDULES ───────── */
@@ -274,3 +327,4 @@ export function getActiveSchedule(
     `/companies/${companyId}/branches/${branchId}/schedules/user/${userId}/active`
   );
 }
+

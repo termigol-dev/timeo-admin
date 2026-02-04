@@ -18,6 +18,7 @@ import CreateUser from './CreateUser';
 import EmployeeSchedules from './EmployeeSchedules';
 
 export default function App() {
+
   const [dark, setDark] = useState(
     localStorage.getItem('dark_mode') === 'true'
   );
@@ -77,6 +78,7 @@ export default function App() {
 
   return (
     <Routes>
+
       {/* ───────── NO LOGUEADO ───────── */}
       {!logged && (
         <Route
@@ -130,7 +132,7 @@ export default function App() {
               element={<NewBranch />}
             />
 
-            {/* EMPLEADOS */}
+            {/* EMPLEADOS (por empresa) */}
             <Route
               path="companies/:companyId/employees"
               element={<Employees />}
@@ -140,12 +142,33 @@ export default function App() {
               element={<CreateUser defaultRole="EMPLEADO" />}
             />
             <Route
-            path="companies/:companyId/employees/:employeeId/schedules"
-            element={<EmployeeSchedules />}
+              path="companies/:companyId/employees/:employeeId/schedules"
+              element={<EmployeeSchedules />}
             />
-            {/* REPORTES Y PERFIL */}
+
+            {/* PERFIL DE CUALQUIER USUARIO (GLOBAL, SIN EMPRESA) */}
+            <Route
+              path="users/:userId/profile"
+              element={<Profile />}
+            />
+
+            {/* MI PERFIL (atajo) */}
+            <Route
+              path="profile"
+              element={
+                user?.id
+                  ? (
+                    <Navigate
+                      to={`/admin/users/${user.id}/profile`}
+                      replace
+                    />
+                  )
+                  : <Navigate to="/admin" replace />
+              }
+            />
+
+            {/* REPORTES */}
             <Route path="reports" element={<Reports />} />
-            <Route path="profile" element={<Profile />} />
           </Route>
 
           {/* FALLBACK SOLO ADMIN */}
