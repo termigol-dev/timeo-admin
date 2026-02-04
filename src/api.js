@@ -101,7 +101,7 @@ export function deleteUser(id) {
   return api(`/users/${id}`, 'DELETE');
 }
 
-export async function getAllEmployees({ page, pageSize, search }) {
+export async function getAllEmployees({ page, pageSize, search } = {}) {
 
   const params = new URLSearchParams();
 
@@ -110,8 +110,12 @@ export async function getAllEmployees({ page, pageSize, search }) {
   if (search) params.append('search', search);
 
   const res = await fetch(
-    `${API_URL}/users?${params.toString()}`,
-    auth()
+    `${API_BASE}/users?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    }
   );
 
   if (!res.ok) throw new Error('Error cargando empleados');

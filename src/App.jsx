@@ -9,6 +9,7 @@ import Dashboard from './Dashboard';
 import Companies from './Companies';
 import CompanyProfile from './CompanyProfile';
 import Employees from './Employees';
+import EmployeesList from './EmployeesList';   // 👈 AÑADIDO
 import Branches from './Branches';
 import Reports from './Reports';
 import Profile from './Profile';
@@ -114,6 +115,12 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
 
+            {/* EMPLEADOS (GLOBAL) */}
+            <Route
+              path="employees"
+              element={<EmployeesList />}
+            />
+
             {/* EMPRESAS */}
             <Route path="companies" element={<Companies />} />
             <Route path="companies/new" element={<NewCompany />} />
@@ -132,7 +139,7 @@ export default function App() {
               element={<NewBranch />}
             />
 
-            {/* EMPLEADOS (por empresa) */}
+            {/* EMPLEADOS (POR EMPRESA) */}
             <Route
               path="companies/:companyId/employees"
               element={<Employees />}
@@ -146,13 +153,13 @@ export default function App() {
               element={<EmployeeSchedules />}
             />
 
-            {/* PERFIL DE CUALQUIER USUARIO (GLOBAL, SIN EMPRESA) */}
+            {/* PERFIL DE CUALQUIER USUARIO (GLOBAL) */}
             <Route
               path="users/:userId/profile"
               element={<Profile />}
             />
 
-            {/* MI PERFIL (atajo) */}
+            {/* MI PERFIL (ATAJO) */}
             <Route
               path="profile"
               element={
