@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUserById, updateUser } from './api';
-
 export default function Profile() {
 
-  const { companyId, userId } = useParams();   // 👈 AÑADIDO companyId
+  const { userId } = useParams();
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -18,16 +17,16 @@ export default function Profile() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (companyId && userId) {
+    if (userId) {
       load();
     }
     // eslint-disable-next-line
-  }, [companyId, userId]);
+  }, [userId]);
 
   async function load() {
     setLoading(true);
     try {
-      const u = await getUserById(companyId, userId);   // 👈 AQUÍ
+      const u = await getUserById(userId);   // 👈 AQUÍ
       setUser(u);
       setForm({
         name: u.name || '',
@@ -64,17 +63,20 @@ export default function Profile() {
       await updateUser(userId, form);
 
       if (photoFile) {
-        const fd = new FormData();
-        fd.append('file', photoFile);
+
+        const base64 = await fileToBase64(photoFile);
 
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/employees/${userId}/photo`,
+          `${import.meta.env.VITE_API_URL}/users/${userId}/photo`,
           {
             method: 'POST',
             headers: {
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-            body: fd,
+            body: JSON.stringify({
+              photo: base64,
+            }),
           }
         );
 
@@ -82,7 +84,6 @@ export default function Profile() {
           throw new Error('Error subiendo foto');
         }
       }
-
       setMessage('Perfil actualizado correctamente');
       await load();
 
@@ -93,6 +94,17 @@ export default function Profile() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+
+      reader.readAsDataURL(file);
+    });
   }
 
   if (loading) {
