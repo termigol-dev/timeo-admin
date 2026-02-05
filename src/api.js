@@ -78,10 +78,13 @@ export function resetUserPassword(id) {
 }
 
 export async function updateUser(userId, data) {
+
+  console.log('📡 PATCH /users/' + userId);
+
   const res = await fetch(
     `${import.meta.env.VITE_API_URL}/users/${userId}`,
     {
-      method: 'PUT',
+      method: 'PATCH',   // ⬅️ ESTE ES EL CAMBIO
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -90,7 +93,11 @@ export async function updateUser(userId, data) {
     }
   );
 
+  console.log('📡 status updateUser', res.status);
+
   if (!res.ok) {
+    const t = await res.text();
+    console.log('❌ body error', t);
     throw new Error('Error actualizando usuario');
   }
 

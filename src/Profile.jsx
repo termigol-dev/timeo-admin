@@ -47,12 +47,55 @@ export default function Profile() {
     setForm(f => ({ ...f, [name]: value }));
   }
 
-  function onSelectPhoto(e) {
+  async function onSelectPhoto(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    const base64 = await resizeImageToBase64(file, 512, 0.8);
+
+    setPhotoFile(base64);
+    setPhotoPreview(base64);
+  }
+
+  function resizeImageToBase64(file, maxSize = 512, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = e => {
+        img.onload = () => {
+          let { width, height } = img;
+
+          if (width > height) {
+            if (width > maxSize) {
+              height = height * (maxSize / width);
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = width * (maxSize / height);
+              height = maxSize;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const base64 = canvas.toDataURL('image/jpeg', quality);
+          resolve(base64);
+        };
+
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   async function saveProfile() {
@@ -60,11 +103,10 @@ export default function Profile() {
     setMessage('');
 
     try {
+      console.log('➡️ updateUser()', userId, form);
       await updateUser(userId, form);
 
       if (photoFile) {
-
-        const base64 = await fileToBase64(photoFile);
 
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/users/${userId}/photo`,
@@ -75,7 +117,7 @@ export default function Profile() {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
             body: JSON.stringify({
-              photo: base64,
+              photo: photoFile,   // 👈 ya es base64 reducido
             }),
           }
         );
@@ -84,12 +126,14 @@ export default function Profile() {
           throw new Error('Error subiendo foto');
         }
       }
+
       setMessage('Perfil actualizado correctamente');
       await load();
 
       setPhotoFile(null);
 
     } catch (e) {
+      console.error(e);
       setMessage('Error al guardar los cambios');
     } finally {
       setSaving(false);
