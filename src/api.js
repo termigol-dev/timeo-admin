@@ -104,6 +104,8 @@ export async function updateUser(userId, data) {
   return res.json();
 }
 
+
+
 export function deleteUser(id) {
   return api(`/users/${id}`, 'DELETE');
 }
@@ -255,6 +257,27 @@ export function getMyReports(filters = {}) {
   return api(`/reports/me?${params}`);
 }
 
+export async function getMyDailyReport({ from, to }) {
+  const params = new URLSearchParams();
+
+  if (from) params.append('from', from);
+  if (to) params.append('to', to);
+
+  const res = await fetch(
+    `${API_BASE}/reports/me/daily?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Error cargando informe diario');
+  }
+
+  return res.json();
+}
 
 /* ───────── TABLET (NO SE TOCA) ───────── */
 export async function registerTablet(activationToken) {

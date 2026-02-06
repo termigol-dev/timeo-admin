@@ -1,139 +1,115 @@
 import React, { useEffect, useState } from 'react';
-import { getMyReports } from './api';
+import { getMyDailyReport } from './api';
+
+function minutesToPercent(min) {
+  return (min / 1440) * 100;
+}
 
 export default function Reports() {
-  const [days, setDays] = useState([]);
-  const [totalHours, setTotalHours] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [openDays, setOpenDays] = useState({});
 
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [days, setDays] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // de momento fijo para probar
+  const from = '2026-02-01';
+  const to = '2026-02-05';
 
   useEffect(() => {
     load();
     // eslint-disable-next-line
   }, []);
 
-  async function load(filters = {}) {
+  async function load() {
     setLoading(true);
     try {
-      const res = await getMyReports(filters);
-
+      const res = await getMyDailyReport({ from, to });
       setDays(res.days || []);
-      setTotalHours(
-        typeof res.totalHours === 'number' ? res.totalHours : null
-      );
-
-      // Abrir todos los días por defecto
-      const open = {};
-      (res.days || []).forEach(d => {
-        open[d.date] = true;
-      });
-      setOpenDays(open);
     } finally {
       setLoading(false);
     }
   }
 
-  function applyFilters() {
-    load({
-      from: from || undefined,
-      to: to || undefined,
-    });
-  }
-
-  function toggleDay(date) {
-    setOpenDays(d => ({ ...d, [date]: !d[date] }));
-  }
-
   if (loading) {
-    return <div className="center">Cargando informes…</div>;
+    return <div className="center">Cargando informe…</div>;
   }
 
   return (
-    <div className="container">
-      <div className="page-header">
-        <h2>Informes</h2>
-      </div>
+    <div className="container" style={{ maxWidth: 900, margin: '0 auto' }}>
+      <h2>Informe diario</h2>
 
-      {/* ───────── FILTROS ───────── */}
-      <div className="form">
-        <input
-          type="date"
-          value={from}
-          onChange={e => setFrom(e.target.value)}
-        />
-        <input
-          type="date"
-          value={to}
-          onChange={e => setTo(e.target.value)}
-        />
-        <button className="btn" onClick={applyFilters}>
-          Filtrar
-        </button>
-      </div>
+      {days.map(day => (
+        <div
+          key={day.date}
+          style={{
+            border: '1px solid #ddd',
+            borderRadius: 6,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <strong>{day.date}</strong>
 
-      {/* ───────── TOTAL HORAS (solo si backend lo envía) ───────── */}
-      {totalHours !== null && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <strong>Total horas:</strong> {totalHours} h
-        </div>
-      )}
+          {/* SHIFTS (línea azul) */}
+          <div style={{ marginTop: 12 }}>
+            <div><b>Horario previsto</b></div>
 
-      {days.length === 0 && (
-        <div className="center">No hay registros</div>
-      )}
+            <div
+              style={{
+                position: 'relative',
+                height: 14,
+                background: '#f1f5f9',
+                borderRadius: 4,
+                marginTop: 6,
+              }}
+            >
+              {day.shifts.map(s => {
 
-      {/* ───────── DÍAS ───────── */}
-      {days.map((day, idx) => (
-        <div key={idx} className="card" style={{ marginBottom: 16 }}>
-          {/* CABECERA DÍA (ACORDEÓN) */}
-          <div
-            onClick={() => toggleDay(day.date)}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginBottom: 10,
-              cursor: 'pointer',
-            }}
-          >
-            <strong>{day.date}</strong>
+                const [sh, sm] = s.startTime.split(':').map(Number);
+                const [eh, em] = s.endTime.split(':').map(Number);
 
-            {day.totalHours !== undefined && (
-              <span>{day.totalHours} h</span>
-            )}
+                const startMin = sh * 60 + sm;
+                const endMin = eh * 60 + em;
+
+                return (
+                  <div
+                    key={s.id}
+                    style={{
+                      position: 'absolute',
+                      left: `${minutesToPercent(startMin)}%`,
+                      width: `${minutesToPercent(endMin - startMin)}%`,
+                      top: 0,
+                      bottom: 0,
+                      background: '#2563eb',
+                      borderRadius: 4,
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
 
-          {/* CONTENIDO */}
-          {openDays[day.date] && (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Entrada</th>
-                  <th>Salida</th>
-                </tr>
-              </thead>
-              <tbody>
-                {day.sessions.map((s, i) => (
-                  <tr key={i}>
-                    <td style={{ color: '#22c55e', fontWeight: 600 }}>
-                      {new Date(s.in).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td style={{ color: '#ef4444', fontWeight: 600 }}>
-                      {new Date(s.out).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {/* RECORDS */}
+          <div style={{ marginTop: 8 }}>
+            <div><b>Registros</b></div>
+            {day.records.length === 0 && <div>—</div>}
+            {day.records.map(r => (
+              <div key={r.id}>
+                {r.type} – {new Date(r.createdAt).toLocaleTimeString()}
+              </div>
+            ))}
+          </div>
+
+          {/* INCIDENTS */}
+          <div style={{ marginTop: 8 }}>
+            <div><b>Incidencias</b></div>
+            {day.incidents.length === 0 && <div>—</div>}
+            {day.incidents.map(i => (
+              <div key={i.id}>
+                {i.type} {i.note ? `- ${i.note}` : ''}
+              </div>
+            ))}
+          </div>
+
         </div>
       ))}
     </div>
