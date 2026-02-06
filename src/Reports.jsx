@@ -1,117 +1,437 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getMyDailyReport } from './api';
+
+/* ---------------- helpers ---------------- */
+
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
 
 function minutesToPercent(min) {
   return (min / 1440) * 100;
 }
+
+// devuelve el lunes de la semana
+function isoWeekStart(dateStr) {
+
+  // Evitamos problemas de zona horaria
+  const base = new Date(dateStr + 'T12:00:00');
+
+  // getDay(): 0..6 (domingo..sábado)
+  // lo pasamos a 1..7 (lunes..domingo)
+  const jsDay = base.getDay();
+  const day = jsDay === 0 ? 7 : jsDay; // 1..7
+
+  // lunes = 1
+  const diff = day - 1;
+
+  const monday = new Date(base);
+  monday.setDate(base.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+
+  return monday;
+}
+
+function toISODate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function weekdayName(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('es-ES', { weekday: 'long' });
+}
+
+function hourLabel(h) {
+  if (h === 0) return '12 AM';
+  if (h < 12) return `${h} AM`;
+  if (h === 12) return '12 PM';
+  return `${h - 12} PM`;
+}
+
+/* ------------------------------------------------ */
 
 export default function Reports() {
 
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // de momento fijo para probar
-  const from = '2026-02-01';
-  const to = '2026-02-05';
+  const [year, setYear] = useState(2026);
+  const [month, setMonth] = useState(1); // 0..11
+
+  const [currentWeek, setCurrentWeek] = useState(0);
+
+  const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const to = new Date(year, month + 1, 0).toISOString().slice(0, 10);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line
-  }, []);
+  }, [year, month]);
 
   async function load() {
     setLoading(true);
     try {
       const res = await getMyDailyReport({ from, to });
       setDays(res.days || []);
+      setCurrentWeek(0);
     } finally {
       setLoading(false);
     }
   }
 
+  /*
+    weeks = [{ weekStart: Date, daysMap: Map<date,day> }]
+  */
+  const weeks = useMemo(() => {
+
+    if (!days.length) return [];
+
+    const map = new Map();
+
+    for (const d of days) {
+      const monday = isoWeekStart(d.date);
+      const key = toISODate(monday);
+
+      if (!map.has(key)) {
+        map.set(key, new Map());
+      }
+
+      map.get(key).set(d.date, d);
+    }
+
+    return Array.from(map.entries())
+      .map(([weekStart, daysMap]) => ({
+        weekStart: new Date(weekStart),
+        daysMap,
+      }))
+      .sort((a, b) => a.weekStart - b.weekStart);
+
+  }, [days]);
+
   if (loading) {
     return <div className="center">Cargando informe…</div>;
   }
 
-  return (
-    <div className="container" style={{ maxWidth: 900, margin: '0 auto' }}>
-      <h2>Informe diario</h2>
+  const week = weeks[currentWeek];
 
-      {days.map(day => (
+  return (
+    <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+      <h2>Informes</h2>
+
+      {/* selector mes / año */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+
+        <select
+          value={month}
+          onChange={e => setMonth(Number(e.target.value))}
+        >
+          {[
+            'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+            'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+          ].map((m, i) => (
+            <option key={i} value={i}>{m}</option>
+          ))}
+        </select>
+
+        <select
+          value={year}
+          onChange={e => setYear(Number(e.target.value))}
+        >
+          {[2024,2025,2026,2027,2028].map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+
+      </div>
+
+      {/* navegación semanas */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+
+        <button
+          disabled={currentWeek === 0}
+          onClick={() => setCurrentWeek(w => w - 1)}
+        >
+          ◀ Semana anterior
+        </button>
+
+        <div style={{ fontSize: 13 }}>
+          Semana {weeks.length ? currentWeek + 1 : 0} de {weeks.length}
+        </div>
+
+        <button
+          disabled={currentWeek >= weeks.length - 1}
+          onClick={() => setCurrentWeek(w => w + 1)}
+        >
+          Semana siguiente ▶
+        </button>
+
+      </div>
+
+      {!week && <div>No hay datos</div>}
+
+      {week && (
+
         <div
-          key={day.date}
           style={{
             border: '1px solid #ddd',
-            borderRadius: 6,
+            borderRadius: 8,
             padding: 12,
-            marginBottom: 12,
+            marginBottom: 24,
           }}
         >
-          <strong>{day.date}</strong>
 
-          {/* SHIFTS (línea azul) */}
-          <div style={{ marginTop: 12 }}>
-            <div><b>Horario previsto</b></div>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>
+            Semana desde {toISODate(week.weekStart)}
+          </div>
 
-            <div
-              style={{
-                position: 'relative',
-                height: 14,
-                background: '#f1f5f9',
-                borderRadius: 4,
-                marginTop: 6,
-              }}
-            >
-              {day.shifts.map(s => {
+          {/* -------- SIEMPRE 7 DÍAS -------- */}
+          {Array.from({ length: 7 }).map((_, idx) => {
 
-                const [sh, sm] = s.startTime.split(':').map(Number);
-                const [eh, em] = s.endTime.split(':').map(Number);
+            const d = new Date(week.weekStart);
+            d.setDate(d.getDate() + idx);
 
-                const startMin = sh * 60 + sm;
-                const endMin = eh * 60 + em;
+            const dateStr = toISODate(d);
+            const dayData = week.daysMap.get(dateStr);
 
-                return (
-                  <div
-                    key={s.id}
-                    style={{
-                      position: 'absolute',
-                      left: `${minutesToPercent(startMin)}%`,
-                      width: `${minutesToPercent(endMin - startMin)}%`,
-                      top: 0,
-                      bottom: 0,
-                      background: '#2563eb',
-                      borderRadius: 4,
-                    }}
-                  />
-                );
-              })}
+            const isSameMonth = d.getMonth() === month;
+
+            const dayLabel = weekdayName(dateStr);
+
+            const shifts = dayData?.shifts || [];
+            const records = dayData?.records || [];
+            const incidents = dayData?.incidents || [];
+
+            return (
+              <div
+                key={dateStr}
+                style={{
+                  marginBottom: 18,
+                  opacity: isSameMonth ? 1 : 0.35,
+                }}
+              >
+
+                {/* encabezado día */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>
+                    {dayLabel}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#555' }}>
+                    {dateStr}
+                  </div>
+                </div>
+
+                {/* timeline */}
+                <div
+                  style={{
+                    position: 'relative',
+                    height: 48,
+                    marginTop: 6,
+                    borderTop: '1px solid #bbb',
+                    borderBottom: '1px solid #bbb',
+                    background: '#fff',
+                  }}
+                >
+
+                  {/* rejilla horas */}
+                  {Array.from({ length: 25 }).map((_, h) => {
+
+                    const isMain = h % 4 === 0;
+
+                    return (
+                      <div
+                        key={h}
+                        style={{
+                          position: 'absolute',
+                          left: `${(h / 24) * 100}%`,
+                          bottom: 0,
+                          height: '100%',
+                          width: 1,
+                          background: '#000',
+                          opacity: isMain ? 0.35 : 0.12,
+                        }}
+                      >
+                        {isMain && h < 24 && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 2,
+                              transform: 'rotate(-90deg)',
+                              transformOrigin: 'left bottom',
+                              fontSize: 9,
+                              whiteSpace: 'nowrap',
+                              color: '#000',
+                            }}
+                          >
+                            {hourLabel(h)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* horario previsto */}
+                  {shifts.map(s => {
+
+                    const start = timeToMinutes(s.startTime);
+                    const end = timeToMinutes(s.endTime);
+
+                    return (
+                      <div
+                        key={s.id}
+                        style={{
+                          position: 'absolute',
+                          bottom: 24,
+                          height: 10,
+                          left: `${minutesToPercent(start)}%`,
+                          width: `${minutesToPercent(end - start)}%`,
+                          background: '#2563eb',
+                          borderRadius: 3,
+                        }}
+                      />
+                    );
+                  })}
+
+                  {/* trabajado */}
+                  {(() => {
+
+                    const blocks = [];
+
+                    for (let i = 0; i < records.length - 1; i++) {
+
+                      const a = records[i];
+                      const b = records[i + 1];
+
+                      if (a.type !== 'IN' || b.type !== 'OUT') continue;
+
+                      const sa = new Date(a.createdAt);
+                      const sb = new Date(b.createdAt);
+
+                      const startMin = sa.getHours() * 60 + sa.getMinutes();
+                      const endMin = sb.getHours() * 60 + sb.getMinutes();
+
+                      blocks.push(
+                        <div
+                          key={a.id}
+                          style={{
+                            position: 'absolute',
+                            bottom: 10,
+                            height: 10,
+                            left: `${minutesToPercent(startMin)}%`,
+                            width: `${minutesToPercent(endMin - startMin)}%`,
+                            background: '#22c55e',
+                            borderRadius: 3,
+                          }}
+                        />,
+                      );
+                    }
+
+                    return blocks;
+                  })()}
+
+                  {/* incidencias */}
+                  {incidents.map(i => {
+
+                    const t = new Date(i.occurredAt || i.createdAt);
+                    const min = t.getHours() * 60 + t.getMinutes();
+
+                    let color = '#eab308';
+
+                    if (i.type === 'NO_SHOW') color = '#dc2626';
+                    else if (
+                      i.type === 'IN_LATE' ||
+                      i.type === 'OUT_EARLY'
+                    ) color = '#f97316';
+
+                    return (
+                      <div
+                        key={i.id}
+                        style={{
+                          position: 'absolute',
+                          left: `${minutesToPercent(min)}%`,
+                          bottom: 36,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          transform: 'translateX(-50%)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: color,
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontSize: 9,
+                            color: '#000',
+                            transform: 'rotate(-90deg)',
+                            transformOrigin: 'left bottom',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {i.type}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* leyenda */}
+
+      <div style={{ marginTop: 16, fontSize: 13 }}>
+
+        <b>Leyenda</b>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: 16,
+            marginTop: 8,
+          }}
+        >
+
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 18, height: 10, background: '#2563eb', borderRadius: 3 }} />
+              <span>Horario previsto</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <div style={{ width: 18, height: 10, background: '#22c55e', borderRadius: 3 }} />
+              <span>Horario trabajado</span>
             </div>
           </div>
 
-          {/* RECORDS */}
-          <div style={{ marginTop: 8 }}>
-            <div><b>Registros</b></div>
-            {day.records.length === 0 && <div>—</div>}
-            {day.records.map(r => (
-              <div key={r.id}>
-                {r.type} – {new Date(r.createdAt).toLocaleTimeString()}
-              </div>
-            ))}
+          <div>
+            <div>🟨 IN_EARLY, OUT_LATE → tiempo extra</div>
+            <div style={{ marginTop: 4 }}>
+              🟨 FORGOT_IN, FORGOT_OUT → olvido en el registro
+            </div>
           </div>
 
-          {/* INCIDENTS */}
-          <div style={{ marginTop: 8 }}>
-            <div><b>Incidencias</b></div>
-            {day.incidents.length === 0 && <div>—</div>}
-            {day.incidents.map(i => (
-              <div key={i.id}>
-                {i.type} {i.note ? `- ${i.note}` : ''}
-              </div>
-            ))}
+          <div>
+            <div>🟧 IN_LATE, OUT_EARLY → ingreso tarde y salida temprana</div>
+            <div style={{ marginTop: 4 }}>
+              🟥 NO_SHOW → sin registros
+            </div>
           </div>
 
         </div>
-      ))}
+      </div>
+
     </div>
   );
 }
