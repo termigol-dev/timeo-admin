@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getMyDailyReport } from './api';
+import { useParams } from 'react-router-dom';
 
 /* ---------------- helpers ---------------- */
 
@@ -12,18 +13,13 @@ function minutesToPercent(min) {
   return (min / 1440) * 100;
 }
 
-// devuelve el lunes de la semana
+// devuelve el lunes de la semana (lunes=1 ... domingo=7)
 function isoWeekStart(dateStr) {
-
-  // Evitamos problemas de zona horaria
   const base = new Date(dateStr + 'T12:00:00');
 
-  // getDay(): 0..6 (domingo..sábado)
-  // lo pasamos a 1..7 (lunes..domingo)
-  const jsDay = base.getDay();
-  const day = jsDay === 0 ? 7 : jsDay; // 1..7
+  const jsDay = base.getDay(); // 0..6 (dom..sab)
+  const day = jsDay === 0 ? 7 : jsDay; // 1..7 (lun..dom)
 
-  // lunes = 1
   const diff = day - 1;
 
   const monday = new Date(base);
@@ -34,12 +30,17 @@ function isoWeekStart(dateStr) {
 }
 
 function toISODate(d) {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function weekdayName(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('es-ES', { weekday: 'long' });
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+
+  return date.toLocaleDateString('es-ES', { weekday: 'long' });
 }
 
 function hourLabel(h) {
@@ -49,18 +50,24 @@ function hourLabel(h) {
   return `${h - 12} PM`;
 }
 
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
 /* ------------------------------------------------ */
 
 export default function Reports() {
 
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(1); // 0..11
 
   const [currentWeek, setCurrentWeek] = useState(0);
-
+  const { userId } = useParams();
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const to = new Date(year, month + 1, 0).toISOString().slice(0, 10);
 
@@ -72,7 +79,7 @@ export default function Reports() {
   async function load() {
     setLoading(true);
     try {
-      const res = await getMyDailyReport({ from, to });
+      const res = await getMyDailyReport({  userId, from, to });
       setDays(res.days || []);
       setCurrentWeek(0);
     } finally {
@@ -82,32 +89,45 @@ export default function Reports() {
 
   /*
     weeks = [{ weekStart: Date, daysMap: Map<date,day> }]
+    SIEMPRE semanas completas (lunes → domingo)
   */
   const weeks = useMemo(() => {
 
-    if (!days.length) return [];
-
-    const map = new Map();
-
+    const mapByDate = new Map();
     for (const d of days) {
-      const monday = isoWeekStart(d.date);
-      const key = toISODate(monday);
-
-      if (!map.has(key)) {
-        map.set(key, new Map());
-      }
-
-      map.get(key).set(d.date, d);
+      mapByDate.set(d.date, d);
     }
 
-    return Array.from(map.entries())
-      .map(([weekStart, daysMap]) => ({
-        weekStart: new Date(weekStart),
-        daysMap,
-      }))
-      .sort((a, b) => a.weekStart - b.weekStart);
+    const firstMonday = isoWeekStart(from);
+    const lastMonday = isoWeekStart(to);
 
-  }, [days]);
+    const result = [];
+
+    let cursor = new Date(firstMonday);
+
+    while (cursor <= lastMonday) {
+
+      const daysMap = new Map();
+
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(cursor, i);
+        const key = toISODate(d);
+        if (mapByDate.has(key)) {
+          daysMap.set(key, mapByDate.get(key));
+        }
+      }
+
+      result.push({
+        weekStart: new Date(cursor),
+        daysMap,
+      });
+
+      cursor = addDays(cursor, 7);
+    }
+
+    return result;
+
+  }, [days, from, to]);
 
   if (loading) {
     return <div className="center">Cargando informe…</div>;
@@ -186,13 +206,12 @@ export default function Reports() {
             Semana desde {toISODate(week.weekStart)}
           </div>
 
-          {/* -------- SIEMPRE 7 DÍAS -------- */}
+          {/* -------- SIEMPRE 7 DÍAS (LUNES → DOMINGO) -------- */}
           {Array.from({ length: 7 }).map((_, idx) => {
 
-            const d = new Date(week.weekStart);
-            d.setDate(d.getDate() + idx);
-
+            const d = addDays(week.weekStart, idx);
             const dateStr = toISODate(d);
+
             const dayData = week.daysMap.get(dateStr);
 
             const isSameMonth = d.getMonth() === month;
@@ -212,7 +231,6 @@ export default function Reports() {
                 }}
               >
 
-                {/* encabezado día */}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                   <div style={{ fontSize: 20, fontWeight: 700 }}>
                     {dayLabel}
@@ -222,7 +240,6 @@ export default function Reports() {
                   </div>
                 </div>
 
-                {/* timeline */}
                 <div
                   style={{
                     position: 'relative',

@@ -255,12 +255,10 @@ export default function Employees() {
 
                     <button
                       onClick={() =>
-                        navigate(
-                          `/admin/companies/${companyId}/employees/${e.id}/photo`
-                        )
+                        navigate(`/admin/companies/${companyId}/employees/${e.id}/reports`)
                       }
                     >
-                      Foto
+                      Informes
                     </button>
 
                     <button

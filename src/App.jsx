@@ -177,7 +177,10 @@ export default function App() {
             {/* REPORTES */}
             <Route path="reports" element={<Reports />} />
           </Route>
-
+          <Route
+            path="/admin/companies/:companyId/employees/:userId/reports"
+            element={<Reports />}
+          />
           {/* FALLBACK SOLO ADMIN */}
           <Route
             path="*"

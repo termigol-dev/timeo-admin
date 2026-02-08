@@ -257,14 +257,19 @@ export function getMyReports(filters = {}) {
   return api(`/reports/me?${params}`);
 }
 
-export async function getMyDailyReport({ from, to }) {
+export async function getMyDailyReport({ userId, from, to }) {
+
+  if (!userId) {
+    throw new Error('userId es obligatorio para cargar informes');
+  }
+
   const params = new URLSearchParams();
 
   if (from) params.append('from', from);
   if (to) params.append('to', to);
 
   const res = await fetch(
-    `${API_BASE}/reports/me/daily?${params.toString()}`,
+    `${API_BASE}/reports/users/${userId}/daily?${params.toString()}`,
     {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
