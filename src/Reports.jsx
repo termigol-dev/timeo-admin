@@ -17,8 +17,8 @@ function minutesToPercent(min) {
 function isoWeekStart(dateStr) {
   const base = new Date(dateStr + 'T12:00:00');
 
-  const jsDay = base.getDay(); // 0..6 (dom..sab)
-  const day = jsDay === 0 ? 7 : jsDay; // 1..7 (lun..dom)
+  const jsDay = base.getDay(); // 0..6
+  const day = jsDay === 0 ? 7 : jsDay; // 1..7
 
   const diff = day - 1;
 
@@ -68,6 +68,7 @@ export default function Reports() {
 
   const [currentWeek, setCurrentWeek] = useState(0);
   const { userId } = useParams();
+
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const to = new Date(year, month + 1, 0).toISOString().slice(0, 10);
 
@@ -210,7 +211,6 @@ export default function Reports() {
             Semana desde {toISODate(week.weekStart)}
           </div>
 
-          {/* -------- SIEMPRE 7 DÍAS (LUNES → DOMINGO) -------- */}
           {Array.from({ length: 7 }).map((_, idx) => {
 
             const d = addDays(week.weekStart, idx);
@@ -318,12 +318,16 @@ export default function Reports() {
                   {/* trabajado */}
                   {(() => {
 
+                    const ordered = [...records].sort(
+                      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+                    );
+
                     const blocks = [];
 
-                    for (let i = 0; i < records.length - 1; i++) {
+                    for (let i = 0; i < ordered.length - 1; i++) {
 
-                      const a = records[i];
-                      const b = records[i + 1];
+                      const a = ordered[i];
+                      const b = ordered[i + 1];
 
                       if (a.type !== 'IN' || b.type !== 'OUT') continue;
 
@@ -345,7 +349,7 @@ export default function Reports() {
                             background: '#22c55e',
                             borderRadius: 3,
                           }}
-                        />,
+                        />
                       );
                     }
 

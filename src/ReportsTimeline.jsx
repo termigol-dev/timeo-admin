@@ -1,15 +1,15 @@
 import React from 'react';
 
 /*
-  days = lo que ya te devuelve el backend:
-  [
-    {
-      date,
-      shifts,
-      records,
-      incidents
-    }
-  ]
+days = lo que ya te devuelve el backend:
+[
+  {
+    date,
+    shifts,
+    records,
+    incidents
+  }
+]
 */
 
 export default function ReportsTimeline({ days }) {
@@ -55,7 +55,7 @@ export default function ReportsTimeline({ days }) {
 
       {/* escala */}
       <div style={{ position: 'relative', height: 24, marginLeft: 90 }}>
-        {[0,4,8,12,16,20,24].map(h => (
+        {[0, 4, 8, 12, 16, 20, 24].map(h => (
           <div
             key={h}
             style={{
@@ -65,18 +65,23 @@ export default function ReportsTimeline({ days }) {
               transform: 'translateX(-50%)'
             }}
           >
-            {String(h).padStart(2,'0')}:00
+            {String(h).padStart(2, '0')}:00
           </div>
         ))}
       </div>
 
       {days.map(day => {
 
+        // 🔴 ORDENAR REGISTROS ANTES DE EMPAREJAR
+        const orderedRecords = [...day.records].sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        );
+
         // bloques verdes (trabajado)
         const worked = [];
-        for (let i = 0; i < day.records.length - 1; i++) {
-          const a = day.records[i];
-          const b = day.records[i + 1];
+        for (let i = 0; i < orderedRecords.length - 1; i++) {
+          const a = orderedRecords[i];
+          const b = orderedRecords[i + 1];
 
           if (a.type !== 'IN' || b.type !== 'OUT') continue;
 
