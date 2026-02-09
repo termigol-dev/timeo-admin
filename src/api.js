@@ -258,11 +258,6 @@ export function getMyReports(filters = {}) {
 }
 
 export async function getMyDailyReport({ userId, from, to }) {
-
-  if (!userId) {
-    throw new Error('userId es obligatorio para cargar informes');
-  }
-
   const params = new URLSearchParams();
 
   if (from) params.append('from', from);

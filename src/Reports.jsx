@@ -62,7 +62,7 @@ export default function Reports() {
 
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(1); // 0..11
 
@@ -79,7 +79,11 @@ export default function Reports() {
   async function load() {
     setLoading(true);
     try {
-      const res = await getMyDailyReport({  userId, from, to });
+      const res = await getMyDailyReport({
+        userId,
+        from,
+        to,
+      });
       setDays(res.days || []);
       setCurrentWeek(0);
     } finally {
@@ -148,8 +152,8 @@ export default function Reports() {
           onChange={e => setMonth(Number(e.target.value))}
         >
           {[
-            'Enero','Febrero','Marzo','Abril','Mayo','Junio',
-            'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
           ].map((m, i) => (
             <option key={i} value={i}>{m}</option>
           ))}
@@ -159,7 +163,7 @@ export default function Reports() {
           value={year}
           onChange={e => setYear(Number(e.target.value))}
         >
-          {[2024,2025,2026,2027,2028].map(y => (
+          {[2024, 2025, 2026, 2027, 2028].map(y => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>

@@ -282,14 +282,25 @@ export default function Profile() {
           />
         </div>
 
-        <button
-          className="primary"
-          style={{ marginTop: 24 }}
-          disabled={saving}
-          onClick={saveProfile}
-        >
-          Guardar cambios
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
+          <button
+            className="primary"
+            disabled={saving}
+            onClick={saveProfile}
+          >
+            Guardar cambios
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/admin/employees/${userId}/reports`)
+            }
+          >
+            📊 Informes
+          </button>
+        </div>
+
 
         {message && (
           <p className="center" style={{ marginTop: 12 }}>

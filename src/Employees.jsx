@@ -255,7 +255,7 @@ export default function Employees() {
 
                     <button
                       onClick={() =>
-                        navigate(`/admin/companies/${companyId}/employees/${e.id}/reports`)
+                        navigate(`/admin/employees/${e.id}/reports`)
                       }
                     >
                       Informes

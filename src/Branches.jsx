@@ -4,7 +4,7 @@ import {
   getBranches,
   deleteBranch,
   toggleBranch,
-  regenerateTabletToken, // 🆕
+  regenerateTabletToken,
 } from './api';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -16,7 +16,6 @@ export default function Branches() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
-  // 🆕 estado tablet
   const [tabletInfo, setTabletInfo] = useState(null);
 
   async function load() {
@@ -33,22 +32,38 @@ export default function Branches() {
     if (companyId) load();
   }, [companyId]);
 
-  /* ───────── ACTIVAR / DESACTIVAR ───────── */
   async function toggle(branch) {
     await toggleBranch(companyId, branch.id);
     load();
   }
 
-  /* ───────── TOKEN TABLET ───────── */
-  async function handleGenerateTabletToken(branch) {
+  /* ───────── REGENERAR TOKEN + MOSTRAR QR ───────── */
+  async function handleRegenerateTabletToken(branch) {
     const res = await regenerateTabletToken(companyId, branch.id);
+
     setTabletInfo({
       branchName: branch.name,
       token: res.tabletToken,
     });
+
+    load();
   }
 
-  /* ───────── ELIMINAR SUCURSAL ───────── */
+  /* ───────── MOSTRAR QR SIN REGENERAR ───────── */
+  function handleShowQR(branch) {
+    if (!branch.tabletToken) {
+      alert(
+        'Esta sucursal no tiene token de tablet.\n\nPrimero pulsa "Regenerar token".',
+      );
+      return;
+    }
+
+    setTabletInfo({
+      branchName: branch.name,
+      token: branch.tabletToken,
+    });
+  }
+
   async function removeBranch(branch) {
     if (!branch.memberships || branch.memberships.length === 0) {
       const ok = window.confirm(
@@ -65,9 +80,9 @@ export default function Branches() {
 
     const firstChoice = window.prompt(
       'Esta sucursal tiene empleados.\n\n' +
-        'A → Eliminarlos del todo\n' +
-        'B → Dejarlos inactivos\n' +
-        'C → Cancelar',
+      'A → Eliminarlos del todo\n' +
+      'B → Dejarlos inactivos\n' +
+      'C → Cancelar',
       'C',
     );
 
@@ -76,9 +91,9 @@ export default function Branches() {
     if (firstChoice.toUpperCase() === 'A') {
       const secondChoice = window.prompt(
         '⚠️ ELIMINACIÓN DEFINITIVA\n\n' +
-          'SI → Eliminar datos\n' +
-          'INACTIVOS → Dejarlos inactivos\n' +
-          'CANCELAR → Cancelar',
+        'SI → Eliminar datos\n' +
+        'INACTIVOS → Dejarlos inactivos\n' +
+        'CANCELAR → Cancelar',
         'CANCELAR',
       );
 
@@ -101,7 +116,6 @@ export default function Branches() {
     }
   }
 
-  /* ───────── FILTRO ───────── */
   const filteredBranches = branches.filter(b =>
     `${b.name} ${b.address || ''}`
       .toLowerCase()
@@ -143,63 +157,79 @@ export default function Branches() {
               <th>Dirección</th>
               <th>ID</th>
               <th>Estado</th>
-              <th className="right">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {filteredBranches.map(b => (
-              <tr key={b.id} style={{ opacity: b.active ? 1 : 0.5 }}>
-                <td>{b.name}</td>
-                <td>{b.address || '—'}</td>
-                <td style={{ fontSize: 12, opacity: 0.6 }}>{b.id}</td>
-                <td>{b.active ? 'Activa' : 'Inactiva'}</td>
+              <React.Fragment key={b.id}>
+                {/* Fila de datos */}
+                <tr style={{ opacity: b.active ? 1 : 0.5 }}>
+                  <td style={{ fontSize: 22, fontWeight: 600 }}>
+                    {b.name}
+                  </td>
+                  <td>{b.address || '—'}</td>
+                  <td style={{ fontSize: 12, opacity: 0.6 }}>{b.id}</td>
+                  <td>{b.active ? 'Activa' : 'Inactiva'}</td>
+                  <td />
+                </tr>
 
-                <td className="right">
-                  <div className="tablet-actions">
-                    <button onClick={() => toggle(b)}>
-                      {b.active ? 'Desactivar' : 'Activar'}
-                    </button>
-
-                    <button
-                      disabled={!b.active}
-                      onClick={() =>
-                        navigate(
-                          `/admin/companies/${companyId}/employees?branch=${b.id}`,
-                        )
-                      }
+                {/* Fila de acciones */}
+                <tr style={{ opacity: b.active ? 1 : 0.5 }}>
+                  <td colSpan={5}>
+                    <div
+                      className="tablet-actions"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'flex-start',
+                        gap: 8,
+                        paddingBottom: 14,
+                        borderBottom: '1px solid rgba(0,0,0,0.08)',
+                        marginBottom: 6,
+                      }}
                     >
-                      Empleados
-                    </button>
+                      <button onClick={() => toggle(b)}>
+                        {b.active ? 'Desactivar' : 'Activar'}
+                      </button>
 
-                    {/* 🆕 TABLET */}
-                    <button
-                      disabled={!b.active}
-                      onClick={() =>
-                        handleGenerateTabletToken(b)
-                      }
-                    >
-                      Regenerar token tablet
-                    </button>
+                      <button
+                        disabled={!b.active}
+                        onClick={() =>
+                          navigate(
+                            `/admin/companies/${companyId}/employees?branch=${b.id}`,
+                          )
+                        }
+                      >
+                        Empleados
+                      </button>
 
-                    <button
-                      onClick={() => removeBranch(b)}
-                      style={{ backgroundColor: '#ef4444' }}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                      <button
+                        disabled={!b.active}
+                        onClick={() => handleShowQR(b)}
+                      >
+                        Generar QR
+                      </button>
+
+                      <button
+                        disabled={!b.active}
+                        onClick={() =>
+                          handleRegenerateTabletToken(b)
+                        }
+                      >
+                        Regenerar token
+                      </button>
+
+                      <button
+                        onClick={() => removeBranch(b)}
+                        style={{ backgroundColor: '#ef4444' }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </React.Fragment>
             ))}
-
-            {filteredBranches.length === 0 && (
-              <tr>
-                <td colSpan="5" className="center muted">
-                  No hay sucursales registradas
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       )}
