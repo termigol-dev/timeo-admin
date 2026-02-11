@@ -252,12 +252,8 @@ export function updateMyPhoto(photoUrl) {
 }
 
 /* ───────── REPORTS ───────── */
-export function getMyReports(filters = {}) {
-  const params = new URLSearchParams(filters).toString();
-  return api(`/reports/me?${params}`);
-}
 
-export async function getMyDailyReport({ userId, from, to }) {
+export async function getMyReports({ userId, from, to }) {
   const params = new URLSearchParams();
 
   if (from) params.append('from', from);

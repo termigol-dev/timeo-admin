@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getMyDailyReport } from './api';
+import { getMyReports } from './api';
 import { useParams } from 'react-router-dom';
 
 /* ---------------- helpers ---------------- */
@@ -80,11 +80,17 @@ export default function Reports() {
   async function load() {
     setLoading(true);
     try {
-      const res = await getMyDailyReport({
+      const res = await getMyReports({
         userId,
         from,
         to,
       });
+
+      console.log(
+        '🧩 days from backend:',
+        res.days.map(d => d.date)
+      );
+
       setDays(res.days || []);
       setCurrentWeek(0);
     } finally {
