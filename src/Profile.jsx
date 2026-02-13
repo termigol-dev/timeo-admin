@@ -117,7 +117,7 @@ export default function Profile() {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
             body: JSON.stringify({
-              photo: photoFile,   // 👈 ya es base64 reducido
+              photoUrl: photoFile,   // 👈 ya es base64 reducido
             }),
           }
         );
