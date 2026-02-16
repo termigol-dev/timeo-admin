@@ -203,9 +203,9 @@ export default function Employees() {
                         flexShrink: 0,
                       }}
                     >
-                      {e.photo ? (
+                      {e.photoUrl ? (
                         <img
-                          src={e.photo}
+                          src={e.photoUrl}
                           alt=""
                           loading="lazy"
                           style={{
