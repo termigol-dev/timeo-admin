@@ -159,6 +159,14 @@ export default function EmployeesList() {
 
                                         <button
                                             onClick={() =>
+                                                navigate(`/admin/employees/${e.id}/reports`)
+                                            }
+                                        >
+                                            Informes
+                                        </button>
+
+                                        <button
+                                            onClick={() =>
                                                 navigate(
                                                     `/admin/companies/${e.companyId}/employees/${e.id}/schedules`
                                                 )
@@ -166,6 +174,27 @@ export default function EmployeesList() {
                                         >
                                             Horarios
                                         </button>
+
+                                        <button
+                                            onClick={() => remove(e)}
+                                            style={{ backgroundColor: '#ef4444' }}
+                                        >
+                                            Eliminar
+                                        </button>
+
+                                        {isSuperAdmin && (
+                                            <button
+                                                onClick={() => hardDelete(e)}
+                                                title="Borrado total (solo pruebas)"
+                                                style={{
+                                                    backgroundColor: '#991b1b',
+                                                    color: 'white',
+                                                    fontWeight: 900,
+                                                }}
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

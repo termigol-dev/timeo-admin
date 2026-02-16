@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getUserById, updateUser } from './api';
 export default function Profile() {
 
+  const [photoBase64, setPhotoBase64] = useState(null);
   const { userId } = useParams();
   const navigate = useNavigate();
 
@@ -36,7 +37,7 @@ export default function Profile() {
         email: u.email || '',
       });
 
-      setPhotoPreview(u.photo || null);
+      setPhotoPreview(u.photoUrl || null);
     } finally {
       setLoading(false);
     }
@@ -99,47 +100,50 @@ export default function Profile() {
   }
 
   async function saveProfile() {
-  setSaving(true);
-  setMessage('');
+    setSaving(true);
+    setMessage('');
 
-  try {
-    console.log('➡️ updateUser()', userId, form);
+    try {
 
-    // 1️⃣ Actualizar datos normales
-    await updateUser(userId, form);
-
-    // 2️⃣ Si hay nueva foto, subirla
-    if (photoFile) {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/users/${userId}/photo`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            photo: photoFile, // 👈 backend espera "photo"
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error('Error subiendo foto');
+      if (photoBase64) {
+        await uploadUserPhoto(employeeId, photoBase64);
       }
+      console.log('➡️ updateUser()', userId, form);
+      await updateUser(userId, form);
+
+      if (photoFile) {
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/users/${userId}/photo`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify({
+              photoUrl: photoFile,   // 👈 ya es base64 reducido
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error('Error subiendo foto');
+        }
+      }
+
+      setMessage('Perfil actualizado correctamente');
+      await load();
+
+      setPhotoFile(null);
+
+    } catch (e) {
+      console.error(e);
+      setMessage('Error al guardar los cambios');
+    } finally {
+      setSaving(false);
     }
-
-    setMessage('Perfil actualizado correctamente');
-    await load();
-    setPhotoFile(null);
-
-  } catch (e) {
-    console.error(e);
-    setMessage('Error al guardar los cambios');
-  } finally {
-    setSaving(false);
   }
-}
 
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
