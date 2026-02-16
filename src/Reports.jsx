@@ -67,6 +67,8 @@ export default function Reports() {
   const [month, setMonth] = useState(1); // 0..11
 
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [viewMode, setViewMode] = useState('graph');
+  // 'graph' | 'text'
   const { userId } = useParams();
 
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -151,6 +153,42 @@ export default function Reports() {
 
       <h2>Informes</h2>
 
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <button
+          onClick={() => {
+            console.log('🔵 Cambiando a vista gráfica');
+            setViewMode('graph');
+          }}
+          style={{
+            padding: '6px 12px',
+            background: viewMode === 'graph' ? '#2563eb' : '#e5e7eb',
+            color: viewMode === 'graph' ? '#fff' : '#000',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer'
+          }}
+        >
+          Vista gráfica
+        </button>
+
+        <button
+          onClick={() => {
+            console.log('🟢 Cambiando a vista texto');
+            setViewMode('text');
+          }}
+          style={{
+            padding: '6px 12px',
+            background: viewMode === 'text' ? '#2563eb' : '#e5e7eb',
+            color: viewMode === 'text' ? '#fff' : '#000',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer'
+          }}
+        >
+          Vista texto (debug)
+        </button>
+      </div>
+
       {/* selector mes / año */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
 
@@ -202,7 +240,7 @@ export default function Reports() {
 
       {!week && <div>No hay datos</div>}
 
-      {week && (
+      {week && viewMode === 'graph' && (
 
         <div
           style={{
@@ -365,8 +403,9 @@ export default function Reports() {
                   {/* incidencias */}
                   {incidents.map(i => {
 
-                    const t = new Date(i.occurredAt || i.createdAt);
-                    const min = t.getHours() * 60 + t.getMinutes();
+                    const dateStr = i.occurredAt || i.createdAt;
+                    const timePart = dateStr.slice(11, 16); // "HH:MM"
+                    const min = timeToMinutes(timePart);
 
                     let color = '#eab308';
 
@@ -411,6 +450,185 @@ export default function Reports() {
                       </div>
                     );
                   })}
+
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {week && viewMode === 'text' && (
+        <div
+          style={{
+            border: '1px solid #ddd',
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 24,
+            background: '#fff'
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>
+            Semana desde {toISODate(week.weekStart)} (Vista log)
+          </div>
+
+          {Array.from({ length: 7 }).map((_, idx) => {
+
+            const d = addDays(week.weekStart, idx);
+            const dateStr = toISODate(d);
+            const dayData = week.daysMap.get(dateStr);
+
+            const dayLabel = weekdayName(dateStr);
+
+            const shifts = dayData?.shifts || [];
+            const records = dayData?.records || [];
+            const incidents = dayData?.incidents || [];
+
+            console.log('──────────────');
+            console.log('📅 Día:', dateStr);
+            console.log('   Shifts:', shifts);
+            console.log('   Records:', records);
+            console.log('   Incidents:', incidents);
+
+            return (
+              <div key={dateStr} style={{ marginBottom: 20 }}>
+
+                <div style={{ fontSize: 18, fontWeight: 700 }}>
+                  {dayLabel} — {dateStr}
+                </div>
+
+                <div style={{ marginTop: 6, fontSize: 14 }}>
+
+                  {/* SHIFTS ARRIBA */}
+                  <div><b>🟦 Shifts previstos</b></div>
+                  {shifts.length === 0 && <div>— Ninguno</div>}
+                  {shifts.map(s => (
+                    <div key={s.id}>
+                      {s.startTime} → {s.endTime}
+                    </div>
+                  ))}
+
+                  {/* EVENTOS CRONOLÓGICOS */}
+                  <div style={{ marginTop: 10 }}><b>📜 Línea temporal</b></div>
+
+                  {(() => {
+
+                    // Mezclamos records + incidents
+                    const events = [];
+
+                    records.forEach(r => {
+                      const dt = new Date(r.createdAt);
+                      events.push({
+                        type: 'record',
+                        subtype: r.type,
+                        date: dt,
+                        raw: r,
+                      });
+                    });
+
+                    incidents.forEach(i => {
+                      const dt = new Date(i.occurredAt || i.createdAt);
+                      events.push({
+                        type: 'incident',
+                        subtype: i.type,
+                        date: dt,
+                        raw: i,
+                      });
+                    });
+
+                    // Orden cronológico
+                    events.sort((a, b) => a.date - b.date);
+
+                    console.log('🧠 Eventos cronológicos ordenados:', events);
+
+                    if (events.length === 0) {
+                      return <div>— Sin eventos</div>;
+                    }
+
+                    return events.map((e, idx) => {
+
+                      const hh = String(e.date.getHours()).padStart(2, '0');
+                      const mm = String(e.date.getMinutes()).padStart(2, '0');
+                      const timeLabel = `${hh}:${mm}`;
+
+                      console.log('➡ Evento:', e.type, e.subtype, timeLabel);
+
+                      // ===== RECORDS =====
+                      if (e.type === 'record') {
+
+                        const isIn = e.subtype === 'IN';
+
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              marginTop: 4
+                            }}
+                          >
+                            <div
+                              style={{
+                                minWidth: 70,
+                                textAlign: 'center',
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: isIn ? '#16a34a' : '#dc2626',
+                                color: '#fff',
+                                fontWeight: 600,
+                                fontSize: 12
+                              }}
+                            >
+                              {e.subtype}
+                            </div>
+
+                            <div>{timeLabel}</div>
+                          </div>
+                        );
+                      }
+
+                      // ===== INCIDENTS =====
+                      if (e.type === 'incident') {
+
+                        let color = '#eab308';
+
+                        if (e.subtype === 'NO_SHOW') color = '#dc2626';
+                        else if (e.subtype === 'IN_LATE' || e.subtype === 'OUT_EARLY') color = '#f97316';
+                        else if (e.subtype === 'IN_EARLY' || e.subtype === 'OUT_LATE') color = '#eab308';
+
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              marginTop: 4
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 14,
+                                height: 14,
+                                background: color,
+                                borderRadius: 3,
+                              }}
+                            />
+
+                            <div style={{ fontWeight: 600 }}>
+                              {e.subtype}
+                            </div>
+
+                            <div>{timeLabel}</div>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    });
+
+                  })()}
 
                 </div>
               </div>

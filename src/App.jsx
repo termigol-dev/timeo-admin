@@ -17,6 +17,7 @@ import NewCompany from './NewCompany';
 import NewBranch from './NewBranch';
 import CreateUser from './CreateUser';
 import EmployeeSchedules from './EmployeeSchedules';
+import SimulateRecord from './SimulateRecord';
 
 export default function App() {
 
@@ -111,6 +112,9 @@ export default function App() {
               />
             }
           >
+            {/* SIMULADOR */}
+            <Route path="/admin/dev/simulate" element={<SimulateRecord />} />
+
             {/* DASHBOARD */}
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />

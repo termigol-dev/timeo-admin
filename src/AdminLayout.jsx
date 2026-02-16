@@ -90,6 +90,11 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
             <span>Mi perfil</span>
           </button>
 
+          <button onClick={() => navigate('/admin/dev/simulate')}>
+            🧪
+            <span>Simular</span>
+          </button>
+
           <button className="logout" onClick={logout}>
             <LogOut />
             <span>Salir</span>
