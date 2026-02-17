@@ -5,7 +5,7 @@ import App from "./App.jsx";
 import "./style.css";
 import { AuthProvider } from './auth/AuthContext';
 
-const root = document.getElementById("app");
+const root = document.getElementById("root");
 
 createRoot(root).render(
   <BrowserRouter>

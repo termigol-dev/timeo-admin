@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { adminLogin } from './api';
 import { useAuth } from "./auth/AuthContext";
+import Logo from "./components/Logo";
 
 export default function Login({ dark, setDark, onLogin }) {
   const [email, setEmail] = useState('');
@@ -9,45 +10,49 @@ export default function Login({ dark, setDark, onLogin }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
-  e.preventDefault();
+    e.preventDefault();
 
-  console.log('🚀 LOGIN SUBMIT', email);
+    console.log('🚀 LOGIN SUBMIT', email);
 
-  try {
-    const res = await fetch(
-      `${import.meta.env.VITE_API_URL}/auth/login`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+
+      console.log('📡 STATUS:', res.status);
+
+      const text = await res.text();
+      console.log('📦 RAW RESPONSE:', text);
+
+      if (!res.ok) {
+        throw new Error('Login incorrecto');
       }
-    );
 
-    console.log('📡 STATUS:', res.status);
+      const data = JSON.parse(text);
 
-    const text = await res.text();
-    console.log('📦 RAW RESPONSE:', text);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
 
-    if (!res.ok) {
-      throw new Error('Login incorrecto');
+      onLogin();
+    } catch (err) {
+      console.error('❌ LOGIN ERROR', err);
     }
-
-    const data = JSON.parse(text);
-
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-
-    onLogin();
-  } catch (err) {
-    console.error('❌ LOGIN ERROR', err);
   }
-}
 
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="logo">
-          t<span>i</span>meo
+        <div style={{
+          display: "flex",
+          justifyContent: "center",
+          marginBottom: 32
+        }}>
+          <Logo dark={dark} size={150} />
         </div>
 
         <div className="subtitle">Panel de administración</div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import Logo from "./components/Logo";
 import {
   LayoutDashboard,
   Building2,
@@ -29,13 +30,7 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
     <div className="app">
       <header className="header">
         {/* LOGO */}
-        <div
-          className="logo"
-          style={{ cursor: 'pointer' }}
-          onClick={() => navigate('/admin/dashboard')}
-        >
-          t<span>i</span>meo
-        </div>
+        <Logo dark={dark} size={110} />
 
         {/* NAV PRINCIPAL */}
         <nav className="nav">
