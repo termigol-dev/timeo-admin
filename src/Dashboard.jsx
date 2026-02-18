@@ -41,18 +41,7 @@ export default function Dashboard() {
           onClick={() => navigate('/admin/reports')}
         >
           <FileBarChart size={32} />
-          <span>Informes</span>
-        </button>
-
-        <button
-          className="dashboard-card"
-          onClick={() => {
-            if (!user?.id) return;
-            navigate(`/admin/users/${user.id}/profile`);
-          }}
-        >
-          <User size={32} />
-          <span>Perfil</span>
+          <span>Simulador</span>
         </button>
       </div>
 

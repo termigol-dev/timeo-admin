@@ -23,12 +23,11 @@ export default function Companies() {
     }
   }
 
-  /* ───────── BORRADO DEFINITIVO (TEST) ───────── */
   async function removeCompany(company) {
     const ok = window.confirm(
       '⚠️ BORRADO DEFINITIVO (TEST)\n\n' +
-        'Esta acción eliminará la empresa y todos sus datos.\n\n' +
-        '¿Deseas continuar?',
+      'Esta acción eliminará la empresa y todos sus datos.\n\n' +
+      '¿Deseas continuar?',
     );
 
     if (!ok) return;
@@ -53,21 +52,22 @@ export default function Companies() {
 
   return (
     <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
-     <div className="page-header" style={{ marginBottom: 24 }}>
-  <h2>Empresas</h2>
+      <div className="page-header" style={{ marginBottom: 24 }}>
+        <h2>Empresas</h2>
 
-  <div className="tablet-actions">
-    <button onClick={() => navigate('/admin/companies/new')}>
-      + Nueva empresa
-    </button>
-  </div>
-</div>
+        <div className="tablet-actions">
+          <button onClick={() => navigate('/admin/companies/new')}>
+            + Nueva empresa
+          </button>
+        </div>
+      </div>
 
       <input
         className="search"
         placeholder="Buscar por nombre o NIF…"
         value={query}
         onChange={e => setQuery(e.target.value)}
+        style={{ marginBottom: 24 }}
       />
 
       <table className="table" style={{ width: '100%' }}>
@@ -85,9 +85,34 @@ export default function Companies() {
           {filtered.map(c => (
             <tr key={c.id}>
               <td>
-                <div className="company-line">
-                  <strong>{c.commercialName || c.legalName}</strong>
-                  <span className="company-legal">{c.legalName}</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    className="clickable-name"
+                    onClick={() =>
+                      navigate(`/admin/companies/${c.id}`)
+                    }
+                  >
+                    {c.commercialName || c.legalName}
+                  </span>
+
+                  {c.commercialName && (
+                    <span
+                      style={{
+                        fontSize: 13,
+                        opacity: 0.6,
+                        fontWeight: 500,
+                      }}
+                    >
+                      ({c.legalName})
+                    </span>
+                  )}
                 </div>
               </td>
 
@@ -97,13 +122,6 @@ export default function Companies() {
 
               <td className="right">
                 <div className="tablet-actions">
-                  <button
-                    onClick={() =>
-                      navigate(`/admin/companies/${c.id}`)
-                    }
-                  >
-                    Ver
-                  </button>
 
                   <button
                     onClick={() =>
@@ -127,6 +145,7 @@ export default function Companies() {
                   >
                     Eliminar (TEST)
                   </button>
+
                 </div>
               </td>
             </tr>

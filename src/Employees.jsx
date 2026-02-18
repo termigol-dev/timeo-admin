@@ -11,6 +11,7 @@ import {
 import { useAuth } from './auth/AuthContext';
 
 export default function Employees() {
+
   /* ───────── AUTH ───────── */
   const { user } = useAuth();
 
@@ -50,7 +51,7 @@ export default function Employees() {
     }
   }
 
-  /* ───────── ACTIVAR / DESACTIVAR (SOLO SUPERADMIN) ───────── */
+  /* ───────── ACTIVAR / DESACTIVAR ───────── */
   async function toggle(employee) {
     if (!isSuperAdmin) return;
     await toggleEmployee(companyId, employee.id);
@@ -63,7 +64,7 @@ export default function Employees() {
     load();
   }
 
-  /* ───────── ELIMINAR (PRODUCCIÓN – BORRADO INTELIGENTE) ───────── */
+  /* ───────── ELIMINAR ───────── */
   async function remove(employee) {
     const first = window.confirm(
       `⚠️ Eliminar empleado\n\n¿Estás seguro de que quieres eliminar a:\n${employee.name} ${employee.firstSurname || ''}?`
@@ -82,12 +83,12 @@ export default function Employees() {
     } catch (err) {
       alert(
         err.message ||
-        'No se puede eliminar este empleado. Puede tener historial o pertenecer a otra empresa.',
+        'No se puede eliminar este empleado. Puede tener historial o pertenecer a otra empresa.'
       );
     }
   }
 
-  /* ───────── HARD DELETE (PRUEBAS – BYPASS TOTAL) ───────── */
+  /* ───────── HARD DELETE ───────── */
   async function hardDelete(employee) {
     const first = window.confirm(
       `⚠️ BORRADO TOTAL (PRUEBAS)\n\nVas a eliminar DEFINITIVAMENTE a:\n${employee.name} ${employee.firstSurname || ''}\n\nEsta acción NO se puede deshacer.`
@@ -121,10 +122,9 @@ export default function Employees() {
   const filtered = visible.filter(e =>
     `${e.name} ${e.firstSurname || ''} ${e.dni || ''}`
       .toLowerCase()
-      .includes(query.toLowerCase()),
+      .includes(query.toLowerCase())
   );
 
-  /* ───────── RENDER ───────── */
   if (loading) {
     return <div className="center">Cargando empleados…</div>;
   }
@@ -178,13 +178,13 @@ export default function Employees() {
                   opacity: isSuperAdmin && !e.active ? 0.5 : 1,
                 }}
               >
-                {/* ───────── EMPLEADO (FOTO + NOMBRE) ───────── */}
+                {/* EMPLEADO */}
                 <td>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 10,
+                      gap: 16, /* 👈 más aire */
                     }}
                   >
                     <div
@@ -219,9 +219,14 @@ export default function Employees() {
                       )}
                     </div>
 
-                    <strong>
+                    <span
+                      className="clickable-name"
+                      onClick={() =>
+                        navigate(`/admin/users/${e.id}/profile`)
+                      }
+                    >
                       {e.name} {e.firstSurname || ''}
-                    </strong>
+                    </span>
                   </div>
                 </td>
 
@@ -247,11 +252,6 @@ export default function Employees() {
 
                 <td className="right">
                   <div className="tablet-actions">
-                    <button
-                      onClick={() => navigate(`/admin/users/${e.id}/profile`)}
-                    >
-                      Perfil
-                    </button>
 
                     <button
                       onClick={() =>
@@ -291,6 +291,7 @@ export default function Employees() {
                         ✕
                       </button>
                     )}
+
                   </div>
                 </td>
               </tr>

@@ -15,7 +15,6 @@ export default function CompanyProfile() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line
   }, [companyId]);
 
   async function load() {
@@ -37,7 +36,6 @@ export default function CompanyProfile() {
         plan: company.plan,
       };
 
-      // 🔐 solo SUPERADMIN puede tocar datos legales
       if (isSuperAdmin) {
         payload.legalName = company.legalName;
         payload.nif = company.nif;
@@ -51,99 +49,133 @@ export default function CompanyProfile() {
     }
   }
 
-  if (loading) {
-    return <div className="center">Cargando empresa…</div>;
-  }
-
-  if (!company) {
-    return <div className="center">Empresa no encontrada</div>;
-  }
+  if (loading) return <div className="center">Cargando empresa…</div>;
+  if (!company) return <div className="center">Empresa no encontrada</div>;
 
   return (
-    <div className="container company-profile">
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 32 }}>
+
       {/* HEADER */}
-      <div className="page-header">
-        <h2>Perfil de empresa</h2>
-        <button onClick={() => navigate('/admin/companies')}>
-          ← Volver
-        </button>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 32,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Perfil de empresa</h2>
+
+        <div className="tablet-actions">
+          <button onClick={() => navigate('/admin/companies')}>
+            ← Volver
+          </button>
+        </div>
       </div>
 
-      {/* FORMULARIO */}
-      <div className="company-form">
-        <div className="form-group">
-          <label>Nombre comercial</label>
-          <input
-            value={company.commercialName || ''}
-            onChange={e =>
-              setCompany({
-                ...company,
-                commercialName: e.target.value,
-              })
-            }
-          />
-        </div>
+      {/* CARD */}
+      <div
+        style={{
+          background: '#f8fafc',   // ligeramente más oscuro que blanco
+          borderRadius: 20,
+          padding: 40,
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        {/* GRID */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 28,
+          }}
+        >
+          {/* Nombre comercial */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>
+              Nombre comercial
+            </label>
+            <input
+              style={inputStyle}
+              value={company.commercialName || ''}
+              onChange={e =>
+                setCompany({ ...company, commercialName: e.target.value })
+              }
+            />
+          </div>
 
-        {isSuperAdmin && (
-          <>
-            <div className="form-group">
-              <label>Razón social</label>
+          {/* Dirección */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>
+              Dirección
+            </label>
+            <input
+              style={inputStyle}
+              value={company.address || ''}
+              onChange={e =>
+                setCompany({ ...company, address: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Plan */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>
+              Plan
+            </label>
+            <input
+              style={inputStyle}
+              value={company.plan || ''}
+              onChange={e =>
+                setCompany({ ...company, plan: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Razón social */}
+          {isSuperAdmin && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>
+                Razón social
+              </label>
               <input
+                style={inputStyle}
                 value={company.legalName || ''}
                 onChange={e =>
-                  setCompany({
-                    ...company,
-                    legalName: e.target.value,
-                  })
+                  setCompany({ ...company, legalName: e.target.value })
                 }
               />
             </div>
+          )}
 
-            <div className="form-group">
-              <label>NIF</label>
+          {/* NIF */}
+          {isSuperAdmin && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>
+                NIF
+              </label>
               <input
+                style={inputStyle}
                 value={company.nif || ''}
                 onChange={e =>
-                  setCompany({
-                    ...company,
-                    nif: e.target.value,
-                  })
+                  setCompany({ ...company, nif: e.target.value })
                 }
               />
             </div>
-          </>
-        )}
-
-        <div className="form-group">
-          <label>Dirección</label>
-          <input
-            value={company.address || ''}
-            onChange={e =>
-              setCompany({
-                ...company,
-                address: e.target.value,
-              })
-            }
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Plan</label>
-          <input
-            value={company.plan || ''}
-            onChange={e =>
-              setCompany({
-                ...company,
-                plan: e.target.value,
-              })
-            }
-          />
+          )}
         </div>
 
         {/* ACCIONES */}
-        <div className="tablet-actions">
+        <div
+          className="tablet-actions"
+          style={{
+            marginTop: 36,
+            display: 'flex',
+            gap: 16,
+          }}
+        >
           <button onClick={save} disabled={saving}>
-            Guardar cambios
+            {saving ? 'Guardando…' : 'Guardar cambios'}
           </button>
 
           <button
@@ -156,12 +188,21 @@ export default function CompanyProfile() {
         </div>
 
         {!isSuperAdmin && (
-          <p className="muted" style={{ marginTop: 16 }}>
-            El nombre legal y el NIF solo pueden ser modificados por
-            un superadministrador.
+          <p style={{ marginTop: 24, fontSize: 13, opacity: 0.6 }}>
+            El nombre legal y el NIF solo pueden ser modificados por un superadministrador.
           </p>
         )}
       </div>
     </div>
   );
 }
+
+/* INPUT STYLE */
+const inputStyle = {
+  padding: '12px 14px',
+  borderRadius: 12,
+  border: '1px solid #cbd5e1',
+  fontSize: 14,
+  background: '#ffffff',
+  outline: 'none',
+};

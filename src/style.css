@@ -3,6 +3,16 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Turquesa más azulado y más suave */
+  --brand: #22B8CF;
+  --brand-strong: #1EA5BB;
+  --brand-glow: rgba(34, 184, 207, 0.35);
+
+  --dark-bg: #1E293B;
+  --dark-card: #0F172A;
+}
+
 body {
   margin: 0;
   font-family: Inter, system-ui, sans-serif;
@@ -12,11 +22,11 @@ body {
 
 /* ===== DARK MODE ===== */
 body.dark {
-  background: rgb(27, 79, 93);
+  background: var(--dark-bg);
   color: #e5e7eb;
 }
 
-/* ===== LOGIN PAGE ===== */
+/* ===== LOGIN ===== */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -24,7 +34,6 @@ body.dark {
   justify-content: center;
 }
 
-/* ===== CARD ===== */
 .login-card {
   width: 100%;
   max-width: 420px;
@@ -36,19 +45,8 @@ body.dark {
 }
 
 body.dark .login-card {
-  background: rgb(51, 65, 85);
-  border: 1px solid #1e293b;
-}
-
-/* ===== LOGO ===== */
-.logo {
-  font-size: 32px;
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-
-.logo span {
-  color: #14b8a6;
+  background: var(--dark-card);
+  border: 1px solid #334155;
 }
 
 .subtitle {
@@ -61,10 +59,7 @@ body.dark .subtitle {
   color: #94a3b8;
 }
 
-/* =====================================================
-   INPUTS — SOLO LOGIN
-===================================================== */
-
+/* ===== INPUT LOGIN ===== */
 .login-page input:not([type='checkbox']) {
   width: 100%;
   padding: 14px 16px;
@@ -77,7 +72,7 @@ body.dark .subtitle {
 }
 
 body.dark .login-page input:not([type='checkbox']) {
-  background: rgb(37, 84, 72);
+  background: #1e293b;
   color: #ffffff;
   border-color: #334155;
 }
@@ -86,7 +81,7 @@ body.dark .login-page input:not([type='checkbox']) {
 input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: #14b8a6;
+  accent-color: var(--brand);
 }
 
 /* ===== PRIMARY BUTTON ===== */
@@ -98,8 +93,8 @@ button.primary {
   border: none;
   font-size: 16px;
   font-weight: 700;
-  background: linear-gradient(135deg, #14b8a6, #2dd4bf);
-  color: white;
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+  color: #ffffff;
   cursor: pointer;
 }
 
@@ -110,31 +105,7 @@ button.primary {
   flex-direction: column;
 }
 
-/* =====================================================
-   INPUTS — ADMIN
-===================================================== */
-
-.app input:not([type='checkbox']):not(.search-input):not(.search) {
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #e5e7eb;
-  -webkit-text-fill-color: #0f172a;
-  caret-color: #0f172a;
-  box-shadow: 0 0 0 1000px #ffffff inset;
-}
-
-body.dark .app input:not([type='checkbox']):not(.search-input):not(.search) {
-  background-color: rgb(37, 84, 72);
-  border-color: #334155;
-  -webkit-text-fill-color: #ffffff;
-  caret-color: #ffffff;
-  box-shadow: 0 0 0 1000px rgb(37, 84, 72) inset;
-}
-
-/* =====================================================
-   HEADER
-===================================================== */
-
+/* ===== HEADER ===== */
 .header {
   display: flex;
   align-items: center;
@@ -145,8 +116,8 @@ body.dark .app input:not([type='checkbox']):not(.search-input):not(.search) {
 }
 
 body.dark .header {
-  background: rgb(27, 79, 93);
-  border-color: #1e293b;
+  background: var(--dark-bg);
+  border-color: #334155;
 }
 
 /* ===== NAV ===== */
@@ -167,37 +138,10 @@ body.dark .header {
   font-weight: 600;
   cursor: pointer;
   color: inherit;
-  transition: background-color .15s ease, transform .15s ease;
+  transition: all .15s ease;
 }
 
-.nav button svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  stroke-width: 2;
-  transition: transform .15s ease;
-}
-
-.nav button:hover {
-  background: rgb(0, 160, 168);
-  transform: translateY(-1px);
-}
-
-body.dark .nav button:hover {
-  background: rgba(0, 160, 168);
-  box-shadow:
-    0 0 0 1px rgba(49, 170, 156, 0.12),
-    0 4px 18px rgba(20,184,166,0.35);
-}
-
-.nav button:hover svg {
-  transform: scale(1.1);
-}
-
-/* =====================================================
-   DASHBOARD
-===================================================== */
-
+/* ===== DASHBOARD CARDS ===== */
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -213,37 +157,27 @@ body.dark .nav button:hover {
   padding: 32px;
   border-radius: 22px;
   background: #ffffff;
-  border: none;
   font-size: 40px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color .15s ease,
-              transform .15s ease,
-              box-shadow .15s ease;
+  transition: all .15s ease;
 }
 
 body.dark .dashboard-card {
-  background: rgba(20,184,166,0.12);
+  background: var(--dark-card);
   color: #ffffff;
 }
 
-.dashboard-card:hover {
-  background: rgb(0,160,168);
-  color: #ffffff;
-  transform: translateY(-2px);
-}
-
+/* 🔥 HOVER UNIFICADO (light + dark) */
+.dashboard-card:hover,
 body.dark .dashboard-card:hover {
-  background: rgb(0,160,168);
-  box-shadow:
-    0 0 0 1px rgba(20,184,166,0.45),
-    0 6px 22px rgba(20,184,166,0.35);
+  background: var(--brand) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--brand-glow);
 }
 
-/* =====================================================
-   HEADER RIGHT – BOTONES COMO TARJETAS
-===================================================== */
-
+/* ===== HEADER RIGHT ===== */
 .header-right {
   display: flex;
   align-items: center;
@@ -254,288 +188,173 @@ body.dark .dashboard-card:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-
   padding: 10px 16px;
   min-height: 44px;
-
   border-radius: 16px;
   background: transparent;
-  color: #0f172a;
   border: none;
-
   font-weight: 600;
-  line-height: 1;
-
   cursor: pointer;
-  transition: background-color .15s ease,
-              color .15s ease,
-              box-shadow .15s ease,
-              transform .15s ease;
+  transition: all .15s ease;
 }
 
-body.dark .header-right button {
-  background: rgba(transparent);
-  color: #ffffff;
-}
-
-.header-right button:hover {
-  background: rgb(0,160,168);
+/* ===== HOVER GLOBAL BOTONES ===== */
+.nav button:hover,
+.header-right button:hover,
+.dark-toggle:hover,
+.tablet-actions button:hover {
+  background: var(--brand);
   color: #ffffff;
   transform: translateY(-1px);
-  box-shadow:
-    0 0 0 1px rgba(20,184,166,0.45),
-    0 6px 22px rgba(20,184,166,0.35);
+  box-shadow: 0 6px 18px var(--brand-glow);
 }
 
+/* Forzar texto blanco en hover */
+.nav button:hover *,
+.header-right button:hover *,
+.dashboard-card:hover *,
+.dark-toggle:hover * {
+  color: #ffffff !important;
+}
+
+/* ===== DARK TOGGLE ===== */
 .dark-toggle {
   display: flex;
   align-items: center;
   gap: 10px;
-
   min-height: 44px;
   padding: 0 16px;
   border-radius: 16px;
-
   cursor: pointer;
-} 
-
-body.dark .dark-toggle {
-  background: rgba(20,184,166,0.12);
-  color: #ffffff;
+  transition: all .15s ease;
 }
 
-.dark-toggle:hover {
-  background: rgb(0,160,168);
-  color: #ffffff;
-}
-
-body.dark .dark-toggle:hover {
-  background: rgb(0,160,168);
-}
-
-
-/* =====================================================
-   HOVER – TEXTO BLANCO SIEMPRE
-===================================================== */
-
-.nav button:hover,
-.dashboard-card:hover,
-.header-right button:hover {
-  color: #ffffff;
-}
-
-/* =====================================================
-   BOTONES TABLET
-===================================================== */
-
-.tablet-actions button {
-  padding: 10px 18px;
-  border-radius: 16px;
-  background-color: #14b8a6;
-  color: #ffffff;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-}
-
-/* =====================================================
-   TABLAS – AJUSTES DE ALINEACIÓN
-===================================================== */
-
-.table th {
-  text-align: left;
-  font-weight: 700;
-}
-
-.table td {
-  text-align: left;
-}
-
-.table th.right,
-.table td.right {
-  text-align: center;
-}
-
-/* =====================================================
-   BOTONES – MÁS ESPACIO ENTRE ELLOS
-===================================================== */
-
-.tablet-actions {
-  gap: 16px;
-}
-
-.tablet-actions button {
-  margin-left: 4px;
-  margin-right: 4px;
-}
-
-.page-header .tablet-actions {
-  gap: 20px;
-}
-
-/* =====================================================
-   TABLAS – FILAS CON AIRE
-===================================================== */
-
-.table {
-  border-collapse: separate;
-  border-spacing: 0 6px;
-}
-
-.table tbody tr {
-  background-clip: padding-box;
-}
-/* =====================================================
-   🔍 BUSCADOR TABLET – MISMO LOOK QUE LOGIN (ACTUALIZADO)
-===================================================== */
-
-/* =====================================================
-   🔍 BUSCADOR TABLET – TURQUESA + TEXTO BLANCO
-===================================================== */
-
+/* ===== SEARCH ===== */
 .search-input,
 input.search {
   width: 100%;
   max-width: 420px;
   padding: 14px 44px 14px 16px;
   border-radius: 14px;
-  border: none;
-  font-size: 15px;
-  background: rgb(0, 160, 168); /* mismo color que botones */
-  color: #ffffff;
-  font-weight: 600;
-
-  /* lupa blanca */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 18px;
-
-  margin-bottom: 24px; /* aire con la tabla */
-}
-
-/* mismo aspecto en modo oscuro */
-body.dark .search-input,
-body.dark input.search {
-  background: rgb(0, 160, 168);
-  color: #ffffff;
-  -webkit-text-fill-color: #ffffff;
-  caret-color: #ffffff;
-  box-shadow: none;
-}
-
-/* =====================================================
-   LOGIN – AJUSTE FINO ENTRE PASSWORD Y BOTÓN
-===================================================== */
-
-.login-page button.primary {
-  margin-top: 8px; /* menos aire con el password */
-}
-
-/* =====================================================
-   BUSCADOR ADMIN – MISMO LOOK QUE LOGIN
-   (Empresas / Sucursales / Empleados)
-===================================================== */
-
-.search-input,
-input.search {
-  width: 100%;
-  max-width: 420px;
-
-  padding: 14px 44px 14px 16px; /* espacio para la lupa */
-  border-radius: 14px;
   border: 1px solid #e5e7eb;
-
   font-size: 15px;
-  background: rgba(88, 168, 148); /* fondo como dashboard dark */
+  background: #ffffff;
   color: #0f172a;
-
-  /* lupa */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 18px;
-
-  margin-bottom: 24px; /* aire con la tabla */
+  margin-bottom: 24px;
 }
 
 body.dark .search-input,
 body.dark input.search {
-  background: rgba(88, 168, 148);
+  background: #1e293b;
   color: #ffffff;
   border-color: #334155;
-  -webkit-text-fill-color: #ffffff;
-  caret-color: #ffffff;
-
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23e5e7eb' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E");
 }
 
-/* =====================================================
-   🔍 BUSCADOR – TURQUESA FORZADO (FIX DEFINITIVO)
-===================================================== */
-
-.search-input,
-input.search {
-  background-color: rgb(0, 160, 168) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff !important;
-
-  border: none !important;
-
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 14px center !important;
-  background-size: 18px 18px !important;
-}
-
-/* modo oscuro: EXACTAMENTE IGUAL */
-body.dark .search-input,
-body.dark input.search {
-  background-color: rgb(0, 160, 168) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff !important;
-
-  background-repeat: no-repeat !important;
-  background-position: right 14px center !important;
-  background-size: 18px 18px !important;
-}
-
-/* =====================================================
-   HOVER UNIFICADO – TODOS LOS BOTONES INTERACTIVOS
-===================================================== */
-
-/* Header nav (ya lo tenías, lo reforzamos) */
-.nav button:hover,
-
-/* Header right: Mi perfil, Salir */
-.header-right button:hover,
-
-/* Toggle modo oscuro */
-.dark-toggle:hover,
-
-/* Botones de acción en tablas (Ver, Empleados, Sucursales, etc.) */
-.tablet-actions button:hover,
-
-/* Botones sueltos en paneles */
-button:not(.primary):hover {
-  background: rgb(0,160,168);
+/* ===== TABLET ACTIONS ===== */
+.tablet-actions button {
+  padding: 10px 18px;
+  border-radius: 16px;
+  background-color: var(--brand);
   color: #ffffff;
-  transform: translateY(-1px);
-  box-shadow:
-    0 0 0 1px rgba(20,184,166,0.45),
-    0 6px 22px rgba(20,184,166,0.35);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all .15s ease;
 }
 
-/* Evitar que el botón principal del login herede esto */
-button.primary:hover {
-  transform: none;
-  box-shadow: none;
-}
-/* ===== MAIN ADMIN FIX ===== */
+/* ===== MAIN ===== */
 .main {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+}
+
+/* =====================================================
+   ESPACIADO GLOBAL ENTRE BOTONES
+===================================================== */
+
+/* Cualquier grupo de botones dentro de tablas o acciones */
+.table-actions,
+.tablet-actions,
+.page-actions,
+.page-header,
+.actions,
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Si hay botones directos dentro de una celda */
+td > button,
+td > .button,
+td > a.button {
+  margin-right: 8px;
+}
+
+/* Evita que el último tenga margen extra */
+td > button:last-child {
+  margin-right: 0;
+}
+
+/* Botones dentro de headers superiores */
+.page-header > button,
+.page-header > .button {
+  margin-right: 12px;
+}
+
+.page-header > button:last-child {
+  margin-right: 0;
+}
+
+/* =====================================================
+   NOMBRES CLICABLES (perfil)
+===================================================== */
+
+.clickable-name {
+  cursor: pointer;
+  font-weight: 600;
+  transition: color .15s ease, text-shadow .15s ease;
+}
+
+.clickable-name:hover {
+  color: var(--brand);
+  text-shadow: 0 0 8px var(--brand-glow);
+}
+
+/* =====================================================
+   MICRO-INTERACCIONES BOTONES
+===================================================== */
+
+/* Hover más vivo */
+.nav button:hover,
+.header-right button:hover,
+.tablet-actions button:hover,
+.dark-toggle:hover,
+.dashboard-card:hover {
+  filter: brightness(1.05);
+}
+
+/* Efecto al presionar */
+.nav button:active,
+.header-right button:active,
+.tablet-actions button:active,
+.dark-toggle:active,
+.dashboard-card:active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.92);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15) !important;
+}
+
+/* Transición más suave */
+.nav button,
+.header-right button,
+.tablet-actions button,
+.dark-toggle,
+.dashboard-card {
+  transition:
+    background-color .18s ease,
+    box-shadow .18s ease,
+    transform .08s ease,
+    filter .12s ease;
 }

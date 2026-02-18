@@ -1,14 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getUserById, updateUser } from './api';
+import {
+  getUserById,
+  updateUser,
+  getCompanies,
+  getBranches,
+} from './api';
+
 export default function Profile() {
 
-  const [photoBase64, setPhotoBase64] = useState(null);
   const { userId } = useParams();
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
   const [form, setForm] = useState(null);
+
+  const [companies, setCompanies] = useState([]);
+  const [branches, setBranches] = useState([]);
+
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
 
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -18,17 +29,26 @@ export default function Profile() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (userId) {
-      load();
-    }
-    // eslint-disable-next-line
+    if (userId) load();
   }, [userId]);
 
   async function load() {
     setLoading(true);
     try {
-      const u = await getUserById(userId);   // 👈 AQUÍ
+      const u = await getUserById(userId);
+      const allCompanies = await getCompanies();
+
       setUser(u);
+      setCompanies(allCompanies || []);
+
+      setSelectedCompany(u.companyId || '');
+      setSelectedBranch(u.branchId || '');
+
+      if (u.companyId) {
+        const b = await getBranches(u.companyId);
+        setBranches(b || []);
+      }
+
       setForm({
         name: u.name || '',
         firstSurname: u.firstSurname || '',
@@ -38,6 +58,7 @@ export default function Profile() {
       });
 
       setPhotoPreview(u.photoUrl || null);
+
     } finally {
       setLoading(false);
     }
@@ -48,55 +69,16 @@ export default function Profile() {
     setForm(f => ({ ...f, [name]: value }));
   }
 
-  async function onSelectPhoto(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function changeCompany(companyId) {
+    setSelectedCompany(companyId);
+    setSelectedBranch('');
 
-    const base64 = await resizeImageToBase64(file, 512, 0.8);
-
-    setPhotoFile(base64);
-    setPhotoPreview(base64);
+    const b = await getBranches(companyId);
+    setBranches(b || []);
   }
 
-  function resizeImageToBase64(file, maxSize = 512, quality = 0.8) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const reader = new FileReader();
-
-      reader.onload = e => {
-        img.onload = () => {
-          let { width, height } = img;
-
-          if (width > height) {
-            if (width > maxSize) {
-              height = height * (maxSize / width);
-              width = maxSize;
-            }
-          } else {
-            if (height > maxSize) {
-              width = width * (maxSize / height);
-              height = maxSize;
-            }
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          const base64 = canvas.toDataURL('image/jpeg', quality);
-          resolve(base64);
-        };
-
-        img.onerror = reject;
-        img.src = e.target.result;
-      };
-
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  function changeBranch(branchId) {
+    setSelectedBranch(branchId);
   }
 
   async function saveProfile() {
@@ -104,15 +86,13 @@ export default function Profile() {
     setMessage('');
 
     try {
-
-      if (photoBase64) {
-        await uploadUserPhoto(employeeId, photoBase64);
-      }
-      console.log('➡️ updateUser()', userId, form);
-      await updateUser(userId, form);
+      await updateUser(userId, {
+        ...form,
+        companyId: selectedCompany,
+        branchId: selectedBranch,
+      });
 
       if (photoFile) {
-
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/users/${userId}/photo`,
           {
@@ -122,19 +102,16 @@ export default function Profile() {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
             body: JSON.stringify({
-              photoUrl: photoFile,   // 👈 ya es base64 reducido
+              photoUrl: photoFile,
             }),
           }
         );
 
-        if (!res.ok) {
-          throw new Error('Error subiendo foto');
-        }
+        if (!res.ok) throw new Error('Error subiendo foto');
       }
 
       setMessage('Perfil actualizado correctamente');
       await load();
-
       setPhotoFile(null);
 
     } catch (e) {
@@ -145,159 +122,216 @@ export default function Profile() {
     }
   }
 
-  function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+  function onSelectPhoto(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-
-      reader.readAsDataURL(file);
-    });
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoPreview(reader.result);
+      setPhotoFile(reader.result);
+    };
+    reader.readAsDataURL(file);
   }
 
-  if (loading) {
-    return <div className="center">Cargando perfil…</div>;
-  }
-
-  if (!user || !form) {
-    return <div className="center">Usuario no encontrado</div>;
-  }
+  if (loading) return <div className="center">Cargando perfil…</div>;
+  if (!user || !form) return <div className="center">Usuario no encontrado</div>;
 
   const initials =
     `${user.name?.[0] || ''}${user.firstSurname?.[0] || ''}`.toUpperCase();
 
-  return (
-    <div className="container" style={{ maxWidth: 720, margin: '0 auto' }}>
+  const currentCompany =
+    companies.find(c => c.id === selectedCompany)?.commercialName || '';
 
-      <div className="page-header" style={{ marginBottom: 24 }}>
-        <h2>Perfil de empleado</h2>
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 32 }}>
+
+      {/* HEADER */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 32,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Perfil de empleado</h2>
 
         <div className="tablet-actions">
-          <button onClick={() => navigate(-1)}>← Volver</button>
+          <button onClick={() => navigate(-1)}>
+            ← Volver
+          </button>
         </div>
       </div>
 
-      <div className="card">
+      {/* CARD */}
+      <div
+        style={{
+          background: '#f8fafc',
+          borderRadius: 20,
+          padding: 40,
+          border: '1px solid #e2e8f0',
+        }}
+      >
 
-        {/* FOTO */}
+       {/* FOTO + EMPRESA */}
+<div
+  style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 28,
+  }}
+>
+  {/* IZQUIERDA: FOTO */}
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 20,
+    }}
+  >
+    <div
+      style={{
+        width: 90,
+        height: 90,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        background: '#e5e7eb',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 600,
+        fontSize: 22,
+        color: '#475569',
+        flexShrink: 0,
+      }}
+    >
+      {photoPreview ? (
+        <img
+          src={photoPreview}
+          alt=""
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        initials
+      )}
+    </div>
+
+    <div>
+      <label style={labelStyle}>Foto del empleado</label>
+
+      <div style={{ marginTop: 8 }}>
+        <label style={photoButtonStyle}>
+          Cambiar foto
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onSelectPhoto}
+            style={{ display: 'none' }}
+          />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  {/* DERECHA: EMPRESA */}
+  <div style={{ textAlign: 'right', minWidth: 240 }}>
+    <div
+      style={{
+        fontSize: 24,
+        fontWeight: 800,
+        lineHeight: 1.1,
+      }}
+    >
+      {companies.find(c => c.id === selectedCompany)?.commercialName}
+    </div>
+
+    <div
+      style={{
+        fontSize: 13,
+        opacity: 0.6,
+        marginTop: 4,
+        marginBottom: 10,
+      }}
+    >
+      {companies.find(c => c.id === selectedCompany)?.legalName}
+    </div>
+
+    <select
+      value=""
+      onChange={e => changeCompany(e.target.value)}
+      style={selectStyle}
+    >
+      <option value="" disabled>
+        Cambiar empresa
+      </option>
+
+      {companies.map(c => (
+        <option key={c.id} value={c.id}>
+          {c.commercialName || c.legalName}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
+
+        {/* GRID CAMPOS */}
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            marginBottom: 24,
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 28,
           }}
         >
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              background: '#e5e7eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              color: '#475569',
-              flexShrink: 0,
-            }}
-          >
-            {photoPreview ? (
-              <img
-                src={photoPreview}
-                alt=""
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            ) : (
-              initials
-            )}
-          </div>
+          
+          <Field label="Nombre">
+            <input name="name" value={form.name} onChange={change} style={inputStyle} />
+          </Field>
 
-          <label className="cursor-pointer text-sm font-medium text-emerald-600">
-            Añadir foto
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={onSelectPhoto}
-            />
-          </label>
+          <Field label="Primer apellido">
+            <input name="firstSurname" value={form.firstSurname} onChange={change} style={inputStyle} />
+          </Field>
+
+          <Field label="Segundo apellido">
+            <input name="secondSurname" value={form.secondSurname} onChange={change} style={inputStyle} />
+          </Field>
+
+          <Field label="DNI">
+            <input name="dni" value={form.dni} onChange={change} style={inputStyle} />
+          </Field>
+
+          <Field label="Email">
+            <input name="email" value={form.email} onChange={change} style={inputStyle} />
+          </Field>
+
+          <Field label="Sucursal">
+            <select
+              value={selectedBranch}
+              onChange={e => changeBranch(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="">— Sin sucursal —</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
 
-        {/* DATOS */}
-
-        <div className="grid grid-cols-2 gap-4">
-
-          <div>
-            <label className="text-sm block mb-1">Nombre</label>
-            <input
-              className="w-full"
-              name="name"
-              value={form.name}
-              onChange={change}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm block mb-1">Primer apellido</label>
-            <input
-              className="w-full"
-              name="firstSurname"
-              value={form.firstSurname}
-              onChange={change}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm block mb-1">Segundo apellido</label>
-            <input
-              className="w-full"
-              name="secondSurname"
-              value={form.secondSurname}
-              onChange={change}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm block mb-1">DNI</label>
-            <input
-              className="w-full"
-              name="dni"
-              value={form.dni}
-              onChange={change}
-            />
-          </div>
-
-        </div>
-
-        <div className="mt-4">
-          <label className="text-sm block mb-1">Email</label>
-          <input
-            className="w-full"
-            name="email"
-            value={form.email}
-            onChange={change}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-          <button
-            className="primary"
-            disabled={saving}
-            onClick={saveProfile}
-          >
-            Guardar cambios
+        {/* BOTONES */}
+        <div className="tablet-actions" style={{ marginTop: 40 }}>
+          <button onClick={saveProfile} disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar cambios'}
           </button>
 
           <button
-            type="button"
             onClick={() =>
               navigate(`/admin/employees/${userId}/reports`)
             }
@@ -306,14 +340,65 @@ export default function Profile() {
           </button>
         </div>
 
-
         {message && (
-          <p className="center" style={{ marginTop: 12 }}>
+          <p style={{ marginTop: 20, fontSize: 14, opacity: 0.7 }}>
             {message}
           </p>
         )}
-
       </div>
     </div>
   );
 }
+
+/* COMPONENTE FIELD */
+function Field({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+/* STYLES */
+const labelStyle = {
+  fontSize: 13,
+  fontWeight: 600,
+};
+
+const inputStyle = {
+  padding: '12px 14px',
+  borderRadius: 12,
+  border: '1px solid #cbd5e1',
+  fontSize: 14,
+  background: '#ffffff',
+};
+
+const selectStyle = {
+  padding: '12px 14px',
+  borderRadius: 12,
+  border: '1px solid #cbd5e1',
+  fontSize: 14,
+  background: '#ffffff',
+  cursor: 'pointer',
+};
+
+const scheduleSelectStyle = {
+  padding: '14px 16px',
+  borderRadius: 14,
+  border: '1px solid #cbd5e1',
+  fontSize: 15,
+  fontWeight: 600,
+  background: '#ffffff',
+  cursor: 'pointer',
+};
+
+const photoButtonStyle = {
+  padding: '8px 14px',
+  borderRadius: 10,
+  border: '1px solid #cbd5e1',
+  background: '#ffffff',
+  fontSize: 13,
+  cursor: 'pointer',
+  transition: 'all .15s ease',
+};

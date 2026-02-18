@@ -56,9 +56,9 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
           )}
 
           {can(user.role, 'reports') && (
-            <button onClick={() => navigate('/admin/reports')}>
+            <button onClick={() => navigate('/admin/dev/simulate')}>
               <FileBarChart />
-              <span>Informes</span>
+              <span>Simulador</span>
             </button>
           )}
         </nav>
@@ -83,11 +83,6 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
           >
             <User />
             <span>Mi perfil</span>
-          </button>
-
-          <button onClick={() => navigate('/admin/dev/simulate')}>
-            🧪
-            <span>Simular</span>
           </button>
 
           <button className="logout" onClick={logout}>
