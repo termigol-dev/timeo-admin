@@ -1295,17 +1295,26 @@ export default function EmployeeSchedules() {
           JSON.stringify(draftExceptions, null, 2)
         );
 
-        const payload = draftExceptions.map(ex => ({
-          type: ex.type,
-          date: ex.date,
-          blocks: [
-            {
-              startTime: ex.startTime,
-              endTime: ex.endTime,
-            },
-          ],
-        }));
+        const payload = draftExceptions.map(ex => {
 
+          // turnos actuales de ese día
+          const dayTurns = turns
+            .filter(t => t.date === ex.date);
+
+          // quitar el bloque borrado
+          const remaining = dayTurns.filter(t =>
+            !(t.startTime === ex.startTime && t.endTime === ex.endTime)
+          );
+
+          return {
+            type: 'MODIFIED_SHIFT',
+            date: ex.date,
+            blocks: remaining.map(t => ({
+              startTime: t.startTime,
+              endTime: t.endTime,
+            })),
+          };
+        });
         console.log('🟪 EXCEPTIONS PAYLOAD REAL:', JSON.stringify(payload, null, 2));
 
         const res = await fetch(
