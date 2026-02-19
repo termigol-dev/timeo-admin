@@ -1295,24 +1295,36 @@ export default function EmployeeSchedules() {
           JSON.stringify(draftExceptions, null, 2)
         );
 
-        // 🧠 TIMEO: UNA EXCEPCIÓN POR DÍA (REESCRIBIR DÍA COMPLETO)
+        // 🧠 TIMEO: UNA EXCEPCIÓN POR DÍA (RECONSTRUIR DÍA REAL)
         const grouped = {};
 
-        draftExceptions.forEach(ex => {
+        // fechas afectadas
+        const dates = [...new Set(draftExceptions.map(e => e.date))];
 
-          if (grouped[ex.date]) return; // ya procesado ese día
+        dates.forEach(date => {
 
-          const dayTurns = turns.filter(t => t.date === ex.date);
+          // turnos visibles reales del día
+          const visibleTurns = turns
+            .filter(t => t.date === date)
+            .filter(t =>
+              !draftExceptions.some(d =>
+                d.date === date &&
+                d.startTime === t.startTime &&
+                d.endTime === t.endTime
+              )
+            );
 
-          grouped[ex.date] = {
+          grouped[date] = {
             type: 'MODIFIED_SHIFT',
-            date: ex.date,
-            blocks: dayTurns.map(t => ({
+            date,
+            blocks: visibleTurns.map(t => ({
               startTime: t.startTime,
               endTime: t.endTime,
             })),
           };
+
         });
+
         const payload = Object.values(grouped);
         console.log('🟪 EXCEPTIONS PAYLOAD REAL:', JSON.stringify(payload, null, 2));
 
