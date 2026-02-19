@@ -1295,31 +1295,24 @@ export default function EmployeeSchedules() {
           JSON.stringify(draftExceptions, null, 2)
         );
 
-        // 🧠 TIMEO: UNA EXCEPCIÓN POR DÍA
+        // 🧠 TIMEO: UNA EXCEPCIÓN POR DÍA (REESCRIBIR DÍA COMPLETO)
         const grouped = {};
 
         draftExceptions.forEach(ex => {
 
-          const dayTurns = turns.filter(t => t.date === ex.date);
+          if (grouped[ex.date]) return; // ya procesado ese día
 
-          const remaining = dayTurns.filter(t =>
-            !draftExceptions.some(d =>
-              d.date === ex.date &&
-              d.startTime === t.startTime &&
-              d.endTime === t.endTime
-            )
-          );
+          const dayTurns = turns.filter(t => t.date === ex.date);
 
           grouped[ex.date] = {
             type: 'MODIFIED_SHIFT',
             date: ex.date,
-            blocks: remaining.map(t => ({
+            blocks: dayTurns.map(t => ({
               startTime: t.startTime,
               endTime: t.endTime,
             })),
           };
         });
-
         const payload = Object.values(grouped);
         console.log('🟪 EXCEPTIONS PAYLOAD REAL:', JSON.stringify(payload, null, 2));
 
