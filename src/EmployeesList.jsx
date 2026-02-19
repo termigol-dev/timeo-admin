@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllEmployees } from './api';
+import { getAllEmployees, deleteEmployee, hardDeleteEmployee } from './api';
 import { useAuth } from './auth/AuthContext';
 
 export default function EmployeesList() {
@@ -16,7 +16,6 @@ export default function EmployeesList() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line
   }, []);
 
   async function load() {
@@ -26,6 +25,39 @@ export default function EmployeesList() {
       setEmployees(e || []);
     } finally {
       setLoading(false);
+    }
+  }
+
+  /* 🟡 SOFT DELETE */
+  async function remove(employee) {
+    if (!employee.companyId) return;
+
+    const ok = window.confirm(`Eliminar empleado ${employee.name}?`);
+    if (!ok) return;
+
+    await deleteEmployee(employee.companyId, employee.id);
+    load();
+  }
+
+  /* 🔴 HARD DELETE */
+  async function hardDelete(employee) {
+    const first = window.confirm(
+      `⚠️ BORRADO TOTAL (PRUEBAS)\n\nVas a eliminar DEFINITIVAMENTE a:\n${employee.name} ${employee.firstSurname || ''}`
+    );
+    if (!first) return;
+
+    const second = window.confirm(
+      `🚨 CONFIRMACIÓN FINAL\n\nEsto eliminará TODOS los datos del empleado.`
+    );
+    if (!second) return;
+
+    try {
+      await hardDeleteEmployee(employee.companyId, employee.id);
+      await load();
+      alert('Empleado eliminado definitivamente');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Error en el borrado definitivo');
     }
   }
 
@@ -80,20 +112,9 @@ export default function EmployeesList() {
               `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
 
             return (
-              <tr
-                key={e.id}
-                style={{
-                  opacity: isSuperAdmin && !e.active ? 0.5 : 1,
-                }}
-              >
+              <tr key={e.id} style={{ opacity: isSuperAdmin && !e.active ? 0.5 : 1 }}>
                 <td>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16, /* 👈 MÁS AIRE ENTRE FOTO Y NOMBRE */
-                    }}
-                  >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div
                       style={{
                         width: 36,
@@ -111,16 +132,7 @@ export default function EmployeesList() {
                       }}
                     >
                       {e.photoUrl ? (
-                        <img
-                          src={e.photoUrl}
-                          alt=""
-                          loading="lazy"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
+                        <img src={e.photoUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         initials
                       )}
@@ -128,9 +140,7 @@ export default function EmployeesList() {
 
                     <span
                       className="clickable-name"
-                      onClick={() =>
-                        navigate(`/admin/users/${e.id}/profile`)
-                      }
+                      onClick={() => navigate(`/admin/users/${e.id}/profile`)}
                     >
                       {e.name} {e.firstSurname || ''}
                     </span>
@@ -138,27 +148,19 @@ export default function EmployeesList() {
                 </td>
 
                 <td>{e.dni}</td>
-
                 <td>{e.branch?.name || '—'}</td>
-
                 <td>{e.active ? 'Sí' : 'No'}</td>
 
                 <td className="right">
                   <div className="tablet-actions">
 
-                    <button
-                      onClick={() =>
-                        navigate(`/admin/employees/${e.id}/reports`)
-                      }
-                    >
+                    <button onClick={() => navigate(`/admin/employees/${e.id}/reports`)}>
                       Informes
                     </button>
 
                     <button
                       onClick={() =>
-                        navigate(
-                          `/admin/companies/${e.companyId}/employees/${e.id}/schedules`
-                        )
+                        navigate(`/admin/companies/${e.companyId}/employees/${e.id}/schedules`)
                       }
                     >
                       Horarios
@@ -175,11 +177,7 @@ export default function EmployeesList() {
                       <button
                         onClick={() => hardDelete(e)}
                         title="Borrado total (solo pruebas)"
-                        style={{
-                          backgroundColor: '#991b1b',
-                          color: 'white',
-                          fontWeight: 900,
-                        }}
+                        style={{ backgroundColor: '#991b1b', color: 'white', fontWeight: 900 }}
                       >
                         ✕
                       </button>
@@ -190,14 +188,6 @@ export default function EmployeesList() {
               </tr>
             );
           })}
-
-          {filtered.length === 0 && (
-            <tr>
-              <td colSpan="5" className="center muted">
-                No hay empleados registrados
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
     </div>

@@ -13,9 +13,8 @@ import { useAuth } from './auth/AuthContext';
 export default function Employees() {
 
   /* ───────── AUTH ───────── */
-  const { user } = useAuth();
+  const { user, isSuperAdmin, loading: authLoading } = useAuth();
 
-  const isSuperAdmin = user?.role === 'SUPERADMIN';
   const isAdminEmpresa = user?.role === 'ADMIN_EMPRESA';
   const isAdminSucursal = user?.role === 'ADMIN_SUCURSAL';
 
@@ -34,7 +33,6 @@ export default function Employees() {
   /* ───────── LOAD ───────── */
   useEffect(() => {
     if (companyId) load();
-    // eslint-disable-next-line
   }, [companyId]);
 
   async function load() {
@@ -77,7 +75,7 @@ export default function Employees() {
     if (!second) return;
 
     try {
-      await deleteEmployee(companyId, employee.id);
+      await deleteEmployee(employee.companyId ?? companyId, employee.id);
       load();
       alert('Empleado eliminado');
     } catch (err) {
@@ -101,7 +99,7 @@ export default function Employees() {
     if (!second) return;
 
     try {
-      await hardDeleteEmployee(companyId, employee.id);
+      await hardDeleteEmployee(employee.companyId ?? companyId, employee.id);
       await load();
       alert('Empleado eliminado definitivamente');
     } catch (err) {
@@ -124,6 +122,10 @@ export default function Employees() {
       .toLowerCase()
       .includes(query.toLowerCase())
   );
+
+  if (authLoading) {
+    return <div className="center">Cargando…</div>;
+  }
 
   if (loading) {
     return <div className="center">Cargando empleados…</div>;
@@ -172,21 +174,9 @@ export default function Employees() {
               `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
 
             return (
-              <tr
-                key={e.id}
-                style={{
-                  opacity: isSuperAdmin && !e.active ? 0.5 : 1,
-                }}
-              >
-                {/* EMPLEADO */}
+              <tr key={e.id} style={{ opacity: isSuperAdmin && !e.active ? 0.5 : 1 }}>
                 <td>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16, /* 👈 más aire */
-                    }}
-                  >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div
                       style={{
                         width: 36,
@@ -204,16 +194,7 @@ export default function Employees() {
                       }}
                     >
                       {e.photoUrl ? (
-                        <img
-                          src={e.photoUrl}
-                          alt=""
-                          loading="lazy"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
+                        <img src={e.photoUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         initials
                       )}
@@ -221,9 +202,7 @@ export default function Employees() {
 
                     <span
                       className="clickable-name"
-                      onClick={() =>
-                        navigate(`/admin/users/${e.id}/profile`)
-                      }
+                      onClick={() => navigate(`/admin/users/${e.id}/profile`)}
                     >
                       {e.name} {e.firstSurname || ''}
                     </span>
@@ -253,19 +232,13 @@ export default function Employees() {
                 <td className="right">
                   <div className="tablet-actions">
 
-                    <button
-                      onClick={() =>
-                        navigate(`/admin/employees/${e.id}/reports`)
-                      }
-                    >
+                    <button onClick={() => navigate(`/admin/employees/${e.id}/reports`)}>
                       Informes
                     </button>
 
                     <button
                       onClick={() =>
-                        navigate(
-                          `/admin/companies/${companyId}/employees/${e.id}/schedules`
-                        )
+                        navigate(`/admin/companies/${companyId}/employees/${e.id}/schedules`)
                       }
                     >
                       Horarios
@@ -282,11 +255,7 @@ export default function Employees() {
                       <button
                         onClick={() => hardDelete(e)}
                         title="Borrado total (solo pruebas)"
-                        style={{
-                          backgroundColor: '#991b1b',
-                          color: 'white',
-                          fontWeight: 900,
-                        }}
+                        style={{ backgroundColor: '#991b1b', color: 'white', fontWeight: 900 }}
                       >
                         ✕
                       </button>

@@ -72,8 +72,12 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoPreview(reader.result);
+      setPhotoFile(reader.result); // ← base64 igual que Profile
+    };
+    reader.readAsDataURL(file);
   }
 
   async function submit(e) {
@@ -92,22 +96,26 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
 
       const created = await createEmployee(companyId, payload);
 
-      if (photoFile && created?.id) {
-        const fd = new FormData();
-        fd.append('file', photoFile);
+      // 🔑 esperar a que backend termine de crear relaciones
+      await new Promise(r => setTimeout(r, 300));
 
-        await fetch(
+      if (photoFile && created?.id) {
+        const res = await fetch(
           `${import.meta.env.VITE_API_URL}/users/${created.id}/photo`,
           {
             method: 'POST',
             headers: {
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-            body: fd,
-          },
+            body: JSON.stringify({
+              photoUrl: photoFile,
+            }),
+          }
         );
-      }
 
+        if (!res.ok) throw new Error('Error subiendo foto');
+      }
       setMessage('Usuario creado correctamente');
 
       setForm({
