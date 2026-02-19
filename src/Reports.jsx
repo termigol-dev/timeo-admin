@@ -345,7 +345,7 @@ export default function Reports() {
 
                     return (
                       <div
-                        key={s.id}
+                        key={`${s.startTime}_${s.endTime}`}
                         style={{
                           position: 'absolute',
                           bottom: 24,

@@ -1295,6 +1295,19 @@ export default function EmployeeSchedules() {
           JSON.stringify(draftExceptions, null, 2)
         );
 
+        const payload = draftExceptions.map(ex => ({
+          type: ex.type,
+          date: ex.date,
+          blocks: [
+            {
+              startTime: ex.startTime,
+              endTime: ex.endTime,
+            },
+          ],
+        }));
+
+        console.log('🟪 EXCEPTIONS PAYLOAD REAL:', JSON.stringify(payload, null, 2));
+
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
           {
@@ -1304,13 +1317,7 @@ export default function EmployeeSchedules() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              exceptions: draftExceptions.map(ex => ({
-                type: ex.type,
-                date: ex.date,
-                startTime: ex.startTime,
-                endTime: ex.endTime,
-                mode: ex.mode ?? null,
-              })),
+              exceptions: payload,
             }),
           }
         );
