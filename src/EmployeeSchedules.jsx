@@ -1163,44 +1163,154 @@ export default function EmployeeSchedules() {
     setEditingPreview(preview);
   }
 
-  async function completeSchedule() {
-    const token = localStorage.getItem('token');
+function buildOperationsFromCalendar({
+  turns,
+  draftTurns,
+  removedTurns,
+  draftExceptions,
+}) {
 
-    console.log('▶️ completeSchedule START', {
-      scheduleId,
-      turns: turns.length,
-      vacations: vacations.length,
-      draftExceptions: draftExceptions.length,
+  const ops = [];
+
+  // =========================================
+  // 1️⃣ OVERRIDE DAYS (snapshot)
+  // =========================================
+  const overrideDates = new Set([
+    ...draftExceptions.map(e => e.date),
+    ...removedTurns.map(r => r.date),
+  ]);
+
+  for (const date of overrideDates) {
+
+    const visibleTurns = turns
+      .filter(t => t.date === date)
+      .map(t => ({
+        startTime: t.startTime,
+        endTime: t.endTime,
+      }));
+
+    ops.push({
+      type: 'OVERRIDE_DAY',
+      date,
+      blocks: visibleTurns,
     });
+  }
 
-    let activeScheduleId = scheduleId;
+  // =========================================
+  // 2️⃣ CREATE STRUCTURAL SHIFTS
+  // =========================================
+  for (const turn of draftTurns) {
+    ops.push({
+      type: 'CREATE_SHIFT',
+      data: turn,
+    });
+  }
+
+  // =========================================
+  // 3️⃣ END STRUCTURAL SHIFTS
+  // =========================================
+  for (const rt of removedTurns) {
+    if (rt.mode === 'FROM_THIS_DAY_ON') {
+      ops.push({
+        type: 'END_SHIFT',
+        data: rt,
+      });
+    }
+  }
+
+  return ops;
+}
+
+async function applyOperation(op, ctx) {
+
+  const { scheduleId, token, companyId, branchId } = ctx;
+
+  if (op.type === 'OVERRIDE_DAY') {
+
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          exceptions: [
+            {
+              type: 'MODIFIED_SHIFT',
+              date: op.date,
+              blocks: op.blocks,
+            },
+          ],
+        }),
+      }
+    );
+
+    return;
+  }
+
+  if (op.type === 'CREATE_SHIFT') {
+    await saveTurnToBackend(scheduleId, op.data);
+    return;
+  }
+
+  if (op.type === 'END_SHIFT') {
+
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: 'PANEL',
+          mode: 'FROM_THIS_DAY_ON',
+          dateFrom: op.data.date,
+          startTime: op.data.startTime,
+          endTime: op.data.endTime,
+        }),
+      }
+    );
+
+    return;
+  }
+}
+
+  async function completeSchedule() {
+  const token = localStorage.getItem('token');
+
+  console.log('▶️ completeSchedule START', {
+    scheduleId,
+    turns: turns.length,
+    draftTurns: draftTurns.length,
+    removedTurns: removedTurns.length,
+    draftExceptions: draftExceptions.length,
+  });
+
+  let activeScheduleId = scheduleId;
+
+  try {
+    setSaving(true);
 
     // ======================================================
     // 0️⃣ asegurar schedule
     // ======================================================
     if (!activeScheduleId) {
-      console.log('🆕 NO HAY SCHEDULE → CREANDO DRAFT');
 
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
         {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error('❌ ERROR creando schedule draft:', text);
-        alert('Error creando horario');
-        return;
-      }
+      if (!res.ok) throw new Error('Error creando horario');
 
       const newSchedule = await res.json();
-
-      console.log('🟢 SCHEDULE DRAFT CREADO:', newSchedule.id);
 
       activeScheduleId = newSchedule.id;
       setScheduleId(newSchedule.id);
@@ -1208,193 +1318,63 @@ export default function EmployeeSchedules() {
 
     const id = activeScheduleId;
 
-    const draftTurnsSafe = Array.isArray(draftTurns) ? draftTurns : [];
-    const draftVacations = vacations.filter(v => v.source === 'draft');
+    // ======================================================
+    // 🧠 TIMEO — BUILD OPERATIONS
+    // ======================================================
+    const ops = buildOperationsFromCalendar({
+      turns,
+      draftTurns,
+      removedTurns,
+      draftExceptions,
+    });
 
-    try {
-      setSaving(true);
+    console.log('🧠 OPS GENERADAS:', ops);
 
-      // ======================================================
-      // 1️⃣ borrados estructurales (FROM_THIS_DAY_ON)
-      // ======================================================
-      console.log(
-        '🗑️ borrando turnos estructurales en backend:',
-        removedTurns.length
+    // ======================================================
+    // ▶️ EJECUTAR OPS
+    // ======================================================
+    for (const op of ops) {
+      await applyOperation(op, {
+        scheduleId: id,
+        token,
+        companyId,
+        branchId: employee.branchId,
+      });
+    }
+
+    // ======================================================
+    // ✅ CONFIRM
+    // ======================================================
+    if (ops.length > 0) {
+
+      const confirmRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
-      for (const rt of removedTurns) {
-
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
-          {
-            method: 'DELETE',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              source: 'PANEL',
-              mode: 'FROM_THIS_DAY_ON',
-              dateFrom: rt.date,
-              startTime: rt.startTime,
-              endTime: rt.endTime,
-            }),
-          }
-        );
-
-        const text = await res.text();
-
-        console.log('⬅️ DELETE SHIFT RESPONSE:', res.status, text || '(empty)');
-
-        if (!res.ok) {
-          throw new Error(`Error cerrando turno desde este día: ${text}`);
-        }
+      if (!confirmRes.ok) {
+        const text = await confirmRes.text();
+        throw new Error('CONFIRM FAILED: ' + text);
       }
-
-      // ======================================================
-      // 2️⃣ turnos nuevos (estructurales)
-      // ======================================================
-      console.log('🟡 guardando turnos:', draftTurnsSafe.length);
-
-      for (const turn of draftTurnsSafe) {
-        await saveTurnToBackend(id, turn);
-      }
-
-      // ======================================================
-      // 3️⃣ vacaciones
-      // ======================================================
-      for (const v of draftVacations) {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/vacations`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ date: v.date }),
-          }
-        );
-
-        const text = await res.text();
-
-        console.log('⬅️ VACATION SAVE RESPONSE:', res.status, text || '(empty)');
-
-        if (!res.ok) {
-          throw new Error(`Error guardando vacaciones (${v.date}): ${text}`);
-        }
-      }
-
-      // ======================================================
-      // 4️⃣ excepciones (SIEMPRE por lote)
-      // ======================================================
-      if (draftExceptions.length > 0) {
-        console.log('🟥 guardando excepciones de turno:', draftExceptions.length);
-        console.log(
-          '🟦 FRONTEND EXCEPTIONS RAW (state):',
-          JSON.stringify(draftExceptions, null, 2)
-        );
-
-        // 🧠 TIMEO: UNA EXCEPCIÓN POR DÍA (RECONSTRUIR DÍA REAL)
-        const grouped = {};
-
-        // fechas afectadas
-        const dates = [...new Set(draftExceptions.map(e => e.date))];
-
-        dates.forEach(date => {
-
-          // turnos visibles reales del día
-          const visibleTurns = turns
-            .filter(t => t.date === date)
-            .filter(t =>
-              !draftExceptions.some(d =>
-                d.date === date &&
-                d.startTime === t.startTime &&
-                d.endTime === t.endTime
-              )
-            );
-
-          grouped[date] = {
-            type: 'MODIFIED_SHIFT',
-            date,
-            blocks: visibleTurns.map(t => ({
-              startTime: t.startTime,
-              endTime: t.endTime,
-            })),
-          };
-
-        });
-
-        const payload = Object.values(grouped);
-        console.log('🟪 EXCEPTIONS PAYLOAD REAL:', JSON.stringify(payload, null, 2));
-
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              exceptions: payload,
-            }),
-          }
-        );
-
-        const text = await res.text();
-
-        console.log('⬅️ EXCEPTIONS SAVE RESPONSE:', res.status, text || '(empty)');
-
-        if (!res.ok) {
-          throw new Error(`Error guardando excepciones de turno: ${text}`);
-        }
-      }
-
-      // ======================================================
-      // 5️⃣ confirmar horario
-      // ======================================================
-      const hasAnyChange =
-        removedTurns.length > 0 ||
-        draftTurnsSafe.length > 0 ||
-        draftVacations.length > 0 ||
-        draftExceptions.length > 0;
-
-      if (hasAnyChange) {
-        console.log('🟡 confirmando horario...');
-
-        const confirmRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!confirmRes.ok) {
-          const text = await confirmRes.text();
-          throw new Error('CONFIRM FAILED: ' + text);
-        }
-      } else {
-        console.log('ℹ️ Horario sin cambios reales: no se confirma');
-      }
-
-      console.log('✅ TODO OK — saliendo');
-
-      setDraftTurns([]);
-      setDraftExceptions([]);
-      setRemovedTurns([]);
-      window.history.back();
-
-    } catch (err) {
-      console.error('❌ ERROR EN completeSchedule', err);
-      alert(err.message || 'Error guardando horario');
-    } finally {
-      setSaving(false);
     }
+
+    console.log('✅ TODO OK — saliendo');
+
+    setDraftTurns([]);
+    setDraftExceptions([]);
+    setRemovedTurns([]);
+    window.history.back();
+
+  } catch (err) {
+    console.error('❌ ERROR EN completeSchedule', err);
+    alert(err.message || 'Error guardando horario');
+  } finally {
+    setSaving(false);
   }
+}
 
 
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
