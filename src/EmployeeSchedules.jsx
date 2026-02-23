@@ -1163,62 +1163,123 @@ export default function EmployeeSchedules() {
     setEditingPreview(preview);
   }
 
-function buildOperationsFromCalendar({
-  turns,
-  draftTurns,
-  removedTurns,
-  draftExceptions,
-}) {
+async function completeSchedule() {
+  const token = localStorage.getItem('token');
 
-  const ops = [];
+  console.log('▶️ completeSchedule START', {
+    scheduleId,
+    turns: turns.length,
+    draftTurns: draftTurns.length,
+    removedTurns: removedTurns.length,
+    draftExceptions: draftExceptions.length,
+  });
 
-  // =========================================
-  // 1️⃣ OVERRIDE DAYS (snapshot)
-  // =========================================
-  const overrideDates = new Set([
-    ...draftExceptions.map(e => e.date),
-    ...removedTurns.map(r => r.date),
-  ]);
+  let activeScheduleId = scheduleId;
 
-  for (const date of overrideDates) {
+  try {
+    setSaving(true);
 
-    const visibleTurns = turns
-      .filter(t => t.date === date)
-      .map(t => ({
-        startTime: t.startTime,
-        endTime: t.endTime,
-      }));
+    // ======================================================
+    // 0️⃣ asegurar schedule
+    // ======================================================
+    if (!activeScheduleId) {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-    ops.push({
-      type: 'OVERRIDE_DAY',
-      date,
-      blocks: visibleTurns,
+      if (!res.ok) throw new Error('Error creando horario');
+
+      const newSchedule = await res.json();
+      activeScheduleId = newSchedule.id;
+      setScheduleId(newSchedule.id);
+    }
+
+    const id = activeScheduleId;
+
+    // ======================================================
+    // 🧠 BUILD OPS
+    // ======================================================
+    let ops = buildOperationsFromCalendar({
+      turns,
+      draftTurns,
+      removedTurns,
+      draftExceptions,
     });
-  }
 
-  // =========================================
-  // 2️⃣ CREATE STRUCTURAL SHIFTS
-  // =========================================
-  for (const turn of draftTurns) {
-    ops.push({
-      type: 'CREATE_SHIFT',
-      data: turn,
-    });
-  }
+    // quitar basura vacía
+    ops = ops.filter(Boolean);
 
-  // =========================================
-  // 3️⃣ END STRUCTURAL SHIFTS
-  // =========================================
-  for (const rt of removedTurns) {
-    if (rt.mode === 'FROM_THIS_DAY_ON') {
-      ops.push({
-        type: 'END_SHIFT',
-        data: rt,
+    console.log(
+      '🧠 OPS GENERADAS:',
+      ops.map(o => ({
+        type: o.type,
+        date: o.date,
+        blocks: o.blocks?.length,
+      }))
+    );
+
+    // ======================================================
+    // ⚠️ ORDEN IMPORTANTE
+    // snapshot primero
+    // ======================================================
+    const priority = {
+      SNAPSHOT_EXCEPTION: 0,
+      DELETE_SHIFT: 1,
+      ADD_SHIFT: 2,
+      VACATION: 3,
+    };
+
+    ops.sort((a, b) => (priority[a.type] ?? 99) - (priority[b.type] ?? 99));
+
+    // ======================================================
+    // ▶️ EJECUTAR OPS
+    // ======================================================
+    for (const op of ops) {
+      await applyOperation(op, {
+        scheduleId: id,
+        token,
+        companyId,
+        branchId: employee.branchId,
       });
     }
-  }
 
-  return ops;
+    // ======================================================
+    // ✅ CONFIRM SOLO SI HAY CAMBIOS REALES
+    // ======================================================
+    const hasRealChanges = ops.length > 0;
+
+    if (hasRealChanges) {
+      const confirmRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!confirmRes.ok) {
+        const text = await confirmRes.text();
+        throw new Error('CONFIRM FAILED: ' + text);
+      }
+    }
+
+    console.log('✅ TODO OK — saliendo');
+
+    setDraftTurns([]);
+    setDraftExceptions([]);
+    setRemovedTurns([]);
+    window.history.back();
+
+  } catch (err) {
+    console.error('❌ ERROR EN completeSchedule', err);
+    alert(err.message || 'Error guardando horario');
+  } finally {
+    setSaving(false);
+  }
 }
 
 async function applyOperation(op, ctx) {
