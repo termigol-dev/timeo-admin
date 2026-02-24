@@ -762,6 +762,24 @@ export default function EmployeeSchedules() {
     // ================================
     if (finite) {
 
+      const blocks = [];
+
+      if (!deleting) {
+        if (newStart > oldStart) {
+          blocks.push({
+            startTime: oldStart,
+            endTime: newStart,
+          });
+        }
+
+        if (newEnd < oldEnd) {
+          blocks.push({
+            startTime: newEnd,
+            endTime: oldEnd,
+          });
+        }
+      }
+
       setDraftExceptions(prev => ([
         ...prev,
         {
@@ -769,8 +787,7 @@ export default function EmployeeSchedules() {
           dateFrom: base.dateFrom || date,
           dateTo: base.dateTo || date,
           weekday: col,
-          startTime: oldStart,
-          endTime: oldEnd,
+          blocks,
         },
       ]));
 
