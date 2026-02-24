@@ -697,214 +697,109 @@ export default function EmployeeSchedules() {
     }
   }
 
-  async function handleConfirmEditShift() {
+  async function handleConfirmEditShift({ deleting = false } = {}) {
     console.trace('TRACE handleConfirmEditShift');
-    if (!editingShift) return;
 
-    setShiftToDelete(null);
-    setShowShiftDeleteConfirm(false);
-    setDeleteShiftMode('ONLY_THIS_BLOCK');
+    const base = deleting ? shiftToDelete : editingShift;
+    if (!base) return;
 
-    const oldStart = editingShift.startTime;
-    const oldEnd = editingShift.endTime;
-    const newStart = startTime;
-    const newEnd = endTime;
+    const oldStart = base.startTime;
+    const oldEnd = base.endTime;
 
-    const date = editingShift.date;
-    const col = editingShift.col;
-    const day = editingShift.day;
+    const newStart = deleting ? null : startTime;
+    const newEnd = deleting ? null : endTime;
 
-    console.log('✏️ EDIT SHIFT (modelo real Timeo)', {
-      date,
-      day,
-      oldStart,
-      oldEnd,
-      newStart,
-      newEnd,
-    });
+    const date = base.date;
+    const day = base.day;
+    const col = base.col;
+    const mode = base.mode || deleteShiftMode || 'ONLY_THIS_BLOCK';
 
-    if (newStart >= newEnd) {
-      alert('La hora de inicio debe ser anterior a la de fin');
-      return;
-    }
+    const destroyPattern =
+      deleting ||
+      (newStart > oldStart) ||
+      (newEnd < oldEnd);
 
-    const mode = editingShift.mode || 'ONLY_THIS_BLOCK';
+    const finite =
+      mode === 'ONLY_THIS_BLOCK' ||
+      mode === 'RANGE';
 
-    // =====================================================
-    // ROUTE 1 — FROM_THIS_DAY_ON → estructural + preview
-    // =====================================================
-    if (mode === 'FROM_THIS_DAY_ON') {
+    // ================================
+    // A — NO destruye → CREATE
+    // ================================
+    if (!destroyPattern) {
 
-      setRemovedTurns(prev => ([
-        ...prev,
-        {
-          day,
-          startTime: oldStart,
-          endTime: oldEnd,
-          date,
-        },
-      ]));
+      const deltas = [];
 
-      setDraftTurns(prev => ([
-        ...prev,
-        {
+      if (newStart < oldStart) {
+        deltas.push({
           days: [day],
           startTime: newStart,
-          endTime: newEnd,
-          source: 'draft',
+          endTime: oldStart,
+          source: 'draft-extension',
           validFrom: date,
-        },
-      ]));
-
-      const isShorter =
-        newStart >= oldStart &&
-        newEnd <= oldEnd &&
-        (newStart !== oldStart || newEnd !== oldEnd);
-
-      if (isShorter) {
-
-        setDraftExceptions(prev => {
-
-          const next = [...prev];
-
-          const pushIfNotExists = (ex) => {
-            const exists = next.some(e =>
-              e.type === ex.type &&
-              e.date === ex.date &&
-              e.weekday === ex.weekday &&
-              e.startTime === ex.startTime &&
-              e.endTime === ex.endTime &&
-              e.mode === ex.mode
-            );
-            if (!exists) next.push(ex);
-          };
-
-          if (newStart > oldStart) {
-            pushIfNotExists({
-              type: 'MODIFIED_SHIFT',
-              date,
-              startTime: oldStart,
-              endTime: newStart,
-              weekday: col,
-              mode: 'FROM_THIS_DAY_ON',
-            });
-          }
-
-          if (newEnd < oldEnd) {
-            pushIfNotExists({
-              type: 'MODIFIED_SHIFT',
-              date,
-              startTime: newEnd,
-              endTime: oldEnd,
-              weekday: col,
-              mode: 'FROM_THIS_DAY_ON',
-            });
-          }
-
-          return next;
+          validTo: date,
         });
       }
 
+      if (newEnd > oldEnd) {
+        deltas.push({
+          days: [day],
+          startTime: oldEnd,
+          endTime: newEnd,
+          source: 'draft-extension',
+          validFrom: date,
+          validTo: date,
+        });
+      }
+
+      setDraftTurns(prev => [...prev, ...deltas]);
+      cleanup();
+      return;
+    }
+
+    // ================================
+    // B — destruye finito → OVERRIDE
+    // ================================
+    if (finite) {
+
+      setDraftExceptions(prev => ([
+        ...prev,
+        {
+          type: 'MODIFIED_SHIFT',
+          dateFrom: base.dateFrom || date,
+          dateTo: base.dateTo || date,
+          weekday: col,
+          startTime: oldStart,
+          endTime: oldEnd,
+        },
+      ]));
+
+      cleanup();
+      return;
+    }
+
+    // ================================
+    // C — destruye infinito → END_CREATE
+    // ================================
+    setRemovedTurns(prev => ([
+      ...prev,
+      {
+        shiftId: base.shiftId,
+        date,
+        endPattern: true,
+      },
+    ]));
+
+    cleanup();
+
+    function cleanup() {
       setEditingShift(null);
+      setShiftToDelete(null);
       setEditingPreview(null);
       setSelectedDays([]);
       setStartTime('');
       setEndTime('');
-
-      return;
     }
-
-    // =====================================================
-    // ROUTE 2 — ONLY_THIS_BLOCK  → excepciones
-    // =====================================================
-
-    const isShorter =
-      newStart >= oldStart &&
-      newEnd <= oldEnd &&
-      (newStart !== oldStart || newEnd !== oldEnd);
-
-    const isLonger =
-      newStart < oldStart ||
-      newEnd > oldEnd;
-
-    setDraftExceptions(prev => {
-
-      const next = [...prev];
-
-      const pushIfNotExists = (ex) => {
-        const exists = next.some(e =>
-          e.type === ex.type &&
-          e.date === ex.date &&
-          e.weekday === ex.weekday &&
-          e.startTime === ex.startTime &&
-          e.endTime === ex.endTime &&
-          e.mode === ex.mode
-        );
-        if (!exists) next.push(ex);
-      };
-
-      if (isShorter) {
-
-        if (newStart > oldStart) {
-          pushIfNotExists({
-            type: 'MODIFIED_SHIFT',
-            date,
-            startTime: oldStart,
-            endTime: newStart,
-            mode: 'ONLY_THIS_BLOCK',
-            weekday: col,
-          });
-        }
-
-        if (newEnd < oldEnd) {
-          pushIfNotExists({
-            type: 'MODIFIED_SHIFT',
-            date,
-            startTime: newEnd,
-            endTime: oldEnd,
-            mode: 'ONLY_THIS_BLOCK',
-            weekday: col,
-          });
-        }
-
-        return next;
-      }
-
-      if (isLonger) {
-
-        if (newStart < oldStart) {
-          pushIfNotExists({
-            type: 'EXTRA_SHIFT',
-            date,
-            startTime: newStart,
-            endTime: oldStart,
-            weekday: col,
-            mode: 'ONLY_THIS_BLOCK',
-          });
-        }
-
-        if (newEnd > oldEnd) {
-          pushIfNotExists({
-            type: 'EXTRA_SHIFT',
-            date,
-            startTime: oldEnd,
-            endTime: newEnd,
-            weekday: col,
-            mode: 'ONLY_THIS_BLOCK',
-          });
-        }
-
-        return next;
-      }
-
-      return next;
-    });
-
-    setEditingShift(null);
-    setEditingPreview(null);
-    setSelectedDays([]);
-    setStartTime('');
-    setEndTime('');
   }
 
   function diffDays(from, to) {
@@ -917,130 +812,6 @@ export default function EmployeeSchedules() {
     return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
   }
 
-  function handleConfirmDeleteShift() {
-    console.trace('TRACE handleConfirmDeleteShift');
-    if (!shiftToDelete || !deleteShiftMode) return;
-
-    const mode = deleteShiftMode;
-
-    if (mode === 'RANGE') {
-
-      if (!shiftToDelete.dateFrom || !shiftToDelete.dateTo) {
-        alert('Rango de fechas inválido');
-        return;
-      }
-
-      const days = diffDays(
-        shiftToDelete.dateFrom,
-        shiftToDelete.dateTo
-      );
-
-      if (days > 62) {
-        alert(
-          'El rango máximo permitido para excepciones es de 62 días. Para cambios más largos usa "desde este día en adelante".'
-        );
-        return;
-      }
-    }
-
-    const now = new Date();
-    const today =
-      now.getFullYear() +
-      '-' +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      '-' +
-      String(now.getDate()).padStart(2, '0');
-
-    if (shiftToDelete.date < today && mode !== 'ONLY_THIS_BLOCK') {
-      alert('No se pueden borrar turnos del pasado en bloque');
-      return;
-    }
-
-    const weekday = weekDays.indexOf(shiftToDelete.day);
-
-    if (weekday < 1 || weekday > 7) {
-      console.warn('weekday inválido en borrado', shiftToDelete.day);
-      return;
-    }
-
-    // =====================================================
-    // 👉 PINTADO
-    // =====================================================
-
-    setDraftExceptions(prev => {
-
-      const exists = prev.some(ex =>
-        ex.type === 'MODIFIED_SHIFT' &&
-        ex.date === shiftToDelete.date &&
-        ex.startTime === shiftToDelete.startTime &&
-        ex.endTime === shiftToDelete.endTime &&
-        ex.weekday === weekday &&
-        ex.mode === 'ONLY_THIS_BLOCK'
-      );
-
-      if (exists) return prev;
-
-      return [
-        ...prev,
-        {
-          type: 'MODIFIED_SHIFT',
-          date: shiftToDelete.date,
-          weekday,
-          startTime: shiftToDelete.startTime,
-          endTime: shiftToDelete.endTime,
-          mode: 'ONLY_THIS_BLOCK',
-        },
-      ];
-    });
-
-    // =====================================================
-    // 👉 BORRADO ESTRUCTURAL
-    // =====================================================
-    if (mode === 'FROM_THIS_DAY_ON') {
-
-      setRemovedTurns(prev => ([
-        ...prev,
-        {
-          day: shiftToDelete.day,
-          startTime: shiftToDelete.startTime,
-          endTime: shiftToDelete.endTime,
-          date: shiftToDelete.date,
-        },
-      ]));
-
-      console.log('🧪 DELETE ESTRUCTURAL CONFIRMADO', {
-        day: shiftToDelete.day,
-        date: shiftToDelete.date,
-        startTime: shiftToDelete.startTime,
-        endTime: shiftToDelete.endTime,
-        mode,
-      });
-
-    } else {
-
-      console.log('🧪 DELETE CONFIRMADO (ONLY_THIS_BLOCK)', {
-        day: shiftToDelete.day,
-        weekday,
-        date: shiftToDelete.date,
-        startTime: shiftToDelete.startTime,
-        endTime: shiftToDelete.endTime,
-        mode,
-      });
-    }
-
-    setEditingPreview({
-      type: 'DELETE',
-      day: shiftToDelete.day,
-      col: shiftToDelete.col,
-      startTime: shiftToDelete.startTime,
-      endTime: shiftToDelete.endTime,
-      mode: 'ONLY_THIS_BLOCK',
-    });
-
-    setShowShiftDeleteConfirm(false);
-    setShiftToDelete(null);
-    setDeleteShiftMode('ONLY_THIS_BLOCK');
-  }
 
   async function saveTurnToBackend(scheduleId, turn) {
     const token = localStorage.getItem('token');
@@ -1163,100 +934,100 @@ export default function EmployeeSchedules() {
     setEditingPreview(preview);
   }
 
- function buildOperationsFromCalendar({
-  turns,
-  draftTurns,
-  removedTurns,
-  draftExceptions,
-}) {
+  function buildOperationsFromCalendar({
+    turns,
+    draftTurns,
+    removedTurns,
+    draftExceptions,
+  }) {
 
-  const ops = [];
+    const ops = [];
 
-  // =========================================
-  // 🧠 helper — agrupar por fecha
-  // =========================================
-  const groupByDate = arr =>
-    arr.reduce((acc, t) => {
-      if (!t.date) return acc;
-      acc[t.date] = acc[t.date] || [];
-      acc[t.date].push(t);
-      return acc;
-    }, {});
+    // =========================================
+    // 🧠 helper — agrupar por fecha
+    // =========================================
+    const groupByDate = arr =>
+      arr.reduce((acc, t) => {
+        if (!t.date) return acc;
+        acc[t.date] = acc[t.date] || [];
+        acc[t.date].push(t);
+        return acc;
+      }, {});
 
-  const visibleByDate = groupByDate(turns);
+    const visibleByDate = groupByDate(turns);
 
-  // =========================================
-  // 1️⃣ OVERRIDE DAYS (snapshot)
-  // =========================================
-  const overrideDates = new Set([
-    ...draftExceptions.map(e => e.date),
-    ...removedTurns.map(r => r.date),
-  ]);
+    // =========================================
+    // 1️⃣ OVERRIDE DAYS (snapshot)
+    // =========================================
+    const overrideDates = new Set([
+      ...draftExceptions.map(e => e.date),
+      ...removedTurns.map(r => r.date),
+    ]);
 
-  for (const date of overrideDates) {
+    for (const date of overrideDates) {
 
-    const visibleTurns = (visibleByDate[date] || []).map(t => ({
-      startTime: t.startTime,
-      endTime: t.endTime,
-    }));
+      const visibleTurns = (visibleByDate[date] || []).map(t => ({
+        startTime: t.startTime,
+        endTime: t.endTime,
+      }));
 
-    ops.push({
-      type: 'OVERRIDE_DAY',
-      date,
-      blocks: visibleTurns,
-    });
-  }
+      ops.push({
+        type: 'OVERRIDE_DAY',
+        date,
+        blocks: visibleTurns,
+      });
+    }
 
-  // =========================================
-  // 🔥 1.5️⃣ DELTA EXTENSIONS (CLAVE)
-  // =========================================
-  for (const date in visibleByDate) {
+    // =========================================
+    // 🔥 1.5️⃣ DELTA EXTENSIONS (CLAVE)
+    // =========================================
+    for (const date in visibleByDate) {
 
-    if (overrideDates.has(date)) continue;
+      if (overrideDates.has(date)) continue;
 
-    const dayTurns = visibleByDate[date];
+      const dayTurns = visibleByDate[date];
 
-    for (const t of dayTurns) {
+      for (const t of dayTurns) {
 
-      if (!t.source || t.source !== 'draft-extension') continue;
+        if (!t.source || t.source !== 'draft-extension') continue;
 
+        ops.push({
+          type: 'CREATE_SHIFT',
+          data: {
+            weekday: t.weekday,
+            startTime: t.startTime,
+            endTime: t.endTime,
+            validFrom: date,
+            validTo: date,
+          },
+        });
+      }
+    }
+
+    // =========================================
+    // 2️⃣ CREATE STRUCTURAL SHIFTS
+    // =========================================
+    for (const turn of draftTurns) {
       ops.push({
         type: 'CREATE_SHIFT',
-        data: {
-          weekday: t.weekday,
-          startTime: t.startTime,
-          endTime: t.endTime,
-          validFrom: date,
-          validTo: date,
-        },
+        data: turn,
       });
     }
-  }
 
-  // =========================================
-  // 2️⃣ CREATE STRUCTURAL SHIFTS
-  // =========================================
-  for (const turn of draftTurns) {
-    ops.push({
-      type: 'CREATE_SHIFT',
-      data: turn,
-    });
-  }
-
-  // =========================================
-  // 3️⃣ END STRUCTURAL SHIFTS
-  // =========================================
-  for (const rt of removedTurns) {
-    if (rt.mode === 'FROM_THIS_DAY_ON') {
-      ops.push({
-        type: 'END_SHIFT',
-        data: rt,
-      });
+    // =========================================
+    // 3️⃣ END STRUCTURAL SHIFTS
+    // =========================================
+    for (const rt of removedTurns) {
+      if (rt.mode === 'FROM_THIS_DAY_ON') {
+        ops.push({
+          type: 'END_SHIFT',
+          data: rt,
+        });
+      }
     }
-  }
 
-  return ops;
-}
+    return ops;
+  }
 
   async function completeSchedule() {
     const token = localStorage.getItem('token');
@@ -2361,7 +2132,29 @@ export default function EmployeeSchedules() {
               {/* 🗑️ CONFIRMAR BORRADO */}
               <button
                 className="delete-block"
-                onClick={handleConfirmDeleteShift}
+                onClick={() => {
+
+                  // 🔑 convertir borrado en edición
+                  setEditingShift({
+                    ...shiftToDelete,
+                    mode: deleteShiftMode,
+                    deleteIntent: true, // ⭐ clave
+                  });
+
+                  setStartTime(shiftToDelete.startTime);
+                  setEndTime(shiftToDelete.startTime);
+                  // ⭐ mismo start/end → representa borrar
+
+                  setDateFrom(shiftToDelete.date);
+                  setDateTo(shiftToDelete.date);
+
+                  setShowShiftDeleteConfirm(false);
+
+                  // 👉 ejecutar misma función que editar
+                  setTimeout(() => {
+                    handleConfirmEditShift();
+                  }, 0);
+                }}
               >
                 Confirmar borrado
               </button>
