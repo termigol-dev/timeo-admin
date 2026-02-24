@@ -121,6 +121,7 @@ export default function EmployeeSchedules() {
   const [weekStart, setWeekStart] = useState(() => normalizeToWeekStart(new Date()));
   const [saving, setSaving] = useState(false);
 
+  const [calendarOverlay, setCalendarOverlay] = useState([]);
   const [draftExceptions, setDraftExceptions] = useState([]);
 
   const ROW_HEIGHT = 24;
@@ -704,13 +705,6 @@ export default function EmployeeSchedules() {
     const base = deleting ? shiftToDelete : editingShift;
     if (!base) return;
 
-    console.log('🧪 HANDLER INPUT', {
-      deleting,
-      base,
-      mode: base?.mode,
-      deleteShiftMode,
-    });
-
     const oldStart = base.startTime;
     const oldEnd = base.endTime;
 
@@ -731,11 +725,15 @@ export default function EmployeeSchedules() {
       mode === 'ONLY_THIS_BLOCK' ||
       mode === 'RANGE';
 
-    console.log('🧪 FLAGS', {
-      destroyPattern,
-      finite,
-      mode,
-    });
+    // =================================
+    // ⭐ helper overlay
+    // =================================
+    const pushOverlay = payload => {
+      setCalendarOverlay(prev => [
+        ...prev,
+        payload,
+      ]);
+    };
 
     // ================================
     // A — NO destruye → CREATE
@@ -753,6 +751,15 @@ export default function EmployeeSchedules() {
           validFrom: date,
           validTo: date,
         });
+
+        pushOverlay({
+          kind: 'ADD',
+          weekday: col,
+          dateFrom: date,
+          dateTo: date,
+          startTime: newStart,
+          endTime: oldStart,
+        });
       }
 
       if (newEnd > oldEnd) {
@@ -763,6 +770,15 @@ export default function EmployeeSchedules() {
           source: 'draft-extension',
           validFrom: date,
           validTo: date,
+        });
+
+        pushOverlay({
+          kind: 'ADD',
+          weekday: col,
+          dateFrom: date,
+          dateTo: date,
+          startTime: oldEnd,
+          endTime: newEnd,
         });
       }
 
@@ -780,6 +796,16 @@ export default function EmployeeSchedules() {
 
       if (deleting) {
 
+        // ⭐ overlay negro del bloque borrado
+        pushOverlay({
+          kind: 'DELETE',
+          weekday: col,
+          dateFrom: date,
+          dateTo: date,
+          startTime: oldStart,
+          endTime: oldEnd,
+        });
+
         visibleTurns = turns
           .filter(t => t.date === date)
           .filter(t => !(t.startTime === oldStart && t.endTime === oldEnd))
@@ -789,6 +815,29 @@ export default function EmployeeSchedules() {
           }));
 
       } else {
+
+        // ⭐ overlay negro de partes eliminadas al acortar
+        if (newStart > oldStart) {
+          pushOverlay({
+            kind: 'DELETE',
+            weekday: col,
+            dateFrom: date,
+            dateTo: date,
+            startTime: oldStart,
+            endTime: newStart,
+          });
+        }
+
+        if (newEnd < oldEnd) {
+          pushOverlay({
+            kind: 'DELETE',
+            weekday: col,
+            dateFrom: date,
+            dateTo: date,
+            startTime: newEnd,
+            endTime: oldEnd,
+          });
+        }
 
         visibleTurns = turns
           .filter(t => t.date === date)
@@ -815,11 +864,6 @@ export default function EmployeeSchedules() {
         b => b.startTime && b.endTime
       );
 
-      console.log('🧪 SNAPSHOT LIMPIO', {
-        date,
-        cleaned,
-      });
-
       setDraftExceptions(prev => [
         ...prev,
         {
@@ -831,14 +875,22 @@ export default function EmployeeSchedules() {
         },
       ]);
 
-      // ⭐ CLAVE → mantener preview negro
       cleanup({ keepPreview: true });
       return;
     }
 
     // ================================
-    // C — destruye infinito → END_PATTERN
+    // C — destruye infinito
     // ================================
+    pushOverlay({
+      kind: 'DELETE',
+      weekday: col,
+      dateFrom: date,
+      dateTo: null,
+      startTime: oldStart,
+      endTime: oldEnd,
+    });
+
     setRemovedTurns(prev => ([
       ...prev,
       {
@@ -850,9 +902,6 @@ export default function EmployeeSchedules() {
 
     cleanup();
 
-    // ================================
-    // CLEANUP
-    // ================================
     function cleanup({ keepPreview = false } = {}) {
       setEditingShift(null);
       setShiftToDelete(null);
@@ -1954,32 +2003,33 @@ export default function EmployeeSchedules() {
                   })
                 )}
 
-                {/* 🟥 BLOQUES NEGROS (EXCEPCIONES) */}
+                {/* 🟥 BLOQUES NEGROS (EXCEPCIONES REAL TIMEO) */}
                 {draftExceptions.map((ex, i) => {
 
                   if (ex.type !== 'MODIFIED_SHIFT') return null;
+                  if (!ex.blocks) return null;
 
-                  // 🔑 rango de fechas real
+                  const col = ex.weekday;
+                  if (!col || col < 1 || col > 7) return null;
+
+                  const cellDateObj = weekDates[col];
+                  if (!cellDateObj) return null;
+
+                  const cellDateStr = formatDateLocal(cellDateObj);
+
                   const from = ex.dateFrom;
-                  const to = ex.dateTo ?? from;
+                  const to = ex.dateTo ?? ex.dateFrom;
 
-                  return (ex.blocks || []).map((b, j) => {
+                  if (cellDateStr < from) return null;
+                  if (to && cellDateStr > to) return null;
+
+                  return ex.blocks.map((b, j) => {
 
                     if (!b.startTime || !b.endTime) return null;
 
                     const start = timeToRow(b.startTime);
                     let end = timeToRow(b.endTime);
                     if (end <= start) end += 48;
-
-                    const col = ex.weekday;
-                    if (!col || col < 1 || col > 7) return null;
-
-                    const cellDateObj = weekDates[col];
-                    if (!cellDateObj) return null;
-
-                    const cellDateStr = formatDateLocal(cellDateObj);
-
-                    if (cellDateStr < from || cellDateStr > to) return null;
 
                     return (
                       <div
@@ -1992,6 +2042,7 @@ export default function EmployeeSchedules() {
                       />
                     );
                   });
+
                 })}
                 {/* 🟥 DÍA VACÍO (override sin bloques) */}
                 {draftExceptions.map((ex, i) => {
@@ -2019,6 +2070,42 @@ export default function EmployeeSchedules() {
                         gridColumn: col,
                         gridRow: `1 / -1`, // 🔑 toda la columna del día
                         opacity: 0.25,
+                      }}
+                    />
+                  );
+                })}
+                {/* ⭐ OVERLAY CAMBIOS (NEGRO / VERDE ESTABLE) */}
+                {calendarOverlay.map((o, i) => {
+
+                  const col = o.weekday;
+                  if (!col || col < 1 || col > 7) return null;
+
+                  const cellDateObj = weekDates[col];
+                  if (!cellDateObj) return null;
+
+                  const cellDateStr = formatDateLocal(cellDateObj);
+
+                  const from = o.dateFrom;
+                  const to = o.dateTo ?? o.dateFrom;
+
+                  if (cellDateStr < from) return null;
+                  if (to && cellDateStr > to) return null;
+
+                  const start = timeToRow(o.startTime);
+                  let end = timeToRow(o.endTime);
+                  if (end <= start) end += 48;
+
+                  return (
+                    <div
+                      key={`overlay-${i}-${col}-${cellDateStr}`}
+                      className={`turn-preview ${o.kind === 'DELETE'
+                          ? 'preview-delete'
+                          : 'preview-add'
+                        }`}
+                      style={{
+                        gridColumn: col,
+                        gridRow: `${start + 1} / ${end + 1}`,
+                        pointerEvents: 'none',
                       }}
                     />
                   );
