@@ -698,126 +698,138 @@ export default function EmployeeSchedules() {
   }
 
   async function handleConfirmEditShift({ deleting = false } = {}) {
-    console.trace('TRACE handleConfirmEditShift');
+  console.trace('TRACE handleConfirmEditShift');
 
-    const base = deleting ? shiftToDelete : editingShift;
-    if (!base) return;
+  const base = deleting ? shiftToDelete : editingShift;
+  if (!base) return;
 
-    const oldStart = base.startTime;
-    const oldEnd = base.endTime;
+  const oldStart = base.startTime;
+  const oldEnd = base.endTime;
 
-    const newStart = deleting ? null : startTime;
-    const newEnd = deleting ? null : endTime;
+  const newStart = deleting ? null : startTime;
+  const newEnd = deleting ? null : endTime;
 
-    const date = base.date;
-    const day = base.day;
-    const col = base.col;
-    const mode = base.mode || deleteShiftMode || 'ONLY_THIS_BLOCK';
+  const date = base.date;
+  const day = base.day;
+  const col = base.col;
+  const mode = base.mode || deleteShiftMode || 'ONLY_THIS_BLOCK';
 
-    const destroyPattern =
-      deleting ||
-      (newStart > oldStart) ||
-      (newEnd < oldEnd);
+  const destroyPattern =
+    deleting ||
+    (newStart > oldStart) ||
+    (newEnd < oldEnd);
 
-    const finite =
-      mode === 'ONLY_THIS_BLOCK' ||
-      mode === 'RANGE';
+  const finite =
+    mode === 'ONLY_THIS_BLOCK' ||
+    mode === 'RANGE';
 
-    // ================================
-    // A — NO destruye → CREATE
-    // ================================
-    if (!destroyPattern) {
+  // ================================
+  // A — NO destruye → CREATE
+  // ================================
+  if (!destroyPattern) {
 
-      const deltas = [];
+    const deltas = [];
 
-      if (newStart < oldStart) {
-        deltas.push({
-          days: [day],
-          startTime: newStart,
-          endTime: oldStart,
-          source: 'draft-extension',
-          validFrom: date,
-          validTo: date,
-        });
-      }
-
-      if (newEnd > oldEnd) {
-        deltas.push({
-          days: [day],
-          startTime: oldEnd,
-          endTime: newEnd,
-          source: 'draft-extension',
-          validFrom: date,
-          validTo: date,
-        });
-      }
-
-      setDraftTurns(prev => [...prev, ...deltas]);
-      cleanup();
-      return;
+    if (newStart < oldStart) {
+      deltas.push({
+        days: [day],
+        startTime: newStart,
+        endTime: oldStart,
+        source: 'draft-extension',
+        validFrom: date,
+        validTo: date,
+      });
     }
 
-    // ================================
-    // B — destruye finito → OVERRIDE
-    // ================================
-    if (finite) {
-
-      const blocks = [];
-
-      if (!deleting) {
-        if (newStart > oldStart) {
-          blocks.push({
-            startTime: oldStart,
-            endTime: newStart,
-          });
-        }
-
-        if (newEnd < oldEnd) {
-          blocks.push({
-            startTime: newEnd,
-            endTime: oldEnd,
-          });
-        }
-      }
-
-      setDraftExceptions(prev => ([
-        ...prev,
-        {
-          type: 'MODIFIED_SHIFT',
-          dateFrom: base.dateFrom || date,
-          dateTo: base.dateTo || date,
-          weekday: col,
-          blocks,
-        },
-      ]));
-
-      cleanup();
-      return;
+    if (newEnd > oldEnd) {
+      deltas.push({
+        days: [day],
+        startTime: oldEnd,
+        endTime: newEnd,
+        source: 'draft-extension',
+        validFrom: date,
+        validTo: date,
+      });
     }
 
-    // ================================
-    // C — destruye infinito → END_CREATE
-    // ================================
-    setRemovedTurns(prev => ([
+    setDraftTurns(prev => [...prev, ...deltas]);
+    cleanup();
+    return;
+  }
+
+  // ================================
+  // B — destruye finito → SNAPSHOT
+  // ================================
+  if (finite) {
+
+    // 🔑 CLAVE TIMEO — cómo queda el día visible
+    const visibleTurns = turns
+      .filter(t => t.date === date)
+      .filter(t => {
+        if (deleting) {
+          return !(t.startTime === oldStart && t.endTime === oldEnd);
+        }
+
+        // edición acortar
+        return true;
+      })
+      .map(t => {
+        // si estamos editando ese bloque → sustituimos por nuevo
+        if (
+          !deleting &&
+          t.startTime === oldStart &&
+          t.endTime === oldEnd
+        ) {
+          return {
+            startTime: newStart,
+            endTime: newEnd,
+          };
+        }
+
+        return {
+          startTime: t.startTime,
+          endTime: t.endTime,
+        };
+      });
+
+    setDraftExceptions(prev => ([
       ...prev,
       {
-        shiftId: base.shiftId,
-        date,
-        endPattern: true,
+        type: 'MODIFIED_SHIFT',
+        dateFrom: base.dateFrom || date,
+        dateTo: base.dateTo || date,
+        weekday: col,
+        blocks: visibleTurns,
       },
     ]));
 
     cleanup();
-
-    function cleanup() {
-      setEditingShift(null);
-      setShiftToDelete(null);
-      setEditingPreview(null);
-      setSelectedDays([]);
-      setStartTime('');
-      setEndTime('');
-    }
+    return;
   }
+
+  // ================================
+  // C — destruye infinito → END_PATTERN
+  // ================================
+  setRemovedTurns(prev => ([
+    ...prev,
+    {
+      shiftId: base.shiftId,
+      date,
+      endPattern: true,
+    },
+  ]));
+
+  cleanup();
+
+  function cleanup() {
+    setEditingShift(null);
+    setShiftToDelete(null);
+    setEditingPreview(null);
+    setSelectedDays([]);
+    setStartTime('');
+    setEndTime('');
+  }
+}
 
   function diffDays(from, to) {
     const d1 = new Date(from);
