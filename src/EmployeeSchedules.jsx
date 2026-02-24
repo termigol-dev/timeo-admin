@@ -113,7 +113,8 @@ export default function EmployeeSchedules() {
   const [deleteSummary, setDeleteSummary] = useState('');
   //    EDITADO DE TURNOS (UX) 
   const [editShiftMode, setEditShiftMode] = useState('ONLY_THIS_BLOCK');
-
+  const pushOverlay = entry =>
+    setCalendarOverlay(prev => [...prev, entry]);
   // 🟠 CAMBIOS DEL USUARIO
   const [draftTurns, setDraftTurns] = useState([]);
 
@@ -794,14 +795,16 @@ export default function EmployeeSchedules() {
 
       let visibleTurns;
 
+      // =================================
+      // 🔴 BORRADO COMPLETO DEL BLOQUE
+      // =================================
       if (deleting) {
 
-        // ⭐ overlay negro del bloque borrado
         pushOverlay({
           kind: 'DELETE',
           weekday: col,
-          dateFrom: date,
-          dateTo: date,
+          dateFrom: base.dateFrom || date,
+          dateTo: base.dateTo || date,
           startTime: oldStart,
           endTime: oldEnd,
         });
@@ -814,26 +817,32 @@ export default function EmployeeSchedules() {
             endTime: t.endTime,
           }));
 
-      } else {
+      }
 
-        // ⭐ overlay negro de partes eliminadas al acortar
-        if (newStart > oldStart) {
+      // =================================
+      // ✏️ EDICIÓN (ACORTAR)
+      // =================================
+      else {
+
+        // 🔴 parte eliminada al inicio
+        if (newStart && newStart > oldStart) {
           pushOverlay({
             kind: 'DELETE',
             weekday: col,
-            dateFrom: date,
-            dateTo: date,
+            dateFrom: base.dateFrom || date,
+            dateTo: base.dateTo || date,
             startTime: oldStart,
             endTime: newStart,
           });
         }
 
-        if (newEnd < oldEnd) {
+        // 🔴 parte eliminada al final
+        if (newEnd && newEnd < oldEnd) {
           pushOverlay({
             kind: 'DELETE',
             weekday: col,
-            dateFrom: date,
-            dateTo: date,
+            dateFrom: base.dateFrom || date,
+            dateTo: base.dateTo || date,
             startTime: newEnd,
             endTime: oldEnd,
           });
@@ -1338,104 +1347,6 @@ export default function EmployeeSchedules() {
     }
   }
 
-  async function completeSchedule() {
-    const token = localStorage.getItem('token');
-
-    console.log('▶️ completeSchedule START', {
-      scheduleId,
-      turns: turns.length,
-      draftTurns: draftTurns.length,
-      removedTurns: removedTurns.length,
-      draftExceptions: draftExceptions.length,
-    });
-
-    let activeScheduleId = scheduleId;
-
-    try {
-      setSaving(true);
-
-      // ======================================================
-      // 0️⃣ asegurar schedule
-      // ======================================================
-      if (!activeScheduleId) {
-
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (!res.ok) throw new Error('Error creando horario');
-
-        const newSchedule = await res.json();
-
-        activeScheduleId = newSchedule.id;
-        setScheduleId(newSchedule.id);
-      }
-
-      const id = activeScheduleId;
-
-      // ======================================================
-      // 🧠 TIMEO — BUILD OPERATIONS
-      // ======================================================
-      const ops = buildOperationsFromCalendar({
-        turns,
-        draftTurns,
-        removedTurns,
-        draftExceptions,
-      });
-
-      console.log('🧠 OPS GENERADAS:', ops);
-
-      // ======================================================
-      // ▶️ EJECUTAR OPS
-      // ======================================================
-      for (const op of ops) {
-        await applyOperation(op, {
-          scheduleId: id,
-          token,
-          companyId,
-          branchId: employee.branchId,
-        });
-      }
-
-      // ======================================================
-      // ✅ CONFIRM
-      // ======================================================
-      if (ops.length > 0) {
-
-        const confirmRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (!confirmRes.ok) {
-          const text = await confirmRes.text();
-          throw new Error('CONFIRM FAILED: ' + text);
-        }
-      }
-
-      console.log('✅ TODO OK — saliendo');
-
-      setDraftTurns([]);
-      setDraftExceptions([]);
-      setRemovedTurns([]);
-      window.history.back();
-
-    } catch (err) {
-      console.error('❌ ERROR EN completeSchedule', err);
-      alert(err.message || 'Error guardando horario');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
 
@@ -1791,6 +1702,13 @@ export default function EmployeeSchedules() {
 
 
         {/* GRID */}
+        {console.log('🎨 RENDER STATE', {
+          shiftToDelete,
+          editingPreview,
+          draftExceptions,
+          calendarOverlay,
+        })}
+
         <div className={`calendar-grid-wrapper ${editingShift ? 'editing-mode' : ''}`}>
 
           {/* HEADER DÍAS — scroll horizontal */}
@@ -2074,7 +1992,8 @@ export default function EmployeeSchedules() {
                     />
                   );
                 })}
-                {/* ⭐ OVERLAY CAMBIOS (NEGRO / VERDE ESTABLE) */}
+                {console.log('🎯 OVERLAY RENDER', calendarOverlay)}
+                {/* 🟥 OVERLAY NEGRO (CAMBIOS DEL USUARIO) */}
                 {calendarOverlay.map((o, i) => {
 
                   const col = o.weekday;
@@ -2086,10 +2005,11 @@ export default function EmployeeSchedules() {
                   const cellDateStr = formatDateLocal(cellDateObj);
 
                   const from = o.dateFrom;
-                  const to = o.dateTo ?? o.dateFrom;
+                  const to = o.dateTo ?? from;
 
-                  if (cellDateStr < from) return null;
-                  if (to && cellDateStr > to) return null;
+                  if (cellDateStr < from || cellDateStr > to) return null;
+
+                  if (!o.startTime || !o.endTime) return null;
 
                   const start = timeToRow(o.startTime);
                   let end = timeToRow(o.endTime);
@@ -2098,9 +2018,7 @@ export default function EmployeeSchedules() {
                   return (
                     <div
                       key={`overlay-${i}-${col}-${cellDateStr}`}
-                      className={`turn-preview ${o.kind === 'DELETE'
-                          ? 'preview-delete'
-                          : 'preview-add'
+                      className={`turn-preview ${o.kind === 'DELETE' ? 'preview-delete' : 'preview-add'
                         }`}
                       style={{
                         gridColumn: col,
