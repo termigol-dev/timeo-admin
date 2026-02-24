@@ -778,7 +778,6 @@ export default function EmployeeSchedules() {
 
       let visibleTurns;
 
-      // 🔴 BORRADO
       if (deleting) {
 
         visibleTurns = turns
@@ -791,7 +790,6 @@ export default function EmployeeSchedules() {
 
       } else {
 
-        // ✏️ EDICIÓN
         visibleTurns = turns
           .filter(t => t.date === date)
           .map(t => {
@@ -813,7 +811,6 @@ export default function EmployeeSchedules() {
           });
       }
 
-      // ⭐⭐⭐ FIX CRÍTICO → eliminar bloques inválidos
       const cleaned = visibleTurns.filter(
         b => b.startTime && b.endTime
       );
@@ -834,7 +831,8 @@ export default function EmployeeSchedules() {
         },
       ]);
 
-      cleanup();
+      // ⭐ CLAVE → mantener preview negro
+      cleanup({ keepPreview: true });
       return;
     }
 
@@ -852,10 +850,17 @@ export default function EmployeeSchedules() {
 
     cleanup();
 
-    function cleanup() {
+    // ================================
+    // CLEANUP
+    // ================================
+    function cleanup({ keepPreview = false } = {}) {
       setEditingShift(null);
       setShiftToDelete(null);
-      setEditingPreview(null);
+
+      if (!keepPreview) {
+        setEditingPreview(null);
+      }
+
       setSelectedDays([]);
       setStartTime('');
       setEndTime('');
@@ -1003,9 +1008,7 @@ export default function EmployeeSchedules() {
 
     const ops = [];
 
-    // =========================================
-    // 🧠 helper — agrupar por fecha
-    // =========================================
+    // helper agrupar por fecha
     const groupByDate = arr =>
       arr.reduce((acc, t) => {
         if (!t.date) return acc;
@@ -1016,14 +1019,9 @@ export default function EmployeeSchedules() {
 
     const visibleByDate = groupByDate(turns);
 
-    // =========================================
-    // ⭐ OVERRIDE DATES (CRÍTICO)
-    // =========================================
-    const overrideDates = new Set();
-
-    // =========================================
-    // 1️⃣ OVERRIDE DAYS (snapshot REAL)
-    // =========================================
+    // =============================
+    // OVERRIDE DAYS (snapshot real)
+    // =============================
     const expandLocalDates = (fromStr, toStr) => {
 
       const parse = s => {
@@ -1057,9 +1055,6 @@ export default function EmployeeSchedules() {
       const dates = expandLocalDates(ex.dateFrom, ex.dateTo);
 
       for (const date of dates) {
-
-        overrideDates.add(date); // ⭐ CLAVE
-
         ops.push({
           type: 'OVERRIDE_DAY',
           date,
@@ -1068,18 +1063,16 @@ export default function EmployeeSchedules() {
       }
     }
 
-    // =========================================
-    // 🔥 1.5️⃣ DELTA EXTENSIONS
-    // =========================================
+    // =============================
+    // DELTA EXTENSIONS
+    // =============================
     for (const date in visibleByDate) {
-
-      if (overrideDates.has(date)) continue; // ⭐ CLAVE
 
       const dayTurns = visibleByDate[date];
 
       for (const t of dayTurns) {
 
-        if (!t.source || t.source !== 'draft-extension') continue;
+        if (t.source !== 'draft-extension') continue;
 
         ops.push({
           type: 'CREATE_SHIFT',
@@ -1094,9 +1087,9 @@ export default function EmployeeSchedules() {
       }
     }
 
-    // =========================================
-    // 2️⃣ CREATE STRUCTURAL SHIFTS
-    // =========================================
+    // =============================
+    // CREATE STRUCTURAL
+    // =============================
     for (const turn of draftTurns) {
       ops.push({
         type: 'CREATE_SHIFT',
@@ -1104,9 +1097,9 @@ export default function EmployeeSchedules() {
       });
     }
 
-    // =========================================
-    // 3️⃣ END STRUCTURAL SHIFTS
-    // =========================================
+    // =============================
+    // END STRUCTURAL
+    // =============================
     for (const rt of removedTurns) {
       if (rt.mode === 'FROM_THIS_DAY_ON') {
         ops.push({
@@ -1966,62 +1959,89 @@ export default function EmployeeSchedules() {
 
                   if (ex.type !== 'MODIFIED_SHIFT') return null;
 
-                  const start = timeToRow(ex.startTime);
-                  let end = timeToRow(ex.endTime);
-                  if (end <= start) end += 48;
+                  // 🔑 rango de fechas real
+                  const from = ex.dateFrom;
+                  const to = ex.dateTo ?? from;
 
-                  const col = ex.weekday; // 1..7 (columna real)
+                  return (ex.blocks || []).map((b, j) => {
 
+                    if (!b.startTime || !b.endTime) return null;
+
+                    const start = timeToRow(b.startTime);
+                    let end = timeToRow(b.endTime);
+                    if (end <= start) end += 48;
+
+                    const col = ex.weekday;
+                    if (!col || col < 1 || col > 7) return null;
+
+                    const cellDateObj = weekDates[col];
+                    if (!cellDateObj) return null;
+
+                    const cellDateStr = formatDateLocal(cellDateObj);
+
+                    if (cellDateStr < from || cellDateStr > to) return null;
+
+                    return (
+                      <div
+                        key={`ex-${i}-${j}-${col}-${cellDateStr}`}
+                        className="turn-preview preview-delete"
+                        style={{
+                          gridColumn: col,
+                          gridRow: `${start + 1} / ${end + 1}`,
+                        }}
+                      />
+                    );
+                  });
+                })}
+                {/* 🟥 DÍA VACÍO (override sin bloques) */}
+                {draftExceptions.map((ex, i) => {
+
+                  if (ex.type !== 'MODIFIED_SHIFT') return null;
+                  if (ex.blocks && ex.blocks.length > 0) return null;
+
+                  const from = ex.dateFrom;
+                  const to = ex.dateTo ?? from;
+
+                  const col = ex.weekday;
                   if (!col || col < 1 || col > 7) return null;
 
                   const cellDateObj = weekDates[col];
                   if (!cellDateObj) return null;
 
                   const cellDateStr = formatDateLocal(cellDateObj);
-
-                  // =========================
-                  // RANGO REAL DE LA EXCEPCIÓN
-                  // =========================
-
-                  // 🔑 SOLO es cascada si el mode es EXACTAMENTE FROM_THIS_DAY_ON
-                  if (ex.mode === 'FROM_THIS_DAY_ON') {
-
-                    const from = ex.date;
-                    const to = ex.validTo ?? null;
-
-                    if (cellDateStr < from) return null;
-                    if (to && cellDateStr > to) return null;
-
-                  } else {
-
-                    // 🔑 TODO lo demás es SOLO ESTE DÍA
-                    if (cellDateStr !== ex.date) return null;
-
-                  }
+                  if (cellDateStr < from || cellDateStr > to) return null;
 
                   return (
                     <div
-                      key={`ex-${i}-${col}-${cellDateStr}`}
+                      key={`empty-${i}-${col}-${cellDateStr}`}
                       className="turn-preview preview-delete"
                       style={{
                         gridColumn: col,
-                        gridRow: `${start + 1} / ${end + 1}`,
+                        gridRow: `1 / -1`, // 🔑 toda la columna del día
+                        opacity: 0.25,
                       }}
                     />
                   );
                 })}
-                {/* 🖊️ PREVIEW SOLO PARA ADD / EDIT */}
-                {editingPreview && editingPreview.type !== 'DELETE' && (
+                {/* 🖊️ PREVIEW ADD / EDIT / DELETE */}
+                {editingPreview && editingPreview.startTime && editingPreview.endTime && (
+
                   <div
-                    className={`turn-preview preview-add`}
+                    key={`preview-${editingPreview.day}-${editingPreview.startTime}`}
+                    className={`turn-preview ${editingPreview.type === 'DELETE'
+                      ? 'preview-delete'
+                      : 'preview-add'
+                      }`}
                     style={{
-                      gridColumn: editingPreview.col,
-                      gridRow: `${timeToRow(editingPreview.startTime) + 1}
-        / ${timeToRow(editingPreview.endTime) + 1}`,
+                      gridColumn: editingPreview.col ?? editingPreview.day,
+                      gridRow: `${timeToRow(editingPreview.startTime) + 1
+                        } / ${timeToRow(editingPreview.endTime) + 1
+                        }`,
                     }}
                   >
                     {editingPreview.startTime} – {editingPreview.endTime}
                   </div>
+
                 )}
 
               </div>
