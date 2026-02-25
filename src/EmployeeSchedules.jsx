@@ -113,8 +113,8 @@ export default function EmployeeSchedules() {
   const [deleteSummary, setDeleteSummary] = useState('');
   //    EDITADO DE TURNOS (UX) 
   const [editShiftMode, setEditShiftMode] = useState('ONLY_THIS_BLOCK');
-  const pushOverlay = entry =>
-    setCalendarOverlay(prev => [...prev, entry]);
+
+
   // 🟠 CAMBIOS DEL USUARIO
   const [draftTurns, setDraftTurns] = useState([]);
 
@@ -122,7 +122,6 @@ export default function EmployeeSchedules() {
   const [weekStart, setWeekStart] = useState(() => normalizeToWeekStart(new Date()));
   const [saving, setSaving] = useState(false);
 
-  const [calendarOverlay, setCalendarOverlay] = useState([]);
   const [draftExceptions, setDraftExceptions] = useState([]);
 
   const ROW_HEIGHT = 24;
@@ -145,10 +144,36 @@ export default function EmployeeSchedules() {
     return result; // usamos solo 1..7
   }, [weekStart]);
 
+  useEffect(() => {
+    return () => {
+      setCalendarOverlay([]);
+    };
+  }, []);
+
+  const [calendarOverlay, setCalendarOverlay] = useState([]);
+
+  function pushOverlay(entry) {
+    setCalendarOverlay(prev => {
+
+      const filtered = prev.filter(o =>
+        !(
+          o.weekday === entry.weekday &&
+          o.dateFrom === entry.dateFrom &&
+          o.dateTo === entry.dateTo &&
+          o.startTime === entry.startTime &&
+          o.endTime === entry.endTime &&
+          o.kind === entry.kind
+        )
+      );
+
+      return [...filtered, entry];
+    });
+  }
   console.log(
     '🧪 DEBUG weekDates CALCULADAS:',
     weekDates.slice(1).map(d => formatDateLocal(d))
   );
+
 
   async function reloadActiveSchedule() {
     // 🛑 BLINDAJE DE INICIALIZACIÓN
@@ -754,12 +779,12 @@ export default function EmployeeSchedules() {
         });
 
         pushOverlay({
-          kind: 'ADD',
+          kind: 'DELETE',
           weekday: col,
           dateFrom: date,
-          dateTo: date,
-          startTime: newStart,
-          endTime: oldStart,
+          dateTo: mode === 'FROM_THIS_DAY_ON' ? null : date,
+          startTime: oldStart,
+          endTime: oldEnd,
         });
       }
 
@@ -1279,6 +1304,7 @@ export default function EmployeeSchedules() {
       setDraftTurns([]);
       setDraftExceptions([]);
       setRemovedTurns([]);
+      setCalendarOverlay([]);
       window.history.back();
 
     } catch (err) {
