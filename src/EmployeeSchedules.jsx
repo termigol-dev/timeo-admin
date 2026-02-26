@@ -699,7 +699,7 @@ export default function EmployeeSchedules() {
     }
   }
 
-  async function handleConfirmEditShift({ deleting = false } = {}) {
+  async function firmEditShift({ deleting = false } = {}) {
 
     function cleanup({ keepPreview = false } = {}) {
       setEditingShift(null);
@@ -831,20 +831,16 @@ export default function EmployeeSchedules() {
       },
     ]);
 
-    // ====================================================
-    // D — END_SHIFT estructural (SOLO infinito)
-    // ====================================================
     if (infinite) {
-      setRemovedTurns(prev => ([
-        ...prev,
-        {
-          shiftId: base.shiftId,
-          date,
-          endPattern: true,
-        },
-      ]));
-    }
-
+  setRemovedTurns(prev => ([
+    ...prev,
+    {
+      shiftId: base.id ?? base.shiftId, // 🔑 CLAVE
+      date,
+      endPattern: true,
+    },
+  ]));
+}
     cleanup({ keepPreview: true });
 
 
@@ -1234,14 +1230,13 @@ export default function EmployeeSchedules() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            exceptions: [
-              {
-                type: 'MODIFIED_SHIFT',
-                date: op.date,
-                blocks: op.blocks,
-              },
-            ],
-          }),
+            source: 'PANEL',
+            mode: 'FROM_THIS_DAY_ON',
+            dateFrom: op.data.date,
+            weekday: op.data.weekday,
+            startTime: op.data.startTime,
+            endTime: op.data.endTime,
+          })
         }
       );
 
