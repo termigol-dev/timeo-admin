@@ -1220,6 +1220,9 @@ export default function EmployeeSchedules() {
 
     const { scheduleId, token, companyId, branchId } = ctx;
 
+    // =============================
+    // SNAPSHOT / EXCEPTION
+    // =============================
     if (op.type === 'OVERRIDE_DAY') {
 
       await fetch(
@@ -1245,27 +1248,41 @@ export default function EmployeeSchedules() {
       return;
     }
 
+    // =============================
+    // CREATE
+    // =============================
     if (op.type === 'CREATE_SHIFT') {
       await saveTurnToBackend(scheduleId, op.data);
       return;
     }
 
+    // =============================
+    // END PATTERN (⭐ IMPORTANTE)
+    // =============================
     if (op.type === 'END_SHIFT') {
 
+      // calcular día anterior
+      const d = new Date(op.data.date);
+      d.setDate(d.getDate() - 1);
+
+      const validTo =
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0');
+
       await fetch(
-        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts/end-pattern`,
         {
-          method: 'DELETE',
+          method: 'PATCH',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            source: 'PANEL',
-            mode: 'FROM_THIS_DAY_ON',
-            dateFrom: op.data.date,
-            startTime: op.data.startTime,
-            endTime: op.data.endTime,
+            shiftId: op.data.shiftId,
+            validTo,
           }),
         }
       );
@@ -1273,7 +1290,6 @@ export default function EmployeeSchedules() {
       return;
     }
   }
-
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
 
