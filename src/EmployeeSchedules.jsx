@@ -699,7 +699,7 @@ export default function EmployeeSchedules() {
     }
   }
 
-  async function firmEditShift({ deleting = false } = {}) {
+  async function HandleConfirmEditShift({ deleting = false } = {}) {
 
     function cleanup({ keepPreview = false } = {}) {
       setEditingShift(null);
@@ -830,9 +830,10 @@ export default function EmployeeSchedules() {
         blocks: cleaned,
       },
     ]);
-
+    console.log('🧪 BASE SHIFT (DELETE CASCADE)', base);
     if (infinite) {
-  setRemovedTurns(prev => ([
+    console.log('🧪 SHIFT ID QUE SE ENVÍA', base.id, base.shiftId);
+    setRemovedTurns(prev => ([
     ...prev,
     {
       shiftId: base.id ?? base.shiftId, // 🔑 CLAVE
@@ -1078,17 +1079,17 @@ export default function EmployeeSchedules() {
       });
     }
 
-    // =============================
-    // END STRUCTURAL
-    // =============================
-    for (const rt of removedTurns) {
-      if (rt.endPattern) {
-        ops.push({
-          type: 'END_SHIFT',
-          data: rt,
-        });
-      }
-    }
+   // =============================
+// END STRUCTURAL (cerrar patrón)
+// =============================
+for (const rt of removedTurns) {
+  if (rt.endPattern) {
+    ops.push({
+      type: 'END_SHIFT',
+      data: rt,
+    });
+  }
+}
 
     return ops;
   }
@@ -1256,34 +1257,39 @@ export default function EmployeeSchedules() {
     // =============================
     if (op.type === 'END_SHIFT') {
 
-      // calcular día anterior
-      const d = new Date(op.data.date);
-      d.setDate(d.getDate() - 1);
+  const dayBefore = (dateStr) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - 1);
 
-      const validTo =
-        d.getFullYear() +
-        '-' +
-        String(d.getMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(d.getDate()).padStart(2, '0');
+    return (
+      dt.getFullYear() +
+      '-' +
+      String(dt.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(dt.getDate()).padStart(2, '0')
+    );
+  };
 
-      await fetch(
-        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts/end-pattern`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            shiftId: op.data.shiftId,
-            validTo,
-          }),
-        }
-      );
+  const validTo = dayBefore(op.data.date);
 
-      return;
+  await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts/${op.data.shiftId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        validTo,
+        source: 'PANEL',
+      }),
     }
+  );
+
+  return;
+}
   }
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
