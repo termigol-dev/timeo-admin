@@ -699,149 +699,152 @@ export default function EmployeeSchedules() {
     }
   }
 
- async function handleConfirmEditShift({ deleting = false } = {}) {
-  console.log("🔥 NUEVO HANDLE");
-  console.trace('TRACE handleConfirmEditShift');
+  async function handleConfirmEditShift({ deleting = false } = {}) {
+    console.log('🧪 MODE DEBUG', {
+      baseMode: base.mode,
+      deleteShiftMode,
+      finalMode: base.mode || deleteShiftMode
+    });
 
-  const base = deleting ? shiftToDelete : editingShift;
-  if (!base) return;
+    const base = deleting ? shiftToDelete : editingShift;
+    if (!base) return;
 
-  const oldStart = base.startTime;
-  const oldEnd = base.endTime;
+    const oldStart = base.startTime;
+    const oldEnd = base.endTime;
 
-  const newStart = deleting ? null : startTime;
-  const newEnd = deleting ? null : endTime;
+    const newStart = deleting ? null : startTime;
+    const newEnd = deleting ? null : endTime;
 
-  const date = base.date;
-  const day = base.day;
-  const mode = base.mode || deleteShiftMode || 'ONLY_THIS_BLOCK';
+    const date = base.date;
+    const day = base.day;
+    const mode = base.mode || deleteShiftMode || 'ONLY_THIS_BLOCK';
 
-  const weekdayIndex = weekDays.indexOf(day);
+    const weekdayIndex = weekDays.indexOf(day);
 
-  const destroyPattern =
-    deleting ||
-    (newStart > oldStart) ||
-    (newEnd < oldEnd);
+    const destroyPattern =
+      deleting ||
+      (newStart > oldStart) ||
+      (newEnd < oldEnd);
 
-  const infinite = mode === 'FROM_THIS_DAY_ON';
+    const infinite = mode === 'FROM_THIS_DAY_ON';
 
-  // ====================================================
-  // A — NO destruye → EXTENSIÓN (NO TOCAR)
-  // ====================================================
-  if (!destroyPattern) {
+    // ====================================================
+    // A — NO destruye → EXTENSIÓN (NO TOCAR)
+    // ====================================================
+    if (!destroyPattern) {
 
-    const deltas = [];
+      const deltas = [];
 
-    if (newStart < oldStart) {
-      deltas.push({
-        days: [day],
-        startTime: newStart,
-        endTime: oldStart,
-        source: 'draft-extension',
-        validFrom: date,
-        validTo: date,
-      });
+      if (newStart < oldStart) {
+        deltas.push({
+          days: [day],
+          startTime: newStart,
+          endTime: oldStart,
+          source: 'draft-extension',
+          validFrom: date,
+          validTo: date,
+        });
+      }
+
+      if (newEnd > oldEnd) {
+        deltas.push({
+          days: [day],
+          startTime: oldEnd,
+          endTime: newEnd,
+          source: 'draft-extension',
+          validFrom: date,
+          validTo: date,
+        });
+      }
+
+      setDraftTurns(prev => [...prev, ...deltas]);
+      cleanup();
+      return;
     }
 
-    if (newEnd > oldEnd) {
-      deltas.push({
-        days: [day],
-        startTime: oldEnd,
-        endTime: newEnd,
-        source: 'draft-extension',
-        validFrom: date,
-        validTo: date,
-      });
-    }
+    // ====================================================
+    // B — SNAPSHOT visible del día
+    // ====================================================
+    let visibleTurns;
 
-    setDraftTurns(prev => [...prev, ...deltas]);
-    cleanup();
-    return;
-  }
+    if (deleting) {
 
-  // ====================================================
-  // B — SNAPSHOT visible del día
-  // ====================================================
-  let visibleTurns;
-
-  if (deleting) {
-
-    visibleTurns = turns
-      .filter(t => t.date === date)
-      .filter(t => !(t.startTime === oldStart && t.endTime === oldEnd))
-      .map(t => ({
-        startTime: t.startTime,
-        endTime: t.endTime,
-      }));
-
-  } else {
-
-    visibleTurns = turns
-      .filter(t => t.date === date)
-      .map(t => {
-
-        if (
-          t.startTime === oldStart &&
-          t.endTime === oldEnd
-        ) {
-          return {
-            startTime: newStart,
-            endTime: newEnd,
-          };
-        }
-
-        return {
+      visibleTurns = turns
+        .filter(t => t.date === date)
+        .filter(t => !(t.startTime === oldStart && t.endTime === oldEnd))
+        .map(t => ({
           startTime: t.startTime,
           endTime: t.endTime,
-        };
-      });
-  }
+        }));
 
-  const cleaned = visibleTurns.filter(b => b.startTime && b.endTime);
+    } else {
 
-  // ====================================================
-  // C — Draft Exception (DIBUJO)
-  // ====================================================
-  setDraftExceptions(prev => [
-    ...prev,
-    {
-      type: 'MODIFIED_SHIFT',
-      weekday: weekdayIndex,
-      dateFrom: date,
-      dateTo: infinite ? null : date,
-      blocks: cleaned,
-    },
-  ]);
+      visibleTurns = turns
+        .filter(t => t.date === date)
+        .map(t => {
 
-  // ====================================================
-  // D — END_SHIFT estructural (SOLO infinito)
-  // ====================================================
-  if (infinite) {
-    setRemovedTurns(prev => ([
-      ...prev,
-      {
-        shiftId: base.shiftId,
-        date,
-        endPattern: true,
-      },
-    ]));
-  }
+          if (
+            t.startTime === oldStart &&
+            t.endTime === oldEnd
+          ) {
+            return {
+              startTime: newStart,
+              endTime: newEnd,
+            };
+          }
 
-  cleanup({ keepPreview: true });
-
-  function cleanup({ keepPreview = false } = {}) {
-    setEditingShift(null);
-    setShiftToDelete(null);
-
-    if (!keepPreview) {
-      setEditingPreview(null);
+          return {
+            startTime: t.startTime,
+            endTime: t.endTime,
+          };
+        });
     }
 
-    setSelectedDays([]);
-    setStartTime('');
-    setEndTime('');
+    const cleaned = visibleTurns.filter(b => b.startTime && b.endTime);
+
+    // ====================================================
+    // C — Draft Exception (DIBUJO)
+    // ====================================================
+    setDraftExceptions(prev => [
+      ...prev,
+      {
+        type: 'MODIFIED_SHIFT',
+        weekday: weekdayIndex,
+        dateFrom: date,
+        dateTo: infinite ? null : date,
+        blocks: cleaned,
+      },
+    ]);
+
+    // ====================================================
+    // D — END_SHIFT estructural (SOLO infinito)
+    // ====================================================
+    if (infinite) {
+      setRemovedTurns(prev => ([
+        ...prev,
+        {
+          shiftId: base.shiftId,
+          date,
+          endPattern: true,
+        },
+      ]));
+    }
+
+    cleanup({ keepPreview: true });
+
+    function cleanup({ keepPreview = false } = {}) {
+      setEditingShift(null);
+      setShiftToDelete(null);
+
+      if (!keepPreview) {
+        setEditingPreview(null);
+      }
+
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+    }
   }
-}
 
   function diffDays(from, to) {
     const d1 = new Date(from);
@@ -1926,8 +1929,8 @@ export default function EmployeeSchedules() {
                     />
                   );
                 })}
-                {console.log('🎯 OVERLAY RENDER', calendarOverlay)}
-              
+
+
                 {/* 🖊️ PREVIEW ADD / EDIT / DELETE */}
                 {editingPreview && editingPreview.startTime && editingPreview.endTime && (
 
