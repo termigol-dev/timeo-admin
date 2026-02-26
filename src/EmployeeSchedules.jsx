@@ -739,8 +739,9 @@ export default function EmployeeSchedules() {
 
     const date = base.date;
     const day = base.day;
-    const col = base.col;
     const mode = base.mode || deleteShiftMode || 'ONLY_THIS_BLOCK';
+
+    const weekdayIndex = weekDays.indexOf(day);
 
     const destroyPattern =
       deleting ||
@@ -751,18 +752,8 @@ export default function EmployeeSchedules() {
       mode === 'ONLY_THIS_BLOCK' ||
       mode === 'RANGE';
 
-    // =================================
-    // ⭐ helper overlay
-    // =================================
-    const pushOverlay = payload => {
-      setCalendarOverlay(prev => [
-        ...prev,
-        payload,
-      ]);
-    };
-
     // ================================
-    // A — NO destruye → CREATE
+    // A — NO destruye → extensión
     // ================================
     if (!destroyPattern) {
 
@@ -777,15 +768,6 @@ export default function EmployeeSchedules() {
           validFrom: date,
           validTo: date,
         });
-
-        pushOverlay({
-          kind: 'DELETE',
-          weekday: col,
-          dateFrom: date,
-          dateTo: mode === 'FROM_THIS_DAY_ON' ? null : date,
-          startTime: oldStart,
-          endTime: oldEnd,
-        });
       }
 
       if (newEnd > oldEnd) {
@@ -797,15 +779,6 @@ export default function EmployeeSchedules() {
           validFrom: date,
           validTo: date,
         });
-
-        pushOverlay({
-          kind: 'ADD',
-          weekday: col,
-          dateFrom: date,
-          dateTo: date,
-          startTime: oldEnd,
-          endTime: newEnd,
-        });
       }
 
       setDraftTurns(prev => [...prev, ...deltas]);
@@ -814,127 +787,57 @@ export default function EmployeeSchedules() {
     }
 
     // ================================
-    // B — destruye finito → SNAPSHOT
+    // B — destruye → excepción (CLAVE)
     // ================================
-    if (finite) {
+    let visibleTurns;
 
-      let visibleTurns;
+    if (deleting) {
 
-      // =================================
-      // 🔴 BORRADO COMPLETO DEL BLOQUE
-      // =================================
-      if (deleting) {
+      visibleTurns = turns
+        .filter(t => t.date === date)
+        .filter(t => !(t.startTime === oldStart && t.endTime === oldEnd))
+        .map(t => ({
+          startTime: t.startTime,
+          endTime: t.endTime,
+        }));
 
-        pushOverlay({
-          kind: 'DELETE',
-          weekday: col,
-          dateFrom: base.dateFrom || date,
-          dateTo: base.dateTo || date,
-          startTime: oldStart,
-          endTime: oldEnd,
-        });
+    } else {
 
-        visibleTurns = turns
-          .filter(t => t.date === date)
-          .filter(t => !(t.startTime === oldStart && t.endTime === oldEnd))
-          .map(t => ({
+      visibleTurns = turns
+        .filter(t => t.date === date)
+        .map(t => {
+
+          if (
+            t.startTime === oldStart &&
+            t.endTime === oldEnd
+          ) {
+            return {
+              startTime: newStart,
+              endTime: newEnd,
+            };
+          }
+
+          return {
             startTime: t.startTime,
             endTime: t.endTime,
-          }));
-
-      }
-
-      // =================================
-      // ✏️ EDICIÓN (ACORTAR)
-      // =================================
-      else {
-
-        // 🔴 parte eliminada al inicio
-        if (newStart && newStart > oldStart) {
-          pushOverlay({
-            kind: 'DELETE',
-            weekday: col,
-            dateFrom: base.dateFrom || date,
-            dateTo: base.dateTo || date,
-            startTime: oldStart,
-            endTime: newStart,
-          });
-        }
-
-        // 🔴 parte eliminada al final
-        if (newEnd && newEnd < oldEnd) {
-          pushOverlay({
-            kind: 'DELETE',
-            weekday: col,
-            dateFrom: base.dateFrom || date,
-            dateTo: base.dateTo || date,
-            startTime: newEnd,
-            endTime: oldEnd,
-          });
-        }
-
-        visibleTurns = turns
-          .filter(t => t.date === date)
-          .map(t => {
-
-            if (
-              t.startTime === oldStart &&
-              t.endTime === oldEnd
-            ) {
-              return {
-                startTime: newStart,
-                endTime: newEnd,
-              };
-            }
-
-            return {
-              startTime: t.startTime,
-              endTime: t.endTime,
-            };
-          });
-      }
-
-      const cleaned = visibleTurns.filter(
-        b => b.startTime && b.endTime
-      );
-
-      setDraftExceptions(prev => [
-        ...prev,
-        {
-          type: 'MODIFIED_SHIFT',
-          dateFrom: base.dateFrom || date,
-          dateTo: base.dateTo || date,
-          weekday: col,
-          blocks: cleaned,
-        },
-      ]);
-
-      cleanup({ keepPreview: true });
-      return;
+          };
+        });
     }
 
-    // ================================
-    // C — destruye infinito
-    // ================================
-    pushOverlay({
-      kind: 'DELETE',
-      weekday: col,
-      dateFrom: date,
-      dateTo: null,
-      startTime: oldStart,
-      endTime: oldEnd,
-    });
+    const cleaned = visibleTurns.filter(b => b.startTime && b.endTime);
 
-    setRemovedTurns(prev => ([
+    setDraftExceptions(prev => [
       ...prev,
       {
-        shiftId: base.shiftId,
-        date,
-        endPattern: true,
+        type: 'MODIFIED_SHIFT',
+        weekday: weekdayIndex,
+        dateFrom: date,
+        dateTo: mode === 'FROM_THIS_DAY_ON' ? null : date,
+        blocks: cleaned,
       },
-    ]));
+    ]);
 
-    cleanup();
+    cleanup({ keepPreview: true });
 
     function cleanup({ keepPreview = false } = {}) {
       setEditingShift(null);
@@ -1135,7 +1038,9 @@ export default function EmployeeSchedules() {
 
     for (const ex of draftExceptions) {
 
-      const dates = expandLocalDates(ex.dateFrom, ex.dateTo);
+      const dates = ex.dateTo
+        ? expandLocalDates(ex.dateFrom, ex.dateTo)
+        : [ex.dateFrom];
 
       for (const date of dates) {
         ops.push({
@@ -1184,7 +1089,7 @@ export default function EmployeeSchedules() {
     // END STRUCTURAL
     // =============================
     for (const rt of removedTurns) {
-      if (rt.mode === 'FROM_THIS_DAY_ON') {
+      if (rt.endPattern) {
         ops.push({
           type: 'END_SHIFT',
           data: rt,
@@ -1947,11 +1852,10 @@ export default function EmployeeSchedules() {
                   })
                 )}
 
-                {/* 🟥 BLOQUES NEGROS (EXCEPCIONES REAL TIMEO) */}
+                {/* 🟥 BLOQUES NEGROS (EXCEPCIONES) */}
                 {draftExceptions.map((ex, i) => {
 
                   if (ex.type !== 'MODIFIED_SHIFT') return null;
-                  if (!ex.blocks) return null;
 
                   const col = ex.weekday;
                   if (!col || col < 1 || col > 7) return null;
@@ -1962,10 +1866,26 @@ export default function EmployeeSchedules() {
                   const cellDateStr = formatDateLocal(cellDateObj);
 
                   const from = ex.dateFrom;
-                  const to = ex.dateTo ?? ex.dateFrom;
+                  const to = ex.dateTo;
 
+                  // ⭐ CLAVE — rango infinito
                   if (cellDateStr < from) return null;
                   if (to && cellDateStr > to) return null;
+
+                  // ⭐ si no hay bloques → día vacío
+                  if (!ex.blocks || ex.blocks.length === 0) {
+                    return (
+                      <div
+                        key={`empty-${i}-${col}-${cellDateStr}`}
+                        className="turn-preview preview-delete"
+                        style={{
+                          gridColumn: col,
+                          gridRow: `1 / -1`,
+                          opacity: 0.25,
+                        }}
+                      />
+                    );
+                  }
 
                   return ex.blocks.map((b, j) => {
 
