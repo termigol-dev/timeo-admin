@@ -699,7 +699,7 @@ export default function EmployeeSchedules() {
     }
   }
 
-  async function HandleConfirmEditShift({ deleting = false } = {}) {
+  async function handleConfirmEditShift({ deleting = false } = {}) {
 
     function cleanup({ keepPreview = false } = {}) {
       setEditingShift(null);
