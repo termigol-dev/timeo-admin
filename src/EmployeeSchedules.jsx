@@ -700,15 +700,30 @@ export default function EmployeeSchedules() {
   }
 
   async function handleConfirmEditShift({ deleting = false } = {}) {
+
+    function cleanup({ keepPreview = false } = {}) {
+      setEditingShift(null);
+      setShiftToDelete(null);
+
+      if (!keepPreview) {
+        setEditingPreview(null);
+      }
+
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+    }
+
+    const base = deleting ? shiftToDelete : editingShift;
+    if (!base) return;
+    
+    
     console.log('🧪 MODE DEBUG', {
       baseMode: base.mode,
       deleteShiftMode,
       finalMode: base.mode || deleteShiftMode
     });
-
-    const base = deleting ? shiftToDelete : editingShift;
-    if (!base) return;
-
+    
     const oldStart = base.startTime;
     const oldEnd = base.endTime;
 
@@ -832,18 +847,7 @@ export default function EmployeeSchedules() {
 
     cleanup({ keepPreview: true });
 
-    function cleanup({ keepPreview = false } = {}) {
-      setEditingShift(null);
-      setShiftToDelete(null);
 
-      if (!keepPreview) {
-        setEditingPreview(null);
-      }
-
-      setSelectedDays([]);
-      setStartTime('');
-      setEndTime('');
-    }
   }
 
   function diffDays(from, to) {
