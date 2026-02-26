@@ -716,14 +716,14 @@ export default function EmployeeSchedules() {
 
     const base = deleting ? shiftToDelete : editingShift;
     if (!base) return;
-    
-    
+
+
     console.log('🧪 MODE DEBUG', {
       baseMode: base.mode,
       deleteShiftMode,
       finalMode: base.mode || deleteShiftMode
     });
-    
+
     const oldStart = base.startTime;
     const oldEnd = base.endTime;
 
@@ -1736,32 +1736,43 @@ export default function EmployeeSchedules() {
                       weekStart.getDate() + (col - 1)
                     );
                     const currentDate = formatDateLocal(currentDateObj);
-                    const isRemovedByException = draftExceptions.some(ex => {
+                    // 🔑 buscar excepción aplicable a este turno
+                    const ex = draftExceptions.find(e => {
 
-                      if (ex.type !== 'MODIFIED_SHIFT') return false;
+                      if (e.type !== 'MODIFIED_SHIFT') return false;
+                      if (e.weekday !== col) return false;
 
-                      if (
-                        ex.startTime !== t.startTime ||
-                        ex.endTime !== t.endTime
-                      ) return false;
-
-                      if (ex.weekday !== col) return false;
-
-                      // 🔑 SOLO ESTE BLOQUE
-                      if (!ex.mode || ex.mode === 'ONLY_THIS_BLOCK') {
-                        return currentDate === ex.date;
-                      }
-
-                      // 🔑 DESDE ESTE DÍA EN ADELANTE
-                      const from = ex.date;
-                      const to = ex.validTo ?? null;
+                      const from = e.dateFrom;
+                      const to = e.dateTo;
 
                       if (currentDate < from) return false;
                       if (to && currentDate > to) return false;
 
                       return true;
                     });
-                    if (isRemovedByException) return null;
+
+                    // 🔴 si hay excepción → comprobar si el bloque sigue existiendo
+                    if (ex) {
+
+                      const stillExists = ex.blocks?.some(b =>
+                        b.startTime === t.startTime &&
+                        b.endTime === t.endTime
+                      );
+
+                      // ❌ bloque eliminado → pintar negro
+                      if (!stillExists) {
+                        return (
+                          <div
+                            key={`deleted-${t.id}-${day}`}
+                            className="turn-preview preview-delete"
+                            style={{
+                              gridColumn: col,
+                              gridRow: `${start + 1} / ${end + 1}`,
+                            }}
+                          />
+                        );
+                      }
+                    }
 
                     // 🔴 ocultar SOLO el bloque exacto en preview DELETE
                     if (
@@ -1846,94 +1857,6 @@ export default function EmployeeSchedules() {
                     );
                   })
                 )}
-
-                {/* 🟥 BLOQUES NEGROS (EXCEPCIONES) */}
-                {draftExceptions.map((ex, i) => {
-
-                  if (ex.type !== 'MODIFIED_SHIFT') return null;
-
-                  const col = ex.weekday;
-                  if (!col || col < 1 || col > 7) return null;
-
-                  const cellDateObj = weekDates[col];
-                  if (!cellDateObj) return null;
-
-                  const cellDateStr = formatDateLocal(cellDateObj);
-
-                  const from = ex.dateFrom;
-                  const to = ex.dateTo;
-
-                  // ⭐ CLAVE — rango infinito
-                  if (cellDateStr < from) return null;
-                  if (to && cellDateStr > to) return null;
-
-                  // ⭐ si no hay bloques → día vacío
-                  if (!ex.blocks || ex.blocks.length === 0) {
-                    return (
-                      <div
-                        key={`empty-${i}-${col}-${cellDateStr}`}
-                        className="turn-preview preview-delete"
-                        style={{
-                          gridColumn: col,
-                          gridRow: `1 / -1`,
-                          opacity: 0.25,
-                        }}
-                      />
-                    );
-                  }
-
-                  return ex.blocks.map((b, j) => {
-
-                    if (!b.startTime || !b.endTime) return null;
-
-                    const start = timeToRow(b.startTime);
-                    let end = timeToRow(b.endTime);
-                    if (end <= start) end += 48;
-
-                    return (
-                      <div
-                        key={`ex-${i}-${j}-${col}-${cellDateStr}`}
-                        className="turn-preview preview-delete"
-                        style={{
-                          gridColumn: col,
-                          gridRow: `${start + 1} / ${end + 1}`,
-                        }}
-                      />
-                    );
-                  });
-
-                })}
-                {/* 🟥 DÍA VACÍO (override sin bloques) */}
-                {draftExceptions.map((ex, i) => {
-
-                  if (ex.type !== 'MODIFIED_SHIFT') return null;
-                  if (ex.blocks && ex.blocks.length > 0) return null;
-
-                  const from = ex.dateFrom;
-                  const to = ex.dateTo ?? from;
-
-                  const col = ex.weekday;
-                  if (!col || col < 1 || col > 7) return null;
-
-                  const cellDateObj = weekDates[col];
-                  if (!cellDateObj) return null;
-
-                  const cellDateStr = formatDateLocal(cellDateObj);
-                  if (cellDateStr < from || cellDateStr > to) return null;
-
-                  return (
-                    <div
-                      key={`empty-${i}-${col}-${cellDateStr}`}
-                      className="turn-preview preview-delete"
-                      style={{
-                        gridColumn: col,
-                        gridRow: `1 / -1`, // 🔑 toda la columna del día
-                        opacity: 0.25,
-                      }}
-                    />
-                  );
-                })}
-
 
                 {/* 🖊️ PREVIEW ADD / EDIT / DELETE */}
                 {editingPreview && editingPreview.startTime && editingPreview.endTime && (
