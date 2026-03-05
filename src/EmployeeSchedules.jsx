@@ -832,16 +832,19 @@ export default function EmployeeSchedules() {
     ]);
     console.log('🧪 BASE SHIFT (DELETE CASCADE)', base);
     if (infinite) {
-    console.log('🧪 SHIFT ID QUE SE ENVÍA', base.id, base.shiftId);
-    setRemovedTurns(prev => ([
-    ...prev,
-    {
-      shiftId: base.id ?? base.shiftId, // 🔑 CLAVE
-      date,
-      endPattern: true,
-    },
-  ]));
-}
+
+      setRemovedTurns(prev => ([
+        ...prev,
+        {
+          endPattern: true,
+          weekday: weekdayIndex,
+          startTime: oldStart,
+          endTime: oldEnd,
+          dateFrom: date,
+        },
+      ]));
+
+    }
     cleanup({ keepPreview: true });
 
 
@@ -1079,17 +1082,27 @@ export default function EmployeeSchedules() {
       });
     }
 
-   // =============================
-// END STRUCTURAL (cerrar patrón)
-// =============================
-for (const rt of removedTurns) {
-  if (rt.endPattern) {
-    ops.push({
-      type: 'END_SHIFT',
-      data: rt,
-    });
-  }
-}
+    // =============================
+    // END STRUCTURAL (cerrar patrón)
+    // =============================
+    for (const rt of removedTurns) {
+
+      if (!rt) continue;
+      if (!rt.endPattern) continue;
+
+      const dateFrom = rt.dateFrom ?? rt.date;
+      if (!dateFrom) continue;
+
+      ops.push({
+        type: 'END_SHIFT',
+        data: {
+          weekday: rt.weekday,
+          startTime: rt.startTime,
+          endTime: rt.endTime,
+          dateFrom,
+        },
+      });
+    }
 
     return ops;
   }
@@ -1215,48 +1228,11 @@ for (const rt of removedTurns) {
 
   async function applyOperation(op, ctx) {
 
-    const { scheduleId, token, companyId, branchId } = ctx;
+  const { scheduleId, token, companyId, branchId } = ctx;
 
-    // =============================
-    // SNAPSHOT / EXCEPTION
-    // =============================
-    if (op.type === 'OVERRIDE_DAY') {
+  const API = import.meta.env.VITE_API_URL;
 
-      await fetch(
-        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            source: 'PANEL',
-            mode: 'FROM_THIS_DAY_ON',
-            dateFrom: op.data.date,
-            weekday: op.data.weekday,
-            startTime: op.data.startTime,
-            endTime: op.data.endTime,
-          })
-        }
-      );
-
-      return;
-    }
-
-    // =============================
-    // CREATE
-    // =============================
-    if (op.type === 'CREATE_SHIFT') {
-      await saveTurnToBackend(scheduleId, op.data);
-      return;
-    }
-
-    // =============================
-    // END PATTERN (⭐ IMPORTANTE)
-    // =============================
-    if (op.type === 'END_SHIFT') {
-
+  // helper
   const dayBefore = (dateStr) => {
     const [y, m, d] = dateStr.split('-').map(Number);
     const dt = new Date(y, m - 1, d);
@@ -1271,26 +1247,74 @@ for (const rt of removedTurns) {
     );
   };
 
-  const validTo = dayBefore(op.data.date);
+  // =============================
+  // SNAPSHOT / EXCEPTION
+  // =============================
+  if (op.type === 'OVERRIDE_DAY') {
+
+    await fetch(
+      `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          exceptions: [
+            {
+              type: 'MODIFIED_SHIFT',
+              date: op.date,
+              blocks: op.blocks || [],
+              source: 'PANEL',
+            },
+          ],
+        }),
+      }
+    );
+
+    return;
+  }
+
+  // =============================
+  // CREATE
+  // =============================
+  if (op.type === 'CREATE_SHIFT') {
+    await saveTurnToBackend(scheduleId, op.data);
+    return;
+  }
+
+  // =============================
+  // END PATTERN (⭐ CERRAR TURNO)
+  // =============================
+  if (op.type === 'END_SHIFT') {
+
+  if (!op.data || !op.data.dateFrom) {
+    console.error('END_SHIFT sin dateFrom', op);
+    return;
+  }
 
   await fetch(
-    `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts/${op.data.shiftId}`,
+    `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
     {
-      method: 'PATCH',
+      method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        validTo,
         source: 'PANEL',
+        mode: 'FROM_THIS_DAY_ON',
+        shiftId: op.data.id,   // ← cambio aquí
+        dateFrom: op.data.dateFrom,
       }),
     }
   );
 
   return;
 }
-  }
+}
+
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
 
