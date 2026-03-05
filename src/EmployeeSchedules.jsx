@@ -1035,336 +1035,357 @@ export default function EmployeeSchedules() {
     setEditingPreview(preview);
   }
 
-  function buildOperationsFromCalendar({
-    turns,
-    draftTurns,
-    removedTurns,
-    draftExceptions,
-  }) {
+ function buildOperationsFromCalendar({
+  turns,
+  draftTurns,
+  removedTurns,
+  draftExceptions,
+}) {
 
-    const ops = [];
+  const ops = [];
 
-    // helper agrupar por fecha
-    const groupByDate = arr =>
-      arr.reduce((acc, t) => {
-        if (!t.date) return acc;
-        acc[t.date] = acc[t.date] || [];
-        acc[t.date].push(t);
-        return acc;
-      }, {});
+  // helper agrupar por fecha
+  const groupByDate = arr =>
+    arr.reduce((acc, t) => {
+      if (!t.date) return acc;
+      acc[t.date] = acc[t.date] || [];
+      acc[t.date].push(t);
+      return acc;
+    }, {});
 
-    const visibleByDate = groupByDate(turns);
+  const visibleByDate = groupByDate(turns);
 
-    // =============================
-    // OVERRIDE DAYS (snapshot real)
-    // =============================
-    const expandLocalDates = (fromStr, toStr) => {
+  // =============================
+  // OVERRIDE DAYS (snapshot real)
+  // =============================
+  const expandLocalDates = (fromStr, toStr) => {
 
-      const parse = s => {
-        const [y, m, d] = s.split('-').map(Number);
-        const dt = new Date(y, m - 1, d);
-        dt.setHours(0, 0, 0, 0);
-        return dt;
-      };
-
-      const format = d =>
-        d.getFullYear() +
-        '-' +
-        String(d.getMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(d.getDate()).padStart(2, '0');
-
-      const from = parse(fromStr);
-      const to = parse(toStr || fromStr);
-
-      const out = [];
-
-      for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-        out.push(format(d));
-      }
-
-      return out;
+    const parse = s => {
+      const [y, m, d] = s.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setHours(0, 0, 0, 0);
+      return dt;
     };
 
-    for (const ex of draftExceptions) {
+    const format = d =>
+      d.getFullYear() +
+      '-' +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(d.getDate()).padStart(2, '0');
 
-      const dates = ex.dateTo
-        ? expandLocalDates(ex.dateFrom, ex.dateTo)
-        : [ex.dateFrom];
+    const from = parse(fromStr);
+    const to = parse(toStr || fromStr);
 
-      for (const date of dates) {
-        ops.push({
-          type: 'OVERRIDE_DAY',
-          date,
-          blocks: ex.blocks || [],
-        });
-      }
+    const out = [];
+
+    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      out.push(format(d));
     }
 
-    // =============================
-    // DELTA EXTENSIONS
-    // =============================
-    for (const date in visibleByDate) {
+    return out;
+  };
 
-      const dayTurns = visibleByDate[date];
+  for (const ex of draftExceptions) {
 
-      for (const t of dayTurns) {
+    const dates = ex.dateTo
+      ? expandLocalDates(ex.dateFrom, ex.dateTo)
+      : [ex.dateFrom];
 
-        if (t.source !== 'draft-extension') continue;
-
-        ops.push({
-          type: 'CREATE_SHIFT',
-          data: {
-            weekday: t.weekday,
-            startTime: t.startTime,
-            endTime: t.endTime,
-            validFrom: date,
-            validTo: date,
-          },
-        });
-      }
-    }
-
-    // =============================
-    // CREATE STRUCTURAL
-    // =============================
-    for (const turn of draftTurns) {
+    for (const date of dates) {
       ops.push({
-        type: 'CREATE_SHIFT',
-        data: turn,
+        type: 'OVERRIDE_DAY',
+        date,
+        blocks: ex.blocks || [],
       });
     }
+  }
 
-    // =============================
-    // END STRUCTURAL (cerrar patrón)
-    // =============================
-    for (const rt of removedTurns) {
+  // =============================
+  // DELTA EXTENSIONS
+  // =============================
+  for (const date in visibleByDate) {
 
-      if (!rt) continue;
-      if (!rt.endPattern) continue;
+    const dayTurns = visibleByDate[date];
 
-      const dateFrom = rt.dateFrom ?? rt.date;
-      if (!dateFrom) continue;
+    for (const t of dayTurns) {
+
+      if (t.source !== 'draft-extension') continue;
 
       ops.push({
-        type: 'END_SHIFT',
+        type: 'CREATE_SHIFT',
         data: {
-          weekday: rt.weekday,
-          startTime: rt.startTime,
-          endTime: rt.endTime,
-          dateFrom,
+          weekday: t.weekday,
+          startTime: t.startTime,
+          endTime: t.endTime,
+          validFrom: date,
+          validTo: date,
         },
       });
     }
-
-    return ops;
   }
+
+  // =============================
+  // CREATE STRUCTURAL
+  // =============================
+  for (const turn of draftTurns) {
+    ops.push({
+      type: 'CREATE_SHIFT',
+      data: turn,
+    });
+  }
+
+  // =============================
+  // END STRUCTURAL (cerrar patrón)
+  // =============================
+  for (const rt of removedTurns) {
+
+    if (!rt) continue;
+    if (!rt.endPattern) continue;
+
+    const dateFrom = rt.dateFrom ?? rt.date;
+    if (!dateFrom) continue;
+
+    ops.push({
+      type: 'END_SHIFT',
+      data: {
+        shiftId: rt.shiftId,   // ⭐ FIX REAL
+        weekday: rt.weekday,
+        startTime: rt.startTime,
+        endTime: rt.endTime,
+        dateFrom,
+      },
+    });
+  }
+
+  return ops;
+}
 
   async function completeSchedule() {
-    const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token');
 
-    console.log('▶️ completeSchedule START', {
-      scheduleId,
-      turns: turns.length,
-      draftTurns: draftTurns.length,
-      removedTurns: removedTurns.length,
-      draftExceptions: draftExceptions.length,
-    });
+  console.log('▶️ completeSchedule START', {
+    scheduleId,
+    turns: turns.length,
+    draftTurns: draftTurns.length,
+    removedTurns: removedTurns.length,
+    draftExceptions: draftExceptions.length,
+  });
 
-    let activeScheduleId = scheduleId;
+  let activeScheduleId = scheduleId;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      // ======================================================
-      // 0️⃣ asegurar schedule
-      // ======================================================
-      if (!activeScheduleId) {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (!res.ok) throw new Error('Error creando horario');
-
-        const newSchedule = await res.json();
-        activeScheduleId = newSchedule.id;
-        setScheduleId(newSchedule.id);
-      }
-
-      const id = activeScheduleId;
-
-      // ======================================================
-      // 🧠 BUILD OPS
-      // ======================================================
-      let ops = buildOperationsFromCalendar({
-        turns,
-        draftTurns,
-        removedTurns,
-        draftExceptions,
-      });
-
-      // quitar basura vacía
-      ops = ops.filter(Boolean);
-
-      console.log(
-        '🧠 OPS GENERADAS:',
-        ops.map(o => ({
-          type: o.type,
-          date: o.date,
-          blocks: o.blocks?.length,
-        }))
+    // ======================================================
+    // 0️⃣ asegurar schedule
+    // ======================================================
+    if (!activeScheduleId) {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
-      // ======================================================
-      // ⚠️ ORDEN IMPORTANTE
-      // snapshot primero
-      // ======================================================
-      const priority = {
-        SNAPSHOT_EXCEPTION: 0,
-        DELETE_SHIFT: 1,
-        ADD_SHIFT: 2,
-        VACATION: 3,
-      };
+      if (!res.ok) throw new Error('Error creando horario');
 
-      ops.sort((a, b) => (priority[a.type] ?? 99) - (priority[b.type] ?? 99));
-
-      // ======================================================
-      // ▶️ EJECUTAR OPS
-      // ======================================================
-      for (const op of ops) {
-        await applyOperation(op, {
-          scheduleId: id,
-          token,
-          companyId,
-          branchId: employee.branchId,
-        });
-      }
-
-      // ======================================================
-      // ✅ CONFIRM SOLO SI HAY CAMBIOS REALES
-      // ======================================================
-      const hasRealChanges = ops.length > 0;
-
-      if (hasRealChanges) {
-        const confirmRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (!confirmRes.ok) {
-          const text = await confirmRes.text();
-          throw new Error('CONFIRM FAILED: ' + text);
-        }
-      }
-
-      console.log('✅ TODO OK — saliendo');
-
-      setDraftTurns([]);
-      setDraftExceptions([]);
-      setRemovedTurns([]);
-      window.history.back();
-
-    } catch (err) {
-      console.error('❌ ERROR EN completeSchedule', err);
-      alert(err.message || 'Error guardando horario');
-    } finally {
-      setSaving(false);
+      const newSchedule = await res.json();
+      activeScheduleId = newSchedule.id;
+      setScheduleId(newSchedule.id);
     }
+
+    const id = activeScheduleId;
+
+    // ======================================================
+    // 🧠 BUILD OPS
+    // ======================================================
+    let ops = buildOperationsFromCalendar({
+      turns,
+      draftTurns,
+      removedTurns,
+      draftExceptions,
+    });
+
+    // quitar basura vacía
+    ops = ops.filter(Boolean);
+
+    // ⭐ NORMALIZAR SHIFT ID
+    ops = ops.map(op => {
+      if (op?.data) {
+        return {
+          ...op,
+          data: {
+            ...op.data,
+            shiftId: op.data.shiftId ?? op.data.id,
+          },
+        };
+      }
+      return op;
+    });
+
+    console.log(
+      '🧠 OPS GENERADAS:',
+      ops.map(o => ({
+        type: o.type,
+        shiftId: o.data?.shiftId,
+        date: o.data?.dateFrom || o.date,
+        blocks: o.blocks?.length,
+      }))
+    );
+
+    // ======================================================
+    // ⚠️ ORDEN IMPORTANTE
+    // snapshot primero
+    // ======================================================
+    const priority = {
+      SNAPSHOT_EXCEPTION: 0,
+      DELETE_SHIFT: 1,
+      ADD_SHIFT: 2,
+      VACATION: 3,
+    };
+
+    ops.sort((a, b) => (priority[a.type] ?? 99) - (priority[b.type] ?? 99));
+
+    // ======================================================
+    // ▶️ EJECUTAR OPS
+    // ======================================================
+    for (const op of ops) {
+      await applyOperation(op, {
+        scheduleId: id,
+        token,
+        companyId,
+        branchId: employee.branchId,
+      });
+    }
+
+    // ======================================================
+    // ✅ CONFIRM SOLO SI HAY CAMBIOS REALES
+    // ======================================================
+    const hasRealChanges = ops.length > 0;
+
+    if (hasRealChanges) {
+      const confirmRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!confirmRes.ok) {
+        const text = await confirmRes.text();
+        throw new Error('CONFIRM FAILED: ' + text);
+      }
+    }
+
+    console.log('✅ TODO OK — saliendo');
+
+    setDraftTurns([]);
+    setDraftExceptions([]);
+    setRemovedTurns([]);
+    window.history.back();
+
+  } catch (err) {
+    console.error('❌ ERROR EN completeSchedule', err);
+    alert(err.message || 'Error guardando horario');
+  } finally {
+    setSaving(false);
   }
+}
 
   async function applyOperation(op, ctx) {
 
-    const { scheduleId, token, companyId, branchId } = ctx;
+  const { scheduleId, token, companyId, branchId } = ctx;
 
-    const API = import.meta.env.VITE_API_URL;
+  const API = import.meta.env.VITE_API_URL;
 
-    // helper
-    const dayBefore = (dateStr) => {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const dt = new Date(y, m - 1, d);
-      dt.setDate(dt.getDate() - 1);
+  // helper
+  const dayBefore = (dateStr) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - 1);
 
-      return (
-        dt.getFullYear() +
-        '-' +
-        String(dt.getMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(dt.getDate()).padStart(2, '0')
-      );
-    };
+    return (
+      dt.getFullYear() +
+      '-' +
+      String(dt.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(dt.getDate()).padStart(2, '0')
+    );
+  };
 
-    // =============================
-    // SNAPSHOT / EXCEPTION
-    // =============================
-    if (op.type === 'OVERRIDE_DAY') {
+  // =============================
+  // SNAPSHOT / EXCEPTION
+  // =============================
+  if (op.type === 'OVERRIDE_DAY') {
 
-      await fetch(
-        `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            exceptions: [
-              {
-                type: 'MODIFIED_SHIFT',
-                date: op.date,
-                blocks: op.blocks || [],
-              },
-            ],
-          }),
-        }
-      );
-
-      return;
-    }
-
-    // =============================
-    // CREATE
-    // =============================
-    if (op.type === 'CREATE_SHIFT') {
-      await saveTurnToBackend(scheduleId, op.data);
-      return;
-    }
-
-    // =============================
-    // END PATTERN (⭐ CERRAR TURNO)
-    // =============================
-    if (op.type === 'END_SHIFT') {
-
-      if (!op.data || !op.data.dateFrom) {
-        console.error('END_SHIFT sin dateFrom', op);
-        return;
+    await fetch(
+      `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          exceptions: [
+            {
+              type: 'MODIFIED_SHIFT',
+              date: op.date,
+              blocks: op.blocks || [],
+            },
+          ],
+        }),
       }
+    );
 
-      await fetch(
-        `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            mode: 'END_SHIFT',
-            shiftId: op.data.id,
-            date: op.data.dateFrom,
-          }),
-        }
-      );
+    return;
+  }
 
+  // =============================
+  // CREATE
+  // =============================
+  if (op.type === 'CREATE_SHIFT') {
+    await saveTurnToBackend(scheduleId, op.data);
+    return;
+  }
+
+  // =============================
+  // END PATTERN (⭐ CERRAR TURNO)
+  // =============================
+  if (op.type === 'END_SHIFT') {
+
+    if (!op.data || !op.data.dateFrom) {
+      console.error('END_SHIFT sin dateFrom', op);
       return;
     }
+
+    console.log("🧪 DELETE PAYLOAD", {
+      shiftId: op.data.shiftId,
+      date: op.data.dateFrom
+    });
+
+    await fetch(
+      `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mode: 'END_SHIFT',
+          shiftId: op.data.shiftId,   // ⭐ FIX REAL
+          date: op.data.dateFrom,
+        }),
+      }
+    );
+
+    return;
   }
+}
 
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
