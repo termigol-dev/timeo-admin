@@ -151,6 +151,7 @@ export default function EmployeeSchedules() {
 
 
   async function reloadActiveSchedule() {
+
     // 🛑 BLINDAJE DE INICIALIZACIÓN
     if (!employee || !employee.branchId || !employeeId) {
       console.log('⏸️ reloadActiveSchedule cancelado: employee no listo aún');
@@ -158,6 +159,7 @@ export default function EmployeeSchedules() {
     }
 
     try {
+
       const token = localStorage.getItem('token');
 
       // 🔑 SIEMPRE FECHA LOCAL — NUNCA ISO
@@ -186,39 +188,86 @@ export default function EmployeeSchedules() {
       }
 
       const schedule = await safeJson(scheduleRes);
+
       console.log('🔄 BACKEND WEEK DATA:', schedule);
+
+      // 🔍 LOG CRÍTICO — ver estructura backend
+      console.log('🧪 RAW DAYS FROM BACKEND', schedule?.days);
 
       // 🔑 LIMPIAR SIEMPRE ESTADO ANTES DE CONSTRUIR
       const loadedTurns = [];
       const loadedVacations = [];
 
       if (schedule && Array.isArray(schedule.days)) {
+
         schedule.days.forEach(day => {
+
           const dayKey = weekDays[day.weekday]; // 🔑 weekday 1..7
+
+          console.log('🧪 PROCESSING DAY', {
+            date: day.date,
+            weekday: day.weekday,
+            turns: day.turns?.length
+          });
 
           // 🟢 TURNOS
           if (Array.isArray(day.turns)) {
+
             day.turns.forEach(t => {
-              loadedTurns.push({
-                id: `${day.date}-${t.startTime}-${t.endTime}`,
+
+              // 🔍 LOG BACKEND SHIFT
+              console.log('🧪 SHIFT DESDE BACKEND', {
+                backendShiftId: t.id,
+                date: day.date,
+                startTime: t.startTime,
+                endTime: t.endTime,
+                source: t.source
+              });
+
+              const uiId = `${day.date}-${t.startTime}-${t.endTime}`;
+
+              const turnBlock = {
+                id: uiId,              // ⭐ id visual del calendario
+                shiftId: t.id,         // ⭐ id REAL de base de datos
                 days: [dayKey],
                 startTime: t.startTime,
                 endTime: t.endTime,
                 type: t.source === 'extra' ? 'extra' : 'regular',
                 source: t.source || 'saved',
                 date: day.date,
+              };
+
+              // 🔍 LOG BLOQUE CALENDARIO
+              console.log('🧪 BLOQUE CALENDARIO CREADO', {
+                uiId: turnBlock.id,
+                shiftId: turnBlock.shiftId,
+                date: turnBlock.date,
+                startTime: turnBlock.startTime,
+                endTime: turnBlock.endTime
               });
+
+              loadedTurns.push(turnBlock);
+
             });
+
           }
 
           // 🟠 VACACIONES
           if (day.isVacation) {
+
+            console.log('🧪 VACATION DETECTED', {
+              date: day.date
+            });
+
             loadedVacations.push({
               date: day.date,
               source: 'saved',
             });
+
           }
+
         });
+
       }
 
       console.log('📊 RESULTADO FINAL SEMANA:', {
@@ -226,16 +275,23 @@ export default function EmployeeSchedules() {
         vacations: loadedVacations.length,
       });
 
+      // 🔍 LOG FINAL DE TURNS
+      console.log('🧪 FINAL TURNS ARRAY', loadedTurns);
+
       setScheduleId(schedule?.scheduleId || null);
       setTurns(loadedTurns);
       setVacations(loadedVacations);
 
     } catch (err) {
+
       console.error('❌ Error en reloadActiveSchedule', err);
+
       setTurns([]);
       setVacations([]);
       setScheduleId(null);
+
     }
+
   }
 
   // 🛡️ BLINDAJE: nunca permitir edición activa si abrimos el popup de opciones
@@ -1228,92 +1284,90 @@ export default function EmployeeSchedules() {
 
   async function applyOperation(op, ctx) {
 
-  const { scheduleId, token, companyId, branchId } = ctx;
+    const { scheduleId, token, companyId, branchId } = ctx;
 
-  const API = import.meta.env.VITE_API_URL;
+    const API = import.meta.env.VITE_API_URL;
 
-  // helper
-  const dayBefore = (dateStr) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
-    dt.setDate(dt.getDate() - 1);
+    // helper
+    const dayBefore = (dateStr) => {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() - 1);
 
-    return (
-      dt.getFullYear() +
-      '-' +
-      String(dt.getMonth() + 1).padStart(2, '0') +
-      '-' +
-      String(dt.getDate()).padStart(2, '0')
-    );
-  };
+      return (
+        dt.getFullYear() +
+        '-' +
+        String(dt.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(dt.getDate()).padStart(2, '0')
+      );
+    };
 
-  // =============================
-  // SNAPSHOT / EXCEPTION
-  // =============================
-  if (op.type === 'OVERRIDE_DAY') {
+    // =============================
+    // SNAPSHOT / EXCEPTION
+    // =============================
+    if (op.type === 'OVERRIDE_DAY') {
 
-    await fetch(
-      `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          exceptions: [
-            {
-              type: 'MODIFIED_SHIFT',
-              date: op.date,
-              blocks: op.blocks || [],
-              source: 'PANEL',
-            },
-          ],
-        }),
-      }
-    );
+      await fetch(
+        `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/exceptions`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            exceptions: [
+              {
+                type: 'MODIFIED_SHIFT',
+                date: op.date,
+                blocks: op.blocks || [],
+              },
+            ],
+          }),
+        }
+      );
 
-    return;
-  }
-
-  // =============================
-  // CREATE
-  // =============================
-  if (op.type === 'CREATE_SHIFT') {
-    await saveTurnToBackend(scheduleId, op.data);
-    return;
-  }
-
-  // =============================
-  // END PATTERN (⭐ CERRAR TURNO)
-  // =============================
-  if (op.type === 'END_SHIFT') {
-
-  if (!op.data || !op.data.dateFrom) {
-    console.error('END_SHIFT sin dateFrom', op);
-    return;
-  }
-
-  await fetch(
-    `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source: 'PANEL',
-        mode: 'FROM_THIS_DAY_ON',
-        shiftId: op.data.id,   // ← cambio aquí
-        dateFrom: op.data.dateFrom,
-      }),
+      return;
     }
-  );
 
-  return;
-}
-}
+    // =============================
+    // CREATE
+    // =============================
+    if (op.type === 'CREATE_SHIFT') {
+      await saveTurnToBackend(scheduleId, op.data);
+      return;
+    }
+
+    // =============================
+    // END PATTERN (⭐ CERRAR TURNO)
+    // =============================
+    if (op.type === 'END_SHIFT') {
+
+      if (!op.data || !op.data.dateFrom) {
+        console.error('END_SHIFT sin dateFrom', op);
+        return;
+      }
+
+      await fetch(
+        `${API}/companies/${companyId}/branches/${branchId}/schedules/${scheduleId}/shifts`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            mode: 'END_SHIFT',
+            shiftId: op.data.id,
+            date: op.data.dateFrom,
+          }),
+        }
+      );
+
+      return;
+    }
+  }
 
   const savedTurns = turns.map(t => ({ ...t, source: 'saved' }));
   const mergedDraftTurns = draftTurns.map(t => ({ ...t, source: 'draft' }));
@@ -1777,6 +1831,7 @@ export default function EmployeeSchedules() {
                       weekStart.getDate() + (col - 1)
                     );
                     const currentDate = formatDateLocal(currentDateObj);
+
                     // 🔑 buscar excepción aplicable a este turno
                     const ex = draftExceptions.find(e => {
 
@@ -1845,9 +1900,10 @@ export default function EmployeeSchedules() {
                           e.stopPropagation();
 
                           setShiftToDelete({
-                            id: t.id,
+                            id: t.id,                // id visual del bloque
+                            shiftId: t.shiftId,      // ⭐ ID REAL DE BASE DE DATOS (FIX)
                             day,
-                            col, // ✅ identidad REAL
+                            col,
                             date: currentDate,
                             startTime: t.startTime,
                             endTime: t.endTime,
@@ -1862,6 +1918,7 @@ export default function EmployeeSchedules() {
                     );
                   })
                 )}
+
                 {/* TURNOS BORRADOR */}
                 {mergedDraftTurns.map((t, i) =>
                   t.days.map(day => {
@@ -1919,7 +1976,6 @@ export default function EmployeeSchedules() {
                   </div>
 
                 )}
-
               </div>
             </div>
 
@@ -2089,18 +2145,23 @@ export default function EmployeeSchedules() {
               <button
                 onClick={() => {
 
-                  // 👉 arrancamos edición usando el modo elegido aquí
-                  setEditingShift({
+                  console.log('🧪 EDIT SHIFT CLICK', shiftToDelete);
+
+                  const editingObject = {
                     ...shiftToDelete,
+                    shiftId: shiftToDelete.shiftId || shiftToDelete.id, // 🔑 asegurar shiftId
                     mode: deleteShiftMode,
-                  });
+                  };
+
+                  console.log('🧪 EDIT → EDITING SHIFT OBJECT', editingObject);
+
+                  setEditingShift(editingObject);
 
                   setSelectedDays([shiftToDelete.day]);
                   setStartTime(shiftToDelete.startTime);
                   setEndTime(shiftToDelete.endTime);
                   setDateFrom(shiftToDelete.date);
 
-                  // 🔑 si edita solo ese día, forzamos dateTo = dateFrom
                   if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
                     setDateTo(shiftToDelete.date);
                   } else {
@@ -2120,23 +2181,27 @@ export default function EmployeeSchedules() {
                 className="delete-block"
                 onClick={() => {
 
-                  // 🔑 convertir borrado en edición
-                  setEditingShift({
+                  console.log('🧪 DELETE SHIFT CLICK', shiftToDelete);
+
+                  const editingObject = {
                     ...shiftToDelete,
+                    shiftId: shiftToDelete.shiftId || shiftToDelete.id, // 🔑 asegurar shiftId
                     mode: deleteShiftMode,
-                    deleteIntent: true, // ⭐ clave
-                  });
+                    deleteIntent: true,
+                  };
+
+                  console.log('🧪 DELETE → EDITING SHIFT OBJECT', editingObject);
+
+                  setEditingShift(editingObject);
 
                   setStartTime(shiftToDelete.startTime);
                   setEndTime(shiftToDelete.startTime);
-                  // ⭐ mismo start/end → representa borrar
 
                   setDateFrom(shiftToDelete.date);
                   setDateTo(shiftToDelete.date);
 
                   setShowShiftDeleteConfirm(false);
 
-                  // 👉 ejecutar misma función que editar
                   setTimeout(() => {
                     handleConfirmEditShift({ deleting: true });
                   }, 0);
@@ -2147,6 +2212,8 @@ export default function EmployeeSchedules() {
 
               <button
                 onClick={() => {
+                  console.log('🧪 CANCEL DELETE SHIFT');
+
                   setShowShiftDeleteConfirm(false);
                   setShiftToDelete(null);
                   setDeleteShiftMode('ONLY_THIS_BLOCK');
