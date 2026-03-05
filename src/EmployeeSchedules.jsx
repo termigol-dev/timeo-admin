@@ -202,7 +202,7 @@ export default function EmployeeSchedules() {
 
         schedule.days.forEach(day => {
 
-          const dayKey = weekDays[day.weekday]; // 🔑 weekday 1..7
+          const dayKey = weekDays[day.weekday];
 
           console.log('🧪 PROCESSING DAY', {
             date: day.date,
@@ -215,7 +215,6 @@ export default function EmployeeSchedules() {
 
             day.turns.forEach(t => {
 
-              // 🔍 LOG BACKEND SHIFT
               console.log('🧪 SHIFT DESDE BACKEND', {
                 backendShiftId: t.id,
                 date: day.date,
@@ -227,8 +226,8 @@ export default function EmployeeSchedules() {
               const uiId = `${day.date}-${t.startTime}-${t.endTime}`;
 
               const turnBlock = {
-                id: uiId,              // ⭐ id visual del calendario
-                shiftId: t.id,         // ⭐ id REAL de base de datos
+                id: uiId,          // id visual del calendario
+                shiftId: t.id,     // ⭐ ID REAL DE BASE DE DATOS
                 days: [dayKey],
                 startTime: t.startTime,
                 endTime: t.endTime,
@@ -237,7 +236,6 @@ export default function EmployeeSchedules() {
                 date: day.date,
               };
 
-              // 🔍 LOG BLOQUE CALENDARIO
               console.log('🧪 BLOQUE CALENDARIO CREADO', {
                 uiId: turnBlock.id,
                 shiftId: turnBlock.shiftId,
@@ -275,7 +273,6 @@ export default function EmployeeSchedules() {
         vacations: loadedVacations.length,
       });
 
-      // 🔍 LOG FINAL DE TURNS
       console.log('🧪 FINAL TURNS ARRAY', loadedTurns);
 
       setScheduleId(schedule?.scheduleId || null);
@@ -1900,8 +1897,8 @@ export default function EmployeeSchedules() {
                           e.stopPropagation();
 
                           setShiftToDelete({
-                            id: t.id,                // id visual del bloque
-                            shiftId: t.shiftId,      // ⭐ ID REAL DE BASE DE DATOS (FIX)
+                            id: t.id,          // id visual para React
+                            shiftId: t.shiftId, // ⭐ id real de DB
                             day,
                             col,
                             date: currentDate,
