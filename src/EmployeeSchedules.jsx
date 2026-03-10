@@ -807,9 +807,9 @@ export default function EmployeeSchedules() {
 
     const infinite = mode === 'FROM_THIS_DAY_ON';
 
-    // ====================================================
-    // A — NO destruye → EXTENSIÓN (NO TOCAR)
-    // ====================================================
+    // ====================================================  
+    // A — NO destruye → EXTENSIÓN (NO TOCAR)  
+    // ====================================================  
     if (!destroyPattern) {
 
       const deltas = [];
@@ -841,9 +841,9 @@ export default function EmployeeSchedules() {
       return;
     }
 
-    // ====================================================
-    // B — SNAPSHOT visible del día
-    // ====================================================
+    // ====================================================  
+    // B — SNAPSHOT visible del día  
+    // ====================================================  
     let visibleTurns;
 
     if (deleting) {
@@ -881,9 +881,9 @@ export default function EmployeeSchedules() {
 
     const cleaned = visibleTurns.filter(b => b.startTime && b.endTime);
 
-    // ====================================================
-    // C — Draft Exception (DIBUJO)
-    // ====================================================
+    // ====================================================  
+    // C — Draft Exception (DIBUJO)  
+    // ====================================================  
     setDraftExceptions(prev => [
       ...prev,
       {
@@ -892,6 +892,7 @@ export default function EmployeeSchedules() {
         dateFrom: date,
         dateTo: infinite ? null : date,
         blocks: cleaned,
+        previewOnly: infinite   // ⭐ clave
       },
     ]);
     console.log('🧪 BASE SHIFT (DELETE CASCADE)', base);
@@ -901,7 +902,7 @@ export default function EmployeeSchedules() {
         ...prev,
         {
           endPattern: true,
-          shiftId: base.shiftId,   // ⭐ ESTA ES LA CLAVE
+          shiftId: base.shiftId,   // ⭐ ESTA ES LA CLAVE  
           weekday: weekdayIndex,
           startTime: oldStart,
           endTime: oldEnd,
@@ -1098,7 +1099,13 @@ export default function EmployeeSchedules() {
       return out;
     };
 
+    // =============================
+    // OVERRIDE DAYS (snapshot real)
+    // =============================
     for (const ex of draftExceptions) {
+
+      // ⭐ FIX: si hay cierre de patrón no enviar excepciones
+      if (removedTurns?.length) continue;
 
       const dates = ex.dateTo
         ? expandLocalDates(ex.dateFrom, ex.dateTo)
@@ -1169,7 +1176,7 @@ export default function EmployeeSchedules() {
         },
       });
     }
-
+    console.log("🧠 OPS GENERADAS FINAL", ops);
     return ops;
   }
 
