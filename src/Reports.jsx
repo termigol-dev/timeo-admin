@@ -63,8 +63,10 @@ export default function Reports() {
   const [days, setDays] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(1); // 0..11
+  const today = new Date();
+
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
 
   const [currentWeek, setCurrentWeek] = useState(0);
   const [viewMode, setViewMode] = useState('graph');
@@ -512,6 +514,11 @@ export default function Reports() {
             const records = dayData?.records || [];
             const incidents = dayData?.incidents || [];
 
+            /* ⭐ SIMPLIFIED: ocultar días sin registros */
+            if (reportMode === 'simplified' && records.length === 0) {
+              return null;
+            }
+
             console.log('──────────────');
             console.log('📅 Día:', dateStr);
             console.log('   Shifts:', shifts);
@@ -527,47 +534,67 @@ export default function Reports() {
 
                 <div style={{ marginTop: 6, fontSize: 14 }}>
 
-                  {/* SHIFTS ARRIBA */}
-                  <div><b>🟦 Shifts previstos</b></div>
-                  {shifts.length === 0 && <div>— Ninguno</div>}
-                  {shifts.map(s => (
-                    <div key={s.id}>
-                      {s.startTime} → {s.endTime}
-                    </div>
-                  ))}
+                  {/* ⭐ SHIFTS SOLO EN DETALLADO */}
+                  {reportMode === 'detailed' && (
+                    <>
+                      <div><b>🟦 Shifts previstos</b></div>
 
-                  {/* EVENTOS CRONOLÓGICOS */}
+                      {shifts.length === 0 && <div>— Ninguno</div>}
+
+                      {shifts.map(s => (
+                        <div key={s.id}>
+                          {s.startTime} → {s.endTime}
+                        </div>
+                      ))}
+                    </>
+                  )}
+
                   <div style={{ marginTop: 10 }}><b>📜 Línea temporal</b></div>
 
                   {(() => {
 
-                    // Mezclamos records + incidents
                     const events = [];
 
-                    records.forEach(r => {
-                      const dt = new Date(r.createdAt);
-                      events.push({
-                        type: 'record',
-                        subtype: r.type,
-                        date: dt,
-                        raw: r,
-                      });
-                    });
+                    // SIMPLIFICADO → solo registros
+                    if (reportMode === 'simplified') {
 
-                    incidents.forEach(i => {
-                      const dt = new Date(i.occurredAt || i.createdAt);
-                      events.push({
-                        type: 'incident',
-                        subtype: i.type,
-                        date: dt,
-                        raw: i,
+                      records.forEach(r => {
+                        const dt = new Date(r.createdAt);
+                        events.push({
+                          type: 'record',
+                          subtype: r.type,
+                          date: dt,
+                          raw: r,
+                        });
                       });
-                    });
 
-                    // Orden cronológico
+                    }
+
+                    // DETALLADO → registros + incidencias
+                    else {
+
+                      records.forEach(r => {
+                        const dt = new Date(r.createdAt);
+                        events.push({
+                          type: 'record',
+                          subtype: r.type,
+                          date: dt,
+                          raw: r,
+                        });
+                      });
+
+                      incidents.forEach(i => {
+                        const dt = new Date(i.occurredAt || i.createdAt);
+                        events.push({
+                          type: 'incident',
+                          subtype: i.type,
+                          date: dt,
+                          raw: i,
+                        });
+                      });
+
+                    }
                     events.sort((a, b) => a.date - b.date);
-
-                    console.log('🧠 Eventos cronológicos ordenados:', events);
 
                     if (events.length === 0) {
                       return <div>— Sin eventos</div>;
@@ -579,17 +606,15 @@ export default function Reports() {
                       const mm = String(e.date.getMinutes()).padStart(2, '0');
                       const timeLabel = `${hh}:${mm}`;
 
-                      console.log('➡ Evento:', e.type, e.subtype, timeLabel);
+                      /* ===== RECORDS ===== */
 
-                      // ===== RECORDS =====
                       if (e.type === 'record') {
 
                         const isIn = e.subtype === 'IN';
 
                         return (
                           <div
-                            key={idx}
-                            style={{
+                            key={`${e.type}_${e.raw?.id || idx}`} style={{
                               display: 'flex',
                               alignItems: 'center',
                               gap: 8,
@@ -616,7 +641,8 @@ export default function Reports() {
                         );
                       }
 
-                      // ===== INCIDENTS =====
+                      /* ===== INCIDENTS (solo detallado) ===== */
+
                       if (e.type === 'incident') {
 
                         let color = '#eab308';
@@ -627,7 +653,7 @@ export default function Reports() {
 
                         return (
                           <div
-                            key={idx}
+                            key={`${e.type}_${e.raw?.id || idx}`}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
