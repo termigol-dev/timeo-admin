@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getMyReports } from './api';
 import { useParams } from 'react-router-dom';
+import ReportText from "./ReportText";
+import ReportGraph from "./ReportGraph";
 
 /* ---------------- helpers ---------------- */
 
@@ -54,6 +56,80 @@ function addDays(d, n) {
   const x = new Date(d);
   x.setDate(x.getDate() + n);
   return x;
+}
+/* =================================================
+   MINUTOS TRABAJADOS EN UNA SEMANA
+================================================= */
+
+function calculateWorkedMinutes(week) {
+
+  let total = 0;
+
+  week.daysMap.forEach(day => {
+
+    const records = [...(day.records ?? [])].sort(
+      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+    );
+
+    for (let i = 0; i < records.length - 1; i++) {
+
+      const a = records[i];
+      const b = records[i + 1];
+
+      if (a.type !== 'IN' || b.type !== 'OUT') continue;
+
+      const start = new Date(a.createdAt);
+      const end = new Date(b.createdAt);
+
+      total += (end - start) / 60000;
+
+    }
+
+  });
+
+  return total;
+}
+
+
+/* =================================================
+   MINUTOS PREVISTOS EN UNA SEMANA
+================================================= */
+
+function calculateExpectedMinutes(week) {
+
+  let total = 0;
+
+  week.daysMap.forEach(day => {
+
+    const shifts = day.shifts ?? [];
+
+    shifts.forEach(s => {
+
+      const [h1, m1] = s.startTime.split(':').map(Number);
+      const [h2, m2] = s.endTime.split(':').map(Number);
+
+      const start = h1 * 60 + m1;
+      const end = h2 * 60 + m2;
+
+      total += (end - start);
+
+    });
+
+  });
+
+  return total;
+}
+
+/* =================================================
+   FORMATEAR MINUTOS A "Xh Ym"
+================================================= */
+
+function formatMinutes(min) {
+
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+
+  return `${h}h ${m}m`;
 }
 
 /* ------------------------------------------------ */
@@ -152,10 +228,37 @@ export default function Reports() {
 
   const week = weeks[currentWeek];
 
+  /* =================================================
+   HORAS SEMANA
+  ================================================= */
+
+  const workedMinutes = week ? calculateWorkedMinutes(week) : 0;
+  const expectedMinutes = week ? calculateExpectedMinutes(week) : 0;
+
   return (
     <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
 
       <h2>Informes</h2>
+
+      {week && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 24,
+            marginBottom: 16,
+            fontSize: 16,
+            fontWeight: 600
+          }}
+        >
+          <div>
+            ⏱ Trabajado: {formatMinutes(workedMinutes)}
+          </div>
+
+          <div>
+            📅 Previsto: {formatMinutes(expectedMinutes)}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <button
@@ -267,428 +370,18 @@ export default function Reports() {
       {!week && <div>No hay datos</div>}
 
       {week && viewMode === 'graph' && (
-
-        <div
-          style={{
-            border: '1px solid #ddd',
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 24,
-          }}
-        >
-
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>
-            Semana desde {toISODate(week.weekStart)}
-          </div>
-
-          {Array.from({ length: 7 }).map((_, idx) => {
-
-            const d = addDays(week.weekStart, idx);
-            const dateStr = toISODate(d);
-
-            const dayData = week.daysMap.get(dateStr);
-
-            const isSameMonth = d.getMonth() === month;
-
-            const dayLabel = weekdayName(dateStr);
-
-            const shifts = dayData?.shifts || [];
-            const records = dayData?.records || [];
-            const incidents = dayData?.incidents || [];
-
-            if (reportMode === 'simplified' && records.length === 0) {
-              return null;
-            }
-
-            return (
-              <div
-                key={dateStr}
-                style={{
-                  marginBottom: 18,
-                  opacity: isSameMonth ? 1 : 0.35,
-                }}
-              >
-
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                  <div style={{ fontSize: 20, fontWeight: 700 }}>
-                    {dayLabel}
-                  </div>
-                  <div style={{ fontSize: 13, color: '#555' }}>
-                    {dateStr}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    position: 'relative',
-                    height: 48,
-                    marginTop: 6,
-                    borderTop: '1px solid #bbb',
-                    borderBottom: '1px solid #bbb',
-                    background: '#fff',
-                  }}
-                >
-
-                  {/* rejilla horas */}
-                  {Array.from({ length: 25 }).map((_, h) => {
-
-                    const isMain = h % 4 === 0;
-
-                    return (
-                      <div
-                        key={h}
-                        style={{
-                          position: 'absolute',
-                          left: `${(h / 24) * 100}%`,
-                          bottom: 0,
-                          height: '100%',
-                          width: 1,
-                          background: '#000',
-                          opacity: isMain ? 0.35 : 0.12,
-                        }}
-                      >
-                        {isMain && h < 24 && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              bottom: 0,
-                              left: 2,
-                              transform: 'rotate(-90deg)',
-                              transformOrigin: 'left bottom',
-                              fontSize: 9,
-                              whiteSpace: 'nowrap',
-                              color: '#000',
-                            }}
-                          >
-                            {hourLabel(h)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* horario previsto */}
-                  {reportMode === 'detailed' && shifts.map(s => {
-
-                    const start = timeToMinutes(s.startTime);
-                    const end = timeToMinutes(s.endTime);
-
-                    return (
-                      <div
-                        key={`${s.startTime}_${s.endTime}`}
-                        style={{
-                          position: 'absolute',
-                          bottom: 24,
-                          height: 10,
-                          left: `${minutesToPercent(start)}%`,
-                          width: `${minutesToPercent(end - start)}%`,
-                          background: '#2563eb',
-                          borderRadius: 3,
-                        }}
-                      />
-                    );
-                  })}
-
-                  {/* trabajado */}
-                  {(() => {
-
-                    const ordered = [...records].sort(
-                      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-                    );
-
-                    const blocks = [];
-
-                    for (let i = 0; i < ordered.length - 1; i++) {
-
-                      const a = ordered[i];
-                      const b = ordered[i + 1];
-
-                      if (a.type !== 'IN' || b.type !== 'OUT') continue;
-
-                      const sa = new Date(a.createdAt);
-                      const sb = new Date(b.createdAt);
-
-                      const startMin = sa.getHours() * 60 + sa.getMinutes();
-                      const endMin = sb.getHours() * 60 + sb.getMinutes();
-
-                      blocks.push(
-                        <div
-                          key={a.id}
-                          style={{
-                            position: 'absolute',
-                            bottom: 10,
-                            height: 10,
-                            left: `${minutesToPercent(startMin)}%`,
-                            width: `${minutesToPercent(endMin - startMin)}%`,
-                            background: '#22c55e',
-                            borderRadius: 3,
-                          }}
-                        />
-                      );
-                    }
-
-                    return blocks;
-                  })()}
-
-                  {/* incidencias */}
-                  {reportMode === 'detailed' && incidents.map(i => {
-
-                    const dateStr = i.occurredAt || i.createdAt;
-                    const timePart = dateStr.slice(11, 16); // "HH:MM"
-                    const min = timeToMinutes(timePart);
-
-                    let color = '#eab308';
-
-                    if (i.type === 'NO_SHOW') color = '#dc2626';
-                    else if (
-                      i.type === 'IN_LATE' ||
-                      i.type === 'OUT_EARLY'
-                    ) color = '#f97316';
-
-                    return (
-                      <div
-                        key={i.id}
-                        style={{
-                          position: 'absolute',
-                          left: `${minutesToPercent(min)}%`,
-                          bottom: 36,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          transform: 'translateX(-50%)',
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: color,
-                          }}
-                        />
-                        <div
-                          style={{
-                            fontSize: 9,
-                            color: '#000',
-                            transform: 'rotate(-90deg)',
-                            transformOrigin: 'left bottom',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {i.type}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <ReportGraph
+          week={week}
+          reportMode={reportMode}
+          month={month}
+        />
       )}
 
       {week && viewMode === 'text' && (
-        <div
-          style={{
-            border: '1px solid #ddd',
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 24,
-            background: '#fff'
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>
-            Semana desde {toISODate(week.weekStart)} (Vista log)
-          </div>
-
-          {Array.from({ length: 7 }).map((_, idx) => {
-
-            const d = addDays(week.weekStart, idx);
-            const dateStr = toISODate(d);
-            const dayData = week.daysMap.get(dateStr);
-
-            const dayLabel = weekdayName(dateStr);
-
-            const shifts = dayData?.shifts || [];
-            const records = dayData?.records || [];
-            const incidents = dayData?.incidents || [];
-
-            /* ⭐ SIMPLIFIED: ocultar días sin registros */
-            if (reportMode === 'simplified' && records.length === 0) {
-              return null;
-            }
-
-            console.log('──────────────');
-            console.log('📅 Día:', dateStr);
-            console.log('   Shifts:', shifts);
-            console.log('   Records:', records);
-            console.log('   Incidents:', incidents);
-
-            return (
-              <div key={dateStr} style={{ marginBottom: 20 }}>
-
-                <div style={{ fontSize: 18, fontWeight: 700 }}>
-                  {dayLabel} — {dateStr}
-                </div>
-
-                <div style={{ marginTop: 6, fontSize: 14 }}>
-
-                  {/* ⭐ SHIFTS SOLO EN DETALLADO */}
-                  {reportMode === 'detailed' && (
-                    <>
-                      <div><b>🟦 Shifts previstos</b></div>
-
-                      {shifts.length === 0 && <div>— Ninguno</div>}
-
-                      {shifts.map(s => (
-                        <div key={s.id}>
-                          {s.startTime} → {s.endTime}
-                        </div>
-                      ))}
-                    </>
-                  )}
-
-                  <div style={{ marginTop: 10 }}><b>📜 Línea temporal</b></div>
-
-                  {(() => {
-
-                    const events = [];
-
-                    // SIMPLIFICADO → solo registros
-                    if (reportMode === 'simplified') {
-
-                      records.forEach(r => {
-                        const dt = new Date(r.createdAt);
-                        events.push({
-                          type: 'record',
-                          subtype: r.type,
-                          date: dt,
-                          raw: r,
-                        });
-                      });
-
-                    }
-
-                    // DETALLADO → registros + incidencias
-                    else {
-
-                      records.forEach(r => {
-                        const dt = new Date(r.createdAt);
-                        events.push({
-                          type: 'record',
-                          subtype: r.type,
-                          date: dt,
-                          raw: r,
-                        });
-                      });
-
-                      incidents.forEach(i => {
-                        const dt = new Date(i.occurredAt || i.createdAt);
-                        events.push({
-                          type: 'incident',
-                          subtype: i.type,
-                          date: dt,
-                          raw: i,
-                        });
-                      });
-
-                    }
-                    events.sort((a, b) => a.date - b.date);
-
-                    if (events.length === 0) {
-                      return <div>— Sin eventos</div>;
-                    }
-
-                    return events.map((e, idx) => {
-
-                      const hh = String(e.date.getHours()).padStart(2, '0');
-                      const mm = String(e.date.getMinutes()).padStart(2, '0');
-                      const timeLabel = `${hh}:${mm}`;
-
-                      /* ===== RECORDS ===== */
-
-                      if (e.type === 'record') {
-
-                        const isIn = e.subtype === 'IN';
-
-                        return (
-                          <div
-                            key={`${e.type}_${e.raw?.id || idx}`} style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              marginTop: 4
-                            }}
-                          >
-                            <div
-                              style={{
-                                minWidth: 70,
-                                textAlign: 'center',
-                                padding: '4px 8px',
-                                borderRadius: 6,
-                                background: isIn ? '#16a34a' : '#dc2626',
-                                color: '#fff',
-                                fontWeight: 600,
-                                fontSize: 12
-                              }}
-                            >
-                              {e.subtype}
-                            </div>
-
-                            <div>{timeLabel}</div>
-                          </div>
-                        );
-                      }
-
-                      /* ===== INCIDENTS (solo detallado) ===== */
-
-                      if (e.type === 'incident') {
-
-                        let color = '#eab308';
-
-                        if (e.subtype === 'NO_SHOW') color = '#dc2626';
-                        else if (e.subtype === 'IN_LATE' || e.subtype === 'OUT_EARLY') color = '#f97316';
-                        else if (e.subtype === 'IN_EARLY' || e.subtype === 'OUT_LATE') color = '#eab308';
-
-                        return (
-                          <div
-                            key={`${e.type}_${e.raw?.id || idx}`}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              marginTop: 4
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 14,
-                                height: 14,
-                                background: color,
-                                borderRadius: 3,
-                              }}
-                            />
-
-                            <div style={{ fontWeight: 600 }}>
-                              {e.subtype}
-                            </div>
-
-                            <div>{timeLabel}</div>
-                          </div>
-                        );
-                      }
-
-                      return null;
-                    });
-
-                  })()}
-
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <ReportText
+          week={week}
+          reportMode={reportMode}
+        />
       )}
 
       {/* leyenda */}

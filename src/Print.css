@@ -1,0 +1,37 @@
+/* =========================
+   PRINT SETTINGS
+========================= */
+
+@media print {
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  button,
+  select,
+  input {
+    display: none !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+  }
+
+  .week-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .text-report-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+}
