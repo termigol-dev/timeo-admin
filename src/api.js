@@ -1,5 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL;
-import "./print.css";
+
 
 /* ───────── BASE API ───────── */
 async function api(path, method = 'GET', body, auth = true) {
