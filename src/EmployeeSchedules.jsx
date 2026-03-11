@@ -626,6 +626,8 @@ export default function EmployeeSchedules() {
       endTime,
       source: 'draft',
       validFrom: dateFrom,
+      validTo: dateTo ?? null,
+      date: dateFrom,
     };
 
     if (hasOverlap(newTurn)) {

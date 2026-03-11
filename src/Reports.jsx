@@ -69,6 +69,8 @@ export default function Reports() {
   const [currentWeek, setCurrentWeek] = useState(0);
   const [viewMode, setViewMode] = useState('graph');
   // 'graph' | 'text'
+  const [reportMode, setReportMode] = useState('detailed');
+  // 'simplified' | 'detailed'
   const { userId } = useParams();
 
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -189,6 +191,28 @@ export default function Reports() {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="checkbox"
+            checked={reportMode === 'simplified'}
+            onChange={() => setReportMode('simplified')}
+          />
+          Informe simplificado
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="checkbox"
+            checked={reportMode === 'detailed'}
+            onChange={() => setReportMode('detailed')}
+          />
+          Informe detallado
+        </label>
+
+      </div>
+
       {/* selector mes / año */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
 
@@ -270,6 +294,10 @@ export default function Reports() {
             const records = dayData?.records || [];
             const incidents = dayData?.incidents || [];
 
+            if (reportMode === 'simplified' && records.length === 0) {
+              return null;
+            }
+
             return (
               <div
                 key={dateStr}
@@ -338,7 +366,7 @@ export default function Reports() {
                   })}
 
                   {/* horario previsto */}
-                  {shifts.map(s => {
+                  {reportMode === 'detailed' && shifts.map(s => {
 
                     const start = timeToMinutes(s.startTime);
                     const end = timeToMinutes(s.endTime);
@@ -401,7 +429,7 @@ export default function Reports() {
                   })()}
 
                   {/* incidencias */}
-                  {incidents.map(i => {
+                  {reportMode === 'detailed' && incidents.map(i => {
 
                     const dateStr = i.occurredAt || i.createdAt;
                     const timePart = dateStr.slice(11, 16); // "HH:MM"
