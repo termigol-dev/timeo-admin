@@ -6,6 +6,7 @@ import "./style.css";
 import { AuthProvider } from './auth/AuthContext';
 import "./print.css";
 
+
 const root = document.getElementById("root");
 
 createRoot(root).render(
