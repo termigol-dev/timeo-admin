@@ -294,6 +294,20 @@ export default function Reports() {
         >
           Vista texto (debug)
         </button>
+
+        <button
+          onClick={() => window.print()}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: "1px solid #ccc",
+            background: "#f5f5f5",
+            cursor: "pointer"
+          }}
+        >
+          🖨 Imprimir
+        </button>
+
       </div>
 
       <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
@@ -377,11 +391,18 @@ export default function Reports() {
         />
       )}
 
-      {week && viewMode === 'text' && (
-        <ReportText
-          week={week}
-          reportMode={reportMode}
-        />
+      {viewMode === 'text' && (
+        <div className="text-report-grid">
+
+          {weeks.map(w => (
+            <ReportText
+              key={w.weekStart.toISOString()}
+              week={w}
+              reportMode={reportMode}
+            />
+          ))}
+
+        </div>
       )}
 
       {/* leyenda */}

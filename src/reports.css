@@ -1,0 +1,155 @@
+/* ============================= */
+/* CONTENEDOR GENERAL INFORME */
+/* ============================= */
+
+.report-text-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ============================= */
+/* TARJETA SEMANA */
+/* ============================= */
+
+.report-week {
+  border: 1px solid #dcdcdc;
+  border-radius: 10px;
+  background: white;
+  padding: 16px;
+}
+
+/* cabecera semana */
+
+.report-week-header {
+  background: #0ea5a4;
+  color: white;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+/* ============================= */
+/* DIA */
+/* ============================= */
+
+.report-day {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.report-day:last-child {
+  border-bottom: none;
+}
+
+.report-day-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+/* ============================= */
+/* SECCIONES */
+/* ============================= */
+
+.report-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.report-empty {
+  font-size: 12px;
+  color: #888;
+}
+
+/* ============================= */
+/* REGISTROS */
+/* ============================= */
+
+.report-records {
+  margin-top: 4px;
+}
+
+.report-record {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.report-time {
+  font-size: 13px;
+}
+
+/* ============================= */
+/* BADGES IN / OUT */
+/* ============================= */
+
+.report-badge-in {
+  background: #16a34a;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.report-badge-out {
+  background: #dc2626;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ============================= */
+/* SHIFTS */
+/* ============================= */
+
+.report-shifts {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+/* ============================= */
+/* INCIDENTES */
+/* ============================= */
+
+.report-incidents {
+  margin-top: 6px;
+}
+
+.report-incident {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* punto incidencia */
+
+.incident-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* colores */
+
+.incident-yellow {
+  background: #eab308;
+}
+
+.incident-orange {
+  background: #f97316;
+}
+
+.incident-red {
+  background: #dc2626;
+}
