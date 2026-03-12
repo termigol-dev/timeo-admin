@@ -75,14 +75,20 @@
 }
 
 .report-record {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin-top: 3px;
+  display: grid;
+  grid-template-columns: 36px 60px auto;
+  align-items: center;
+  gap: 6px;
 }
 
+/* hora más legible */
+
 .report-time {
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
 }
 
 /* ============================= */
@@ -92,18 +98,18 @@
 .report-badge-in {
   background: #16a34a;
   color: white;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .report-badge-out {
   background: #dc2626;
   color: white;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -135,8 +141,8 @@
 /* punto incidencia */
 
 .incident-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
 
@@ -154,21 +160,31 @@
   background: #dc2626;
 }
 
-.report-row{
-display:grid;
-grid-template-columns:170px repeat(6,110px);
-align-items:center;
-gap:6px;
+/* ============================= */
+/* FILAS DEL INFORME */
+/* ============================= */
+
+.report-row {
+  display: grid;
+  grid-template-columns: 170px repeat(6, 120px);
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.report-cell{
-min-height:28px;
-display:flex;
-align-items:center;
+/* centrar fichajes en su columna */
+
+.report-cell {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.report-warning{
-grid-column:2 / span 6;
-font-size:13px;
-color:#92400e;
+/* mensaje de exceso de fichajes */
+
+.report-warning {
+  grid-column: 2 / span 6;
+  font-size: 14px;
+  color: #92400e;
 }
