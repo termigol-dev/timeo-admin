@@ -19,79 +19,31 @@ function addDays(d, n) {
     return x;
 }
 
-export default function ReportText({ week, reportMode }) {
-
-    function renderTextSimplified() {
-
-        return (
-            <div className="report-week">
-
-                <div className="report-week-header">
-                    Semana desde {toISODate(week.weekStart)}
-                </div>
-
-                {Array.from({ length: 7 }).map((_, idx) => {
-
-                    const d = addDays(week.weekStart, idx);
-                    const dateStr = toISODate(d);
-                    const dayData = week.daysMap.get(dateStr);
-
-                    const dayLabel = weekdayName(dateStr);
-                    const records = dayData?.records ?? [];
-
-                    if (records.length === 0) return null;
-
-                    return (
-                        <div key={`${dateStr}-${idx}`} className="report-day">
-
-                            <div className="report-day-title">
-                                {dayLabel} — {dateStr}
-                            </div>
-
-                            <div className="report-records">
-
-                                {records
-                                    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-                                    .map(r => {
-
-                                        const dt = new Date(r.createdAt);
-                                        const hh = String(dt.getHours()).padStart(2, "0");
-                                        const mm = String(dt.getMinutes()).padStart(2, "0");
-
-                                        return (
-                                            <div key={r.id} className="report-record">
-
-                                                <div
-                                                    className={
-                                                        r.type === "IN"
-                                                            ? "report-badge-in"
-                                                            : "report-badge-out"
-                                                    }
-                                                >
-                                                    {r.type}
-                                                </div>
-
-                                                <div className="report-time">
-                                                    {hh}:{mm}
-                                                </div>
-
-                                            </div>
-                                        );
-
-                                    })}
-
-                            </div>
-
-                        </div>
-                    );
-                })}
-
-            </div>
-        );
-    }
+export default function ReportText({ week }) {
 
     function renderTextDetailed() {
 
+        const weekHasContent = Array.from(week.daysMap.values()).some(day =>
+            (day?.shifts?.length || 0) > 0 ||
+            (day?.records?.length || 0) > 0
+        );
+
+        if (!weekHasContent) {
+            return (
+                <div className="report-week">
+
+                    <div className="report-week-header">
+                        Semana desde {toISODate(week.weekStart)}
+                    </div>
+
+                    <div className="report-empty">
+                        Sin horario previsto ni fichajes en esta semana
+                    </div>
+
+                </div>
+            );
+        }
+
         return (
             <div className="report-week">
 
@@ -103,48 +55,142 @@ export default function ReportText({ week, reportMode }) {
 
                     const d = addDays(week.weekStart, idx);
                     const dateStr = toISODate(d);
+
                     const dayData = week.daysMap.get(dateStr);
+                    if (!dayData) return null;
 
                     const dayLabel = weekdayName(dateStr);
 
                     const shifts = dayData?.shifts ?? [];
-                    const records = dayData?.records ?? [];
+                    const records = [...(dayData?.records ?? [])]
+                        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
                     const incidents = dayData?.incidents ?? [];
 
+                    // construir pares IN → OUT
+                    const pairs = [];
+                    const used = new Set();
+
+                    for (let i = 0; i < records.length; i++) {
+
+                        if (records[i].type === "IN") {
+
+                            const next = records[i + 1];
+
+                            if (next && next.type === "OUT") {
+
+                                pairs.push({
+                                    in: records[i],
+                                    out: next
+                                });
+
+                                used.add(records[i].id);
+                                used.add(next.id);
+
+                                i++;
+
+                            } else {
+
+                                pairs.push({
+                                    in: records[i],
+                                    out: null
+                                });
+
+                                used.add(records[i].id);
+
+                            }
+
+                        }
+
+                    }
+
+                    records.forEach(r => {
+
+                        if (r.type === "OUT" && !used.has(r.id)) {
+
+                            pairs.push({
+                                in: null,
+                                out: r
+                            });
+
+                        }
+
+                    });
+
+                    let pairIndex = 0;
+
                     return (
-                        <div key={`${dateStr}-${idx}`} className="report-day">
+                        <div key={dateStr} className="report-day">
 
                             <div className="report-day-title">
                                 {dayLabel} — {dateStr}
                             </div>
 
-                            {/* SHIFTS */}
-                            <div className="report-shifts">
+                            {shifts.length === 0 && (
+                                <div className="report-empty">— Sin horario</div>
+                            )}
 
-                                <div className="report-section-title">
-                                    Horario previsto
-                                </div>
+                            {shifts.map(shift => {
 
-                                {shifts.length === 0 && (
-                                    <div className="report-empty">— Ninguno</div>
-                                )}
+                                const [h1, m1] = shift.startTime.split(":").map(Number);
+                                const [h2, m2] = shift.endTime.split(":").map(Number);
 
-                                {shifts.map(s => (
-                                    <div key={s.id || `${s.startTime}-${s.endTime}`}>
-                                        {s.startTime} → {s.endTime}
-                                    </div>
-                                ))}
+                                const start = h1 * 60 + m1;
+                                const end = h2 * 60 + m2;
 
-                            </div>
+                                let inRecord = null;
+                                let outRecord = null;
 
-                            {/* REGISTROS */}
-                            <div className="report-records">
+                                pairs.forEach(p => {
 
-                                <div className="report-section-title">
-                                    Registros
-                                </div>
+                                    if (p.in) {
 
-                                {records.map(r => {
+                                        const dt = new Date(p.in.createdAt);
+                                        const t = dt.getHours() * 60 + dt.getMinutes();
+
+                                        if (t >= start - 120 && t <= end) {
+                                            inRecord = p.in;
+                                        }
+
+                                    }
+
+                                    if (p.out) {
+
+                                        const dt = new Date(p.out.createdAt);
+                                        const t = dt.getHours() * 60 + dt.getMinutes();
+
+                                        if (t >= start && t <= end + 120) {
+                                            outRecord = p.out;
+                                        }
+
+                                    }
+
+                                });
+                                if (!pair) {
+
+                                    return (
+                                        <div key={shift.startTime} className="report-row">
+
+                                            <div className="report-shift">
+                                                {shift.startTime} → {shift.endTime}
+                                            </div>
+
+                                            <div className="report-in">
+                                                {renderRecord(pair.in)}
+                                            </div>
+
+                                            <div className="report-out">
+                                                {renderRecord(pair.out)}
+                                            </div>
+
+                                        </div>
+                                    );
+
+                                }
+
+                                function renderRecord(r) {
+
+                                    if (!r) return null;
 
                                     const dt = new Date(r.createdAt);
                                     const hh = String(dt.getHours()).padStart(2, "0");
@@ -162,7 +208,7 @@ export default function ReportText({ week, reportMode }) {
                                     });
 
                                     return (
-                                        <div key={r.id} className="report-record">
+                                        <div className="report-record">
 
                                             <div
                                                 className={
@@ -200,54 +246,26 @@ export default function ReportText({ week, reportMode }) {
 
                                         </div>
                                     );
+                                }
 
-                                })}
+                                return (
+                                    <div key={shift.startTime} className="report-row">
 
-                            </div>
+                                        <div className="report-shift">
+                                            {shift.startTime} → {shift.endTime}
+                                        </div>
 
-                            {/* INCIDENTES */}
-                            {incidents.length > 0 && (
+                                        {renderRecord(inRecord)}
+                                        {renderRecord(outRecord)}
 
-                                <div className="report-incidents">
-
-                                    <div className="report-section-title">
-                                        Incidencias
                                     </div>
+                                );
 
-                                    {incidents.map(i => {
-
-                                        const dt = new Date(i.occurredAt || i.createdAt);
-                                        const hh = String(dt.getHours()).padStart(2, "0");
-                                        const mm = String(dt.getMinutes()).padStart(2, "0");
-
-                                        let color = "incident-yellow";
-
-                                        if (i.type === "NO_SHOW") color = "incident-red";
-                                        else if (
-                                            i.type === "IN_LATE" ||
-                                            i.type === "OUT_EARLY"
-                                        ) color = "incident-orange";
-
-                                        return (
-                                            <div key={i.id} className="report-incident">
-
-                                                <div className={`incident-dot ${color}`} />
-
-                                                <div>
-                                                    {i.type} — {hh}:{mm}
-                                                </div>
-
-                                            </div>
-                                        );
-
-                                    })}
-
-                                </div>
-
-                            )}
+                            })}
 
                         </div>
                     );
+
                 })}
 
             </div>
@@ -256,11 +274,7 @@ export default function ReportText({ week, reportMode }) {
 
     return (
         <div className="report-text-container">
-
-            {reportMode === "simplified"
-                ? renderTextSimplified()
-                : renderTextDetailed()}
-
+            {renderTextDetailed()}
         </div>
     );
 }
