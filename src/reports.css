@@ -153,3 +153,11 @@
 .incident-red {
   background: #dc2626;
 }
+
+.report-row {
+  display: grid;
+  grid-template-columns: 160px 110px 110px 110px 110px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}

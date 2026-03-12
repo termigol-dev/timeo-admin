@@ -67,58 +67,84 @@ export default function ReportText({ week }) {
 
                     const incidents = dayData?.incidents ?? [];
 
-                    // construir pares IN → OUT
+                    // construir pares cronológicos IN → OUT
                     const pairs = [];
-                    const used = new Set();
-
-                    for (let i = 0; i < records.length; i++) {
-
-                        if (records[i].type === "IN") {
-
-                            const next = records[i + 1];
-
-                            if (next && next.type === "OUT") {
-
-                                pairs.push({
-                                    in: records[i],
-                                    out: next
-                                });
-
-                                used.add(records[i].id);
-                                used.add(next.id);
-
-                                i++;
-
-                            } else {
-
-                                pairs.push({
-                                    in: records[i],
-                                    out: null
-                                });
-
-                                used.add(records[i].id);
-
-                            }
-
-                        }
-
-                    }
+                    let currentIn = null;
 
                     records.forEach(r => {
 
-                        if (r.type === "OUT" && !used.has(r.id)) {
+                        if (r.type === "IN") {
 
-                            pairs.push({
-                                in: null,
-                                out: r
-                            });
+                            if (currentIn) {
+                                pairs.push({ in: currentIn, out: null });
+                            }
+
+                            currentIn = r;
+
+                        } else {
+
+                            if (currentIn) {
+                                pairs.push({ in: currentIn, out: r });
+                                currentIn = null;
+                            } else {
+                                pairs.push({ in: null, out: r });
+                            }
 
                         }
 
                     });
 
-                    let pairIndex = 0;
+                    if (currentIn) {
+                        pairs.push({ in: currentIn, out: null });
+                    }
 
+                    // preparar filas por turno
+                    const shiftRows = shifts.map(s => ({
+                        shift: s,
+                        ins: [],
+                        outs: []
+                    }));
+
+                    // asignar pares al turno más cercano
+                    records.forEach(r => {
+
+                        const dt = new Date(r.createdAt);
+                        const t = dt.getHours() * 60 + dt.getMinutes();
+
+                        let closestIndex = 0;
+                        let closestDistance = Infinity;
+
+                        shifts.forEach((s, i) => {
+
+                            const [h1, m1] = s.startTime.split(":").map(Number);
+                            const [h2, m2] = s.endTime.split(":").map(Number);
+
+                            const target = r.type === "IN"
+                                ? (h1 * 60 + m1)   // comparar con entrada
+                                : (h2 * 60 + m2);  // comparar con salida
+
+                            const dist = Math.abs(t - target);
+
+                            if (dist < closestDistance) {
+                                closestDistance = dist;
+                                closestIndex = i;
+                            }
+
+                        });
+
+                        if (r.type === "IN") {
+
+                            const slot = shiftRows[closestIndex].ins.length;
+                            if (slot < 2) shiftRows[closestIndex].ins[slot] = r;
+
+                        } else {
+
+                            const slot = shiftRows[closestIndex].outs.length;
+                            if (slot < 2) shiftRows[closestIndex].outs[slot] = r;
+
+                        }
+
+                    });
                     return (
                         <div key={dateStr} className="report-day">
 
@@ -130,63 +156,7 @@ export default function ReportText({ week }) {
                                 <div className="report-empty">— Sin horario</div>
                             )}
 
-                            {shifts.map(shift => {
-
-                                const [h1, m1] = shift.startTime.split(":").map(Number);
-                                const [h2, m2] = shift.endTime.split(":").map(Number);
-
-                                const start = h1 * 60 + m1;
-                                const end = h2 * 60 + m2;
-
-                                let inRecord = null;
-                                let outRecord = null;
-
-                                pairs.forEach(p => {
-
-                                    if (p.in) {
-
-                                        const dt = new Date(p.in.createdAt);
-                                        const t = dt.getHours() * 60 + dt.getMinutes();
-
-                                        if (t >= start - 120 && t <= end) {
-                                            inRecord = p.in;
-                                        }
-
-                                    }
-
-                                    if (p.out) {
-
-                                        const dt = new Date(p.out.createdAt);
-                                        const t = dt.getHours() * 60 + dt.getMinutes();
-
-                                        if (t >= start && t <= end + 120) {
-                                            outRecord = p.out;
-                                        }
-
-                                    }
-
-                                });
-                                if (!pair) {
-
-                                    return (
-                                        <div key={shift.startTime} className="report-row">
-
-                                            <div className="report-shift">
-                                                {shift.startTime} → {shift.endTime}
-                                            </div>
-
-                                            <div className="report-in">
-                                                {renderRecord(pair.in)}
-                                            </div>
-
-                                            <div className="report-out">
-                                                {renderRecord(pair.out)}
-                                            </div>
-
-                                        </div>
-                                    );
-
-                                }
+                            {shiftRows.map(row => {
 
                                 function renderRecord(r) {
 
@@ -246,23 +216,27 @@ export default function ReportText({ week }) {
 
                                         </div>
                                     );
+
                                 }
 
                                 return (
-                                    <div key={shift.startTime} className="report-row">
+
+                                    <div key={row.shift.startTime} className="report-row">
 
                                         <div className="report-shift">
-                                            {shift.startTime} → {shift.endTime}
+                                            {row.shift.startTime} → {row.shift.endTime}
                                         </div>
 
-                                        {renderRecord(inRecord)}
-                                        {renderRecord(outRecord)}
+                                        {renderRecord(row.ins[0])}
+                                        {renderRecord(row.outs[0])}
+                                        {renderRecord(row.ins[1])}
+                                        {renderRecord(row.outs[1])}
 
                                     </div>
+
                                 );
 
                             })}
-
                         </div>
                     );
 
