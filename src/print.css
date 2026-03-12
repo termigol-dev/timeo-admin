@@ -2,38 +2,114 @@
    PRINT SETTINGS
 ========================= */
 
-
 @media print {
 
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 14mm;
   }
 
   body {
-    background: white;
+    background: white !important;
   }
+
+
+  /* solo se imprime el informe */
+
+
+
+  /* ocultar UI de la app */
 
   button,
   select,
-  input {
+  input,
+  nav,
+  aside,
+  .reports-controls,
+  .reports-toolbar,
+  .report-filters,
+  .report-navigation {
     display: none !important;
   }
 
-  .container {
-    max-width: 100% !important;
+  /* =====================
+     CABECERA IMPRESIÓN
+  ===================== */
+
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
   }
 
-  .week-block {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  .print-logo {
+    height: 36px;
   }
+
+  .print-header-right {
+    text-align: right;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .print-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  /* =====================
+     CONTENIDO
+  ===================== */
 
   .text-report-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    display: block !important;
   }
 
-  
+  .report-text-container {
+    display: block;
+  }
+
+  /* =====================
+     SEMANAS
+  ===================== */
+
+  .report-week {
+
+    height: 44vh;
+    /* ajustado para cabecera */
+    overflow: hidden;
+
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* cada 2 semanas → nueva página */
+
+  .report-week:nth-of-type(2n) {
+    page-break-after: always;
+  }
+
+  /* evitar cortes internos */
+
+  .report-row {
+    break-inside: avoid;
+  }
+
+  .report-day {
+    break-inside: avoid;
+  }
+
+  /* colores en impresión */
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .report-print {
+    display: block !important;
+  }
+
 }

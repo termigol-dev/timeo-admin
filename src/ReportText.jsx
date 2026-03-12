@@ -1,4 +1,5 @@
 import React from "react";
+import Logo from "./components/Logo";
 
 function weekdayName(dateStr) {
     const [y, m, d] = dateStr.split("-").map(Number);
@@ -19,7 +20,15 @@ function addDays(d, n) {
     return x;
 }
 
-export default function ReportText({ week }) {
+export default function ReportText({
+    week,
+    employeeName = "",
+    companyName = "",
+    reportMonth = "",
+    reportYear = "",
+    workedTotal = "",
+    expectedTotal = ""
+}) {
 
     function renderTextDetailed() {
 
@@ -28,28 +37,22 @@ export default function ReportText({ week }) {
             (day?.records?.length || 0) > 0
         );
 
-        if (!weekHasContent) {
-            return (
-                <div className="report-week">
-
-                    <div className="report-week-header">
-                        Semana desde {toISODate(week.weekStart)}
-                    </div>
-
-                    <div className="report-empty">
-                        Sin horario previsto ni fichajes en esta semana
-                    </div>
-
-                </div>
-            );
-        }
-
         return (
             <div className="report-week">
 
                 <div className="report-week-header">
-                    Semana desde {toISODate(week.weekStart)}
+                    <span>Semana desde {toISODate(week.weekStart)}</span>
+
+                    <span className="week-totals">
+                        Trabajado: {workedTotal} &nbsp;&nbsp; Previsto: {expectedTotal}
+                    </span>
                 </div>
+
+                {!weekHasContent && (
+                    <div className="report-empty">
+                        Sin horario previsto ni fichajes en esta semana
+                    </div>
+                )}
 
                 {Array.from({ length: 7 }).map((_, idx) => {
 
@@ -120,10 +123,6 @@ export default function ReportText({ week }) {
                                 {dayLabel} — {dateStr}
                             </div>
 
-                            {shifts.length === 0 && (
-                                <div className="report-empty">— Sin horario</div>
-                            )}
-
                             {shiftRows.map(row => {
 
                                 function renderRecord(r) {
@@ -187,63 +186,24 @@ export default function ReportText({ week }) {
 
                                 }
 
-                                // obtener todos los fichajes de este turno
-                                const shiftRecords = [
-                                    ...row.ins.filter(Boolean),
-                                    ...row.outs.filter(Boolean)
-                                ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-                                const extraRecords = shiftRecords.slice(6);
-
                                 return (
 
-                                    <React.Fragment key={row.shift.startTime}>
+                                    <div key={row.shift.startTime} className="report-row">
 
-                                        <div className="report-row">
-
-                                            <div className="report-shift">
-                                                {row.shift.startTime} → {row.shift.endTime}
-                                            </div>
-
-                                            <div className="report-cell">{renderRecord(row.ins?.[0])}</div>
-                                            <div className="report-cell">{renderRecord(row.outs?.[0])}</div>
-
-                                            <div className="report-cell">{renderRecord(row.ins?.[1])}</div>
-                                            <div className="report-cell">{renderRecord(row.outs?.[1])}</div>
-
-                                            <div className="report-cell">{renderRecord(row.ins?.[2])}</div>
-                                            <div className="report-cell">{renderRecord(row.outs?.[2])}</div>
-
+                                        <div className="report-shift">
+                                            {row.shift.startTime} → {row.shift.endTime}
                                         </div>
 
-                                        {extraRecords.length > 0 && (() => {
+                                        <div className="report-cell">{renderRecord(row.ins?.[0])}</div>
+                                        <div className="report-cell">{renderRecord(row.outs?.[0])}</div>
 
-                                            const first = new Date(extraRecords[0].createdAt);
-                                            const last = new Date(extraRecords[extraRecords.length - 1].createdAt);
+                                        <div className="report-cell">{renderRecord(row.ins?.[1])}</div>
+                                        <div className="report-cell">{renderRecord(row.outs?.[1])}</div>
 
-                                            const fh = String(first.getHours()).padStart(2, "0");
-                                            const fm = String(first.getMinutes()).padStart(2, "0");
+                                        <div className="report-cell">{renderRecord(row.ins?.[2])}</div>
+                                        <div className="report-cell">{renderRecord(row.outs?.[2])}</div>
 
-                                            const lh = String(last.getHours()).padStart(2, "0");
-                                            const lm = String(last.getMinutes()).padStart(2, "0");
-
-                                            return (
-
-                                                <div className="report-row">
-
-                                                    <div className="report-shift"></div>
-
-                                                    <div className="report-warning">
-                                                        {extraRecords.length} fichajes más entre {fh}:{fm} y {lh}:{lm}
-                                                    </div>
-
-                                                </div>
-
-                                            );
-
-                                        })()}
-
-                                    </React.Fragment>
+                                    </div>
 
                                 );
 
@@ -258,8 +218,14 @@ export default function ReportText({ week }) {
     }
 
     return (
+
+
+
         <div className="report-text-container">
             {renderTextDetailed()}
         </div>
+
+
+
     );
 }
