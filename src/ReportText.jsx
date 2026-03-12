@@ -67,45 +67,12 @@ export default function ReportText({ week }) {
 
                     const incidents = dayData?.incidents ?? [];
 
-                    // construir pares cronológicos IN → OUT
-                    const pairs = [];
-                    let currentIn = null;
-
-                    records.forEach(r => {
-
-                        if (r.type === "IN") {
-
-                            if (currentIn) {
-                                pairs.push({ in: currentIn, out: null });
-                            }
-
-                            currentIn = r;
-
-                        } else {
-
-                            if (currentIn) {
-                                pairs.push({ in: currentIn, out: r });
-                                currentIn = null;
-                            } else {
-                                pairs.push({ in: null, out: r });
-                            }
-
-                        }
-
-                    });
-
-                    if (currentIn) {
-                        pairs.push({ in: currentIn, out: null });
-                    }
-
-                    // preparar filas por turno
                     const shiftRows = shifts.map(s => ({
                         shift: s,
                         ins: [],
                         outs: []
                     }));
 
-                    // asignar pares al turno más cercano
                     records.forEach(r => {
 
                         const dt = new Date(r.createdAt);
@@ -120,8 +87,8 @@ export default function ReportText({ week }) {
                             const [h2, m2] = s.endTime.split(":").map(Number);
 
                             const target = r.type === "IN"
-                                ? (h1 * 60 + m1)   // comparar con entrada
-                                : (h2 * 60 + m2);  // comparar con salida
+                                ? (h1 * 60 + m1)
+                                : (h2 * 60 + m2);
 
                             const dist = Math.abs(t - target);
 
@@ -135,16 +102,17 @@ export default function ReportText({ week }) {
                         if (r.type === "IN") {
 
                             const slot = shiftRows[closestIndex].ins.length;
-                            if (slot < 2) shiftRows[closestIndex].ins[slot] = r;
+                            if (slot < 3) shiftRows[closestIndex].ins[slot] = r;
 
                         } else {
 
                             const slot = shiftRows[closestIndex].outs.length;
-                            if (slot < 2) shiftRows[closestIndex].outs[slot] = r;
+                            if (slot < 3) shiftRows[closestIndex].outs[slot] = r;
 
                         }
 
                     });
+
                     return (
                         <div key={dateStr} className="report-day">
 
@@ -219,20 +187,63 @@ export default function ReportText({ week }) {
 
                                 }
 
+                                // obtener todos los fichajes de este turno
+                                const shiftRecords = [
+                                    ...row.ins.filter(Boolean),
+                                    ...row.outs.filter(Boolean)
+                                ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+                                const extraRecords = shiftRecords.slice(6);
+
                                 return (
 
-                                    <div key={row.shift.startTime} className="report-row">
+                                    <React.Fragment key={row.shift.startTime}>
 
-                                        <div className="report-shift">
-                                            {row.shift.startTime} → {row.shift.endTime}
+                                        <div className="report-row">
+
+                                            <div className="report-shift">
+                                                {row.shift.startTime} → {row.shift.endTime}
+                                            </div>
+
+                                            <div className="report-cell">{renderRecord(row.ins?.[0])}</div>
+                                            <div className="report-cell">{renderRecord(row.outs?.[0])}</div>
+
+                                            <div className="report-cell">{renderRecord(row.ins?.[1])}</div>
+                                            <div className="report-cell">{renderRecord(row.outs?.[1])}</div>
+
+                                            <div className="report-cell">{renderRecord(row.ins?.[2])}</div>
+                                            <div className="report-cell">{renderRecord(row.outs?.[2])}</div>
+
                                         </div>
 
-                                        {renderRecord(row.ins[0])}
-                                        {renderRecord(row.outs[0])}
-                                        {renderRecord(row.ins[1])}
-                                        {renderRecord(row.outs[1])}
+                                        {extraRecords.length > 0 && (() => {
 
-                                    </div>
+                                            const first = new Date(extraRecords[0].createdAt);
+                                            const last = new Date(extraRecords[extraRecords.length - 1].createdAt);
+
+                                            const fh = String(first.getHours()).padStart(2, "0");
+                                            const fm = String(first.getMinutes()).padStart(2, "0");
+
+                                            const lh = String(last.getHours()).padStart(2, "0");
+                                            const lm = String(last.getMinutes()).padStart(2, "0");
+
+                                            return (
+
+                                                <div className="report-row">
+
+                                                    <div className="report-shift"></div>
+
+                                                    <div className="report-warning">
+                                                        {extraRecords.length} fichajes más entre {fh}:{fm} y {lh}:{lm}
+                                                    </div>
+
+                                                </div>
+
+                                            );
+
+                                        })()}
+
+                                    </React.Fragment>
 
                                 );
 

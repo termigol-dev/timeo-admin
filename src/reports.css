@@ -154,10 +154,21 @@
   background: #dc2626;
 }
 
-.report-row {
-  display: grid;
-  grid-template-columns: 160px 110px 110px 110px 110px;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+.report-row{
+display:grid;
+grid-template-columns:170px repeat(6,110px);
+align-items:center;
+gap:6px;
+}
+
+.report-cell{
+min-height:28px;
+display:flex;
+align-items:center;
+}
+
+.report-warning{
+grid-column:2 / span 6;
+font-size:13px;
+color:#92400e;
 }
