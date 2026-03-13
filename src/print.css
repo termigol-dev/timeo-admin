@@ -40,28 +40,32 @@
   }
 
   .report-main-header img {
-    height: 18px;
+    height: 14px;
   }
 
   .report-main-header-info {
-    font-size: 13px;
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: auto auto;
+    column-gap: 20px;
     align-items: center;
+    font-size: 13px;
   }
 
   .report-main-employee {
-    font-weight: 700;
-    font-size: 15px;
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .report-main-company {
-    font-size: 13px;
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .report-main-title {
-    font-size: 14px;
-    margin-top: 4px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    font-size: 13px;
+    font-weight: 600;
   }
 
   /* =====================
@@ -97,7 +101,7 @@
   }
 
   .report-shift {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
   }
 
@@ -106,12 +110,14 @@
   ===================== */
 
   .report-week {
-    height: 36vh !important;
+    height: calc((100vh - 300px)/2);
     page-break-inside: avoid;
     break-inside: avoid;
     border: 1px solid #ddd;
     border-radius: 8px;
-    width: 100%;
+    width: 99%;
+    margin-left: 0;
+    margin-right: 0;
     box-sizing: border-box;
   }
 
@@ -125,8 +131,13 @@
 
   .report-week-header {
     font-size: 11px;
-    padding: 6px 10px;
-    margin: -1px -1px 6px -1px;
+    padding: 6px 12px;
+
+    margin-left: -1px;
+    margin-right: -1px;
+    margin-top: -1px;
+    margin-bottom: 6px;
+
     border-radius: 8px 8px 0 0;
   }
 
@@ -139,7 +150,7 @@
 
   .report-day-title {
     font-weight: 500;
-    font-size: 13px;
+    font-size: 14px;
     margin-bottom: 4px;
   }
 
@@ -147,12 +158,12 @@
 
   .report-row {
     break-inside: avoid;
-    font-size: 12px;
+    font-size: 13px;
     break-inside: avoid;
   }
 
   .report-cell {
-    min-height: 24px !important;
+    min-height: 30px !important;
     ;
   }
 

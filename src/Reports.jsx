@@ -170,7 +170,7 @@ export default function Reports() {
       });
       console.log("RESPUESTA BACKEND:", res);
       setDays(res.days || []);
-      setEmployee(res.employee || null);
+      setEmployee(res.employee);
 
       setCurrentWeek(0);
 
@@ -237,19 +237,20 @@ export default function Reports() {
   return (
 
     <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
-
       <div className="report-main-header">
 
         <Logo size={120} />
 
         <div className="report-main-header-info">
 
-          <div className="report-main-employee">
-            {employee ? `${employee.name} ${employee.lastName}` : ""}
-          </div>
+          <div className="report-main-name">
+            <div className="report-main-employee">
+              {employee?.name} {employee?.firstSurname}
+            </div>
 
-          <div className="report-main-company">
-            {employee?.companyName || ""}
+            <div className="report-main-company">
+              {employee?.company?.legalName}
+            </div>
           </div>
 
           <div className="report-main-title">
