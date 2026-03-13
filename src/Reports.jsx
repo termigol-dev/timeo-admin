@@ -326,7 +326,49 @@ export default function Reports() {
 
         </div>
       )}
+      <div className="report-legend">
 
+        <b>Leyenda</b>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: 16,
+            marginTop: 8,
+            fontSize: 13
+          }}
+        >
+
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 18, height: 10, background: '#2563eb', borderRadius: 3 }} />
+              <span>Horario previsto</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <div style={{ width: 18, height: 10, background: '#22c55e', borderRadius: 3 }} />
+              <span>Horario trabajado</span>
+            </div>
+          </div>
+
+          <div>
+            <div>🟨 IN_EARLY, OUT_LATE → tiempo extra</div>
+            <div style={{ marginTop: 4 }}>
+              🟨 FORGOT_IN, FORGOT_OUT → olvido en el registro
+            </div>
+          </div>
+
+          <div>
+            <div>🟧 IN_LATE, OUT_EARLY → ingreso tarde y salida temprana</div>
+            <div style={{ marginTop: 4 }}>
+              🟥 NO_SHOW → sin registros
+            </div>
+          </div>
+
+        </div>
+
+      </div>
     </div>
 
   );

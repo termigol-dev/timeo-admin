@@ -251,3 +251,9 @@
   font-size:20px;
   font-weight:700;
 }
+
+.report-legend{
+  margin-top:14px;
+  font-size:11px;
+  page-break-inside:avoid;
+}

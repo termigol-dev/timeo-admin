@@ -6,17 +6,13 @@
 
   @page {
     size: A4 portrait;
-    margin: 14mm;
+    margin: 12mm;
   }
 
   body {
     background: white !important;
+    font-size: 12px;
   }
-
-
-  /* solo se imprime el informe */
-
-
 
   /* ocultar UI de la app */
 
@@ -36,27 +32,52 @@
      CABECERA IMPRESIÓN
   ===================== */
 
-  .print-header {
+  .report-main-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 6px;
   }
 
-  .print-logo {
-    height: 36px;
+  .report-main-header img {
+    height: 18px;
   }
 
-  .print-header-right {
-    text-align: right;
+  .report-main-header-info {
+    font-size: 13px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .report-main-employee {
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .report-main-company {
+    font-size: 13px;
+  }
+
+  .report-main-title {
     font-size: 14px;
-    font-weight: 600;
+    margin-top: 4px;
   }
 
-  .print-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 16px;
+  /* =====================
+     LEYENDA IMPRESIÓN
+  ===================== */
+  .report-legend {
+
+    position: fixed;
+    bottom: 12mm;
+    left: 12mm;
+    right: 12mm;
+
+    border-top: 1px solid #ddd;
+    padding-top: 4px;
+
+    font-size: 8px;
   }
 
   /* =====================
@@ -64,11 +85,20 @@
   ===================== */
 
   .text-report-grid {
-    display: block !important;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
+    height: calc(100vh - 120px);
   }
 
   .report-text-container {
     display: block;
+  }
+
+  .report-shift {
+    font-size: 13px;
+    font-weight: 500;
   }
 
   /* =====================
@@ -76,26 +106,72 @@
   ===================== */
 
   .report-week {
-
-    height: 44vh;
-    /* ajustado para cabecera */
-    overflow: hidden;
-
+    height: 36vh !important;
     page-break-inside: avoid;
     break-inside: avoid;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
-  /* cada 2 semanas → nueva página */
+  /* cada 2 semanas nueva página */
 
   .report-week:nth-of-type(2n) {
     page-break-after: always;
   }
 
-  /* evitar cortes internos */
+  /* cabecera semana */
+
+  .report-week-header {
+    font-size: 11px;
+    padding: 6px 10px;
+    margin: -1px -1px 6px -1px;
+    border-radius: 8px 8px 0 0;
+  }
+
+  /* días */
+
+  .report-day {
+    font-size: 12px;
+    padding: 3px 0 !important;
+  }
+
+  .report-day-title {
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  /* filas */
 
   .report-row {
     break-inside: avoid;
+    font-size: 12px;
+    break-inside: avoid;
   }
+
+  .report-cell {
+    min-height: 24px !important;
+    ;
+  }
+
+  /* badges */
+
+  .report-badge-in,
+  .report-badge-out {
+    font-size: 9px !important;
+    padding: 2px 6px !important;
+    min-width: 30px !important;
+    ;
+  }
+
+  .report-time {
+    font-size: 12px;
+  }
+
+  /* evitar cortes internos */
+
 
   .report-day {
     break-inside: avoid;
@@ -111,5 +187,7 @@
   .report-print {
     display: block !important;
   }
+
+
 
 }
