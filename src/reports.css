@@ -5,7 +5,7 @@
 .report-text-container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 10px;
 }
 
 /* ============================= */
@@ -24,7 +24,7 @@
 /* cabecera semana */
 
 .report-week-header {
-  background: #0ea5a4;
+  background: #12c3c3;
   color: white;
   font-weight: 600;
   padding: 8px 12px;
@@ -162,7 +162,7 @@
 /* colores */
 
 .incident-yellow {
-  background: #eab308;
+  background: #ede616;
 }
 
 .incident-orange {
@@ -200,7 +200,7 @@
 .report-warning {
   grid-column: 2 / span 6;
   font-size: 14px;
-  color: #92400e;
+  color: #ee7427;
 }
 
 .report-print-header{
@@ -216,25 +216,25 @@
 }
 
 .report-main-header{
-  margin-bottom:24px;
   display:flex;
   align-items:center;
-  gap:20px;
+  gap:6px;
+  margin-top:8px;
+  margin-bottom:2px;
 }
-.report-main-header-info{
+
+.report-main-header-right{
   display:flex;
   flex-direction:column;
 }
 
-.report-main-header-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+.report-main-title{
+  margin-left:auto;
+  font-size:20px;
+  font-weight:700;
+  line-height:1.2;
 }
 
-.report-main-header-right{
-  text-align:right;
-}
 
 .report-main-employee{
   font-size:18px;
@@ -246,14 +246,126 @@
   color:#555;
 }
 
-.report-main-title{
-  margin-top:8px;
-  font-size:20px;
-  font-weight:700;
-}
-
 .report-legend{
   margin-top:14px;
   font-size:11px;
   page-break-inside:avoid;
+}
+
+
+/* ============================= */
+/* BADGE PORCENTAJE SEMANA */
+/* ============================= */
+
+.report-badge-percent {
+  color: white;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+}
+
+.report-badge-percent-green {
+  background: #16a34a;
+}
+
+.report-badge-percent-yellow {
+  background: #ede616;
+  color: #000;
+}
+
+.report-badge-percent-orange {
+  background: #f97316;
+}
+
+.report-badge-percent-red {
+  background: #dc2626;
+}
+
+/*IMPRIMIR*/
+.report-print-button{
+  background:none;
+  border:none;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px;
+}
+
+.report-print-button span{
+  font-size:50px;
+  color:#444;
+}
+
+.report-print-button:hover span{
+  color:#000;
+}
+
+/*MESES Y CALENDARIO*/
+.report-month-navigation{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.report-month-navigation button{
+  background:#f3f4f6;
+  border:1px solid #ddd;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.report-month-navigation button:hover{
+  background:#e5e7eb;
+}
+
+.report-month-navigation input{
+  border:1px solid #ddd;
+  border-radius:6px;
+  padding:5px 8px;
+  font-size:14px;
+}
+
+/* ============================= */
+/* TOOLBAR INFORMES */
+/* ============================= */
+
+.report-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-top:2px;
+  margin-bottom:6px;
+}
+
+/* botones navegación */
+
+.report-nav-button{
+  background:#f5f5f5;
+  border:1px solid #ddd;
+  border-radius:6px;
+  padding:6px 12px;
+  font-size:14px;
+  cursor:pointer;
+}
+
+.report-nav-button:hover{
+  background:#e9e9e9;
+}
+
+/* selector mes */
+
+.report-month-picker{
+  border:1px solid #ddd;
+  border-radius:6px;
+  padding:6px 10px;
+  font-size:14px;
 }

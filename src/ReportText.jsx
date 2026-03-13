@@ -27,7 +27,9 @@ export default function ReportText({
     reportMonth = "",
     reportYear = "",
     workedTotal = "",
-    expectedTotal = ""
+    expectedTotal = "",
+    ratioPercent = 0,
+    ratioColor = ""
 }) {
 
     function renderTextDetailed() {
@@ -41,11 +43,26 @@ export default function ReportText({
             <div className="report-week">
 
                 <div className="report-week-header">
-                    <span>Semana desde {toISODate(week.weekStart)}</span>
+
+                    <span>
+                        Semana desde {toISODate(week.weekStart)}
+                    </span>
 
                     <span className="week-totals">
-                        Trabajado: {workedTotal} &nbsp;&nbsp; Previsto: {expectedTotal}
+
+                        Trabajado: {workedTotal}
+                        &nbsp;&nbsp;
+                        Previsto: {expectedTotal}
+                        &nbsp;&nbsp;
+
+                        <span
+                            className={`report-badge-percent report-badge-percent-${ratioColor}`}
+                        >
+                            {ratioPercent}%
+                        </span>
+
                     </span>
+
                 </div>
 
                 {!weekHasContent && (

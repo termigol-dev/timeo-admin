@@ -9,12 +9,12 @@
     margin: 12mm;
   }
 
-  body {
-    background: white !important;
-    font-size: 12px;
+  body{
+    background:white !important;
+    font-size:12px;
   }
 
-  /* ocultar UI de la app */
+  /* ocultar UI */
 
   button,
   select,
@@ -24,181 +24,117 @@
   .reports-controls,
   .reports-toolbar,
   .report-filters,
-  .report-navigation {
-    display: none !important;
+  .report-navigation{
+    display:none !important;
   }
 
   /* =====================
-     CABECERA IMPRESIÓN
+     HEADER
   ===================== */
 
-  .report-main-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+  .report-main-header{
+    gap:8px;
   }
 
-  .report-main-header img {
-    height: 14px;
+  .report-main-header img{
+    height:14px;
   }
 
-  .report-main-header-info {
-    display: grid;
-    grid-template-columns: auto auto;
-    column-gap: 20px;
-    align-items: center;
-    font-size: 13px;
-  }
-
-  .report-main-employee {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .report-main-company {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .report-main-title {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    font-size: 13px;
-    font-weight: 600;
+  .report-main-title{
+    font-size:13px;
   }
 
   /* =====================
-     LEYENDA IMPRESIÓN
+     GRID DE SEMANAS
   ===================== */
-  .report-legend {
 
-    position: fixed;
-    bottom: 12mm;
-    left: 12mm;
-    right: 12mm;
-
-    border-top: 1px solid #ddd;
-    padding-top: 4px;
-
-    font-size: 8px;
+  .text-report-grid{
+    display:grid;
+    grid-template-rows:1fr 1fr;
+    gap:6px;
+    height:calc(100vh - 120px);
   }
 
   /* =====================
-     CONTENIDO
+     TARJETAS
   ===================== */
 
-  .text-report-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 6px;
-    height: calc(100vh - 120px);
+  .report-week{
+    height:calc((100vh - 300px)/2);
+    width:99%;
+    margin:0;
+    box-sizing:border-box;
   }
 
-  .report-text-container {
-    display: block;
+  .report-week:nth-of-type(2n){
+    page-break-after:always;
   }
 
-  .report-shift {
-    font-size: 14px;
-    font-weight: 500;
+  .report-week-header{
+    font-size:11px;
+    padding:6px 12px;
+    margin:-1px -1px 6px -1px;
   }
 
   /* =====================
-     SEMANAS
+     DÍAS
   ===================== */
 
-  .report-week {
-    height: calc((100vh - 300px)/2);
-    page-break-inside: avoid;
-    break-inside: avoid;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    width: 99%;
-    margin-left: 0;
-    margin-right: 0;
-    box-sizing: border-box;
+  .report-day{
+    font-size:12px;
+    padding:3px 0 !important;
   }
 
-  /* cada 2 semanas nueva página */
-
-  .report-week:nth-of-type(2n) {
-    page-break-after: always;
+  .report-day-title{
+    font-size:13px;
   }
 
-  /* cabecera semana */
+  /* =====================
+     FILAS
+  ===================== */
 
-  .report-week-header {
-    font-size: 11px;
-    padding: 6px 12px;
-
-    margin-left: -1px;
-    margin-right: -1px;
-    margin-top: -1px;
-    margin-bottom: 6px;
-
-    border-radius: 8px 8px 0 0;
+  .report-row{
+    font-size:12px;
   }
 
-  /* días */
-
-  .report-day {
-    font-size: 12px;
-    padding: 3px 0 !important;
+  .report-cell{
+    min-height:28px !important;
   }
 
-  .report-day-title {
-    font-weight: 500;
-    font-size: 14px;
-    margin-bottom: 4px;
-  }
-
-  /* filas */
-
-  .report-row {
-    break-inside: avoid;
-    font-size: 13px;
-    break-inside: avoid;
-  }
-
-  .report-cell {
-    min-height: 30px !important;
-    ;
-  }
-
-  /* badges */
+  /* =====================
+     BADGES
+  ===================== */
 
   .report-badge-in,
-  .report-badge-out {
-    font-size: 9px !important;
-    padding: 2px 6px !important;
-    min-width: 30px !important;
-    ;
+  .report-badge-out{
+    font-size:9px !important;
+    padding:2px 6px !important;
+    min-width:30px !important;
   }
 
-  .report-time {
-    font-size: 12px;
+  .report-time{
+    font-size:11px;
   }
 
-  /* evitar cortes internos */
+  /* =====================
+     LEYENDA
+  ===================== */
 
-
-  .report-day {
-    break-inside: avoid;
+  .report-legend{
+    position:fixed;
+    bottom:12mm;
+    left:12mm;
+    right:12mm;
+    border-top:1px solid #ddd;
+    padding-top:4px;
+    font-size:8px;
   }
 
-  /* colores en impresión */
+  /* colores correctos en impresión */
 
-  * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  *{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
-
-  .report-print {
-    display: block !important;
-  }
-
-
 
 }

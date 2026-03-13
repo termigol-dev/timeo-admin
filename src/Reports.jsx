@@ -5,6 +5,9 @@ import ReportText from "./ReportText";
 import ReportGraph from "./ReportGraph";
 import Logo from "./components/Logo";
 
+
+
+
 /* ---------------- helpers ---------------- */
 
 function timeToMinutes(t) {
@@ -143,9 +146,14 @@ export default function Reports() {
 
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
 
+  const monthName = monthNames[month];
   const [currentWeek, setCurrentWeek] = useState(0);
-  const [viewMode, setViewMode] = useState('graph');
+  const viewMode = 'text';
   const [reportMode, setReportMode] = useState('detailed');
 
   const { userId } = useParams();
@@ -168,7 +176,9 @@ export default function Reports() {
         from,
         to,
       });
+
       console.log("RESPUESTA BACKEND:", res);
+      console.log("EMPLOYEE:", res.employee);
       setDays(res.days || []);
       setEmployee(res.employee);
 
@@ -241,67 +251,73 @@ export default function Reports() {
 
         <Logo size={120} />
 
-        <div className="report-main-header-info">
-
-          <div className="report-main-name">
-            <div className="report-main-employee">
-              {employee?.name} {employee?.firstSurname}
-            </div>
-
-            <div className="report-main-company">
-              {employee?.company?.legalName}
-            </div>
+        <div className="report-main-name">
+          <div className="report-main-employee">
+            {employee?.name} {employee?.lastName}
           </div>
 
-          <div className="report-main-title">
-            Informe de asistencia — {month + 1}/{year}
+          <div className="report-main-company">
+            {employee?.companyName}
           </div>
+        </div>
 
+        <div className="report-main-title">
+          Informe de asistencia — {monthName} {year}
         </div>
 
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div className="report-toolbar">
+
+        <div className="report-month-navigation">
+
+          <button
+            className="report-nav-button"
+            onClick={() => {
+              if (month === 0) {
+                setMonth(11)
+                setYear(y => y - 1)
+              } else {
+                setMonth(m => m - 1)
+              }
+            }}
+          >
+            ← Mes anterior
+          </button>
+
+          <input
+            className="report-month-picker"
+            type="month"
+            value={`${year}-${String(month + 1).padStart(2, '0')}`}
+            onChange={(e) => {
+              const [y, m] = e.target.value.split('-')
+              setYear(Number(y))
+              setMonth(Number(m) - 1)
+            }}
+          />
+
+          <button
+            className="report-nav-button"
+            onClick={() => {
+              if (month === 11) {
+                setMonth(0)
+                setYear(y => y + 1)
+              } else {
+                setMonth(m => m + 1)
+              }
+            }}
+          >
+            Mes siguiente →
+          </button>
+
+        </div>
 
         <button
-          onClick={() => setViewMode('graph')}
-          style={{
-            padding: '6px 12px',
-            background: viewMode === 'graph' ? '#2563eb' : '#e5e7eb',
-            color: viewMode === 'graph' ? '#fff' : '#000',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer'
-          }}
-        >
-          Vista gráfica
-        </button>
-
-        <button
-          onClick={() => setViewMode('text')}
-          style={{
-            padding: '6px 12px',
-            background: viewMode === 'text' ? '#2563eb' : '#e5e7eb',
-            color: viewMode === 'text' ? '#fff' : '#000',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer'
-          }}
-        >
-          Vista texto (debug)
-        </button>
-
-        <button
+          className="report-print-button"
           onClick={() => window.print()}
-          style={{
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
-            cursor: "pointer"
-          }}
+          title="Imprimir informe"
         >
-          🖨 Imprimir
+          <span className="material-symbols-outlined">print</span>
         </button>
 
       </div>
@@ -317,13 +333,38 @@ export default function Reports() {
       {viewMode === 'text' && (
         <div className="text-report-grid">
 
-          {weeks.map(w => (
-            <ReportText
-              key={w.weekStart.toISOString()}
-              week={w}
-              reportMode={reportMode}
-            />
-          ))}
+          {weeks.map(w => {
+
+            const workedMinutes = calculateWorkedMinutes(w);
+            const expectedMinutes = calculateExpectedMinutes(w);
+
+            let ratio = 0;
+            if (expectedMinutes > 0) {
+              ratio = Math.round((workedMinutes / expectedMinutes) * 100);
+            }
+
+            let ratioColor = "green";
+
+            if (ratio < 70 || ratio > 130) ratioColor = "red";
+            else if (ratio < 80 || ratio > 120) ratioColor = "orange";
+            else if (ratio < 90 || ratio > 110) ratioColor = "yellow";
+            else ratioColor = "green";
+
+            return (
+              <ReportText
+                key={w.weekStart.toISOString()}
+                week={w}
+                reportMode={reportMode}
+
+                workedTotal={formatMinutes(workedMinutes)}
+                expectedTotal={formatMinutes(expectedMinutes)}
+
+                ratioPercent={ratio}
+                ratioColor={ratioColor}
+              />
+            );
+
+          })}
 
         </div>
       )}
