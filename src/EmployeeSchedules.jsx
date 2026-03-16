@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import './EmployeeSchedules.css';
 
 async function safeJson(res) {
   const text = await res.text();
   if (!text) return null;
   try {
-    return JSON.parse(text);
+    return JSON.parse(text);   
   } catch {
     return null;
   }
@@ -32,6 +33,8 @@ const timeOptions = Array.from({ length: 48 }, (_, i) => {
   const m = i % 2 === 0 ? '00' : '30';
   return `${h}:${m}`;
 });
+
+
 
 function ensureShiftId(turn) {
 
@@ -80,7 +83,7 @@ export default function EmployeeSchedules() {
   const headerXRef = useRef(null);
   const calendarRef = useRef(null);
   const hoursRef = useRef(null);
-
+  const [showPanel, setShowPanel] = useState(false);
   /* 🆕 DATOS CABECERA */
 
   const [company, setCompany] = useState(null);
@@ -128,7 +131,10 @@ export default function EmployeeSchedules() {
 
   // 🟠 CAMBIOS DEL USUARIO
   const [draftTurns, setDraftTurns] = useState([]);
+  const [hasChanges, setHasChanges] = useState(false);
 
+  const navigate = useNavigate();
+  
   // 📅 Semana actual (lunes)
   const [weekStart, setWeekStart] = useState(() => normalizeToWeekStart(new Date()));
   const [saving, setSaving] = useState(false);
@@ -1474,6 +1480,7 @@ export default function EmployeeSchedules() {
 
   return (
     <div className="container">
+
       <div className="employee-header layout-width">
         {employee?.photoUrl && (
           <img
@@ -1493,275 +1500,360 @@ export default function EmployeeSchedules() {
               ? `${employee.name} ${employee.firstSurname}`
               : 'Empleado'}
           </div>
+          <button
+            className="back-button"
+            onClick={() => navigate(-1)}
+          >
+            ← Volver
+          </button>
         </div>
       </div>
 
-      <div className="form-card layout-width">
 
-        {/* DAYS — CABECERA DEL PANEL (PEGADA) */}
-        <div className="days-selector">
-          {days.map(d => (
-            <label key={d.key} className="day-checkbox">
-              <input
-                type="checkbox"
-                checked={selectedDays.includes(d.key)}
-                onChange={() => toggleDay(d.key)}
-              />
-              {d.key === 'X' ? 'X' : d.label[0]}
-            </label>
-          ))}
-        </div>
+      {/* BOTONES PRINCIPALES (MOVIDOS FUERA DEL PANEL) */}
+
+      <div className="form-buttons-row layout-width">
+
+        <button
+          onClick={addVacation}
+          className="primary-button add-vacation full-width"
+        >
+          Añadir vacaciones
+        </button>
+        <button
+          onClick={() => setShowPanel(true)}
+          className="primary-button add-turn full-width"
+        >
+          Añadir turno
+        </button>
+
+        <button
+          onClick={() => {
+            completeSchedule();
+            setHasChanges(false);
+          }}
+          className={`complete-button full-width ${!hasChanges ? 'disabled' : ''}`}
+          disabled={!hasChanges}
+        >
+          Confirmar horario
+        </button>
+      </div>
 
 
-        {/* PANEL DE CONTROLES */}
-        <div className={`controls-panel ${editingShift ? '' : ''}`}>
+      {/* PANEL MODAL */}
 
-          {/* FECHAS + HORAS (DOS SUBCOLUMNAS) */}
-          <div className="form-row">
+      {showPanel && (
 
-            {/* COLUMNA IZQUIERDA — FECHAS */}
-            <div className="form-dates">
-              <div className="caption">Fecha inicio</div>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="date-input"
-              />
+        <div
+          className="modal-overlay"
+          onClick={() => setEditingShift(null)}
+        >
 
-              <div className="caption">Fecha fin</div>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="date-input"
-              />
+          <div
+            className="form-card layout-width"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            {/* DAYS — CABECERA DEL PANEL */}
+            <div className="days-selector">
+              {days.map(d => (
+                <label key={d.key} className="day-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedDays.includes(d.key)}
+                    onChange={() => toggleDay(d.key)}
+                  />
+                  {d.key === 'X' ? 'X' : d.label[0]}
+                </label>
+              ))}
             </div>
 
-            {/* COLUMNA DERECHA — HORAS + BOTONES DE TURNO */}
-            <div className="form-times">
+            {/* PANEL DE CONTROLES */}
+            <div className={`controls-panel ${editingShift ? '' : ''}`}>
 
-              <div className="caption">Entrada</div>
-              <div className="time-row">
-                <select
-                  value={startTime}
-                  onChange={e => {
-                    const newStart = e.target.value;
-                    setStartTime(newStart);
+              <div className="form-row">
 
-                    if (editingShift) {
-                      setEditingPreview({
-                        ...editingShift,
-                        startTime: newStart,
-                        endTime,
-                      });
-                    }
-                  }}
-                  className="time-input in-select"
-                >
-                  <option value="">Hora de entrada</option>
-                  {timeOptions.map(t => (
-                    <option key={t} value={t}>
-                      {t} IN
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="caption">Salida</div>
-              <div className="time-row">
-                <select
-                  value={endTime}
-                  onChange={e => {
-                    const newEnd = e.target.value;
-                    setEndTime(newEnd);
+                {/* FECHAS */}
+                <div className="form-dates">
 
-                    if (editingShift) {
-                      setEditingPreview({
-                        ...editingShift,
-                        startTime,
-                        endTime: newEnd,
-                      });
-                    }
-                  }}
-                  className="time-input out select"
-                >
-                  <option value="">Hora de salida</option>
-                  {timeOptions.map(t => (
-                    <option key={t} value={t}>
-                      {t} OUT
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="caption">Fecha inicio</div>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={e => setDateFrom(e.target.value)}
+                    className="date-input"
+                  />
 
-              {/* 👇 AQUÍ VAN AHORA LOS DOS BOTONES */}
-              <div className="form-inline-buttons">
-                <button
-                  className="primary-button delete-block"
-                  onClick={handleDeleteBlock}
-                >
-                  Borrar bloque
-                </button>
+                  <div className="caption">Fecha fin</div>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={e => setDateTo(e.target.value)}
+                    className="date-input"
+                  />
 
-                <button
-                  onClick={() => {
-                    // SIEMPRE solo frontend
-                    addTurn();
-                  }}
-                  className="primary-button add-turn"
-                >
-                  Añadir turno
-                </button>
-              </div>
-
-            </div>
-          </div>
-
-          {/* FILA INFERIOR — VACACIONES + COMPLETADO */}
-          <div className="form-buttons-row">
-            <button
-              onClick={addVacation}
-              className="primary-button add-vacation full-width"
-            >
-              Añadir vacaciones
-            </button>
-
-            <button
-              onClick={completeSchedule}
-              className="complete-button full-width"
-            >
-              Confirmar horario
-            </button>
-            {deleteConfirmStep && (
-              <div className="delete-confirm">
-                <p>{deleteSummary}</p>
-
-                <div className="form-inline-buttons">
-                  <button
-                    className="primary-button delete-block"
-                    onClick={() => {
-                      // 👉 aquí irá luego el borrado real
-                      alert('Borrado confirmado (pendiente de backend)');
-                      setDeleteConfirmStep(null);
-                    }}
-                  >
-                    Confirmar
-                  </button>
-
-                  <button
-                    className="primary-button"
-                    onClick={() => setDeleteConfirmStep(null)}
-                  >
-                    Cancelar
-                  </button>
                 </div>
+
+
+                {/* HORAS */}
+                <div className="form-times">
+
+                  <div className="caption">Entrada</div>
+
+                  <div className="time-row">
+                    <select
+                      value={startTime}
+                      onChange={e => {
+
+                        const newStart = e.target.value;
+
+                        setStartTime(newStart);
+
+                        if (editingShift) {
+                          setEditingPreview({
+                            ...editingShift,
+                            startTime: newStart,
+                            endTime,
+                          });
+                        }
+
+                      }}
+                      className="time-input in-select"
+                    >
+
+                      <option value="">Hora de entrada</option>
+
+                      {timeOptions.map(t => (
+                        <option key={t} value={t}>
+                          {t} IN
+                        </option>
+                      ))}
+
+                    </select>
+                  </div>
+
+
+                  <div className="caption">Salida</div>
+
+                  <div className="time-row">
+                    <select
+                      value={endTime}
+                      onChange={e => {
+
+                        const newEnd = e.target.value;
+
+                        setEndTime(newEnd);
+
+                        if (editingShift) {
+                          setEditingPreview({
+                            ...editingShift,
+                            startTime,
+                            endTime: newEnd,
+                          });
+                        }
+
+                      }}
+                      className="time-input out select"
+                    >
+
+                      <option value="">Hora de salida</option>
+
+                      {timeOptions.map(t => (
+                        <option key={t} value={t}>
+                          {t} OUT
+                        </option>
+                      ))}
+
+                    </select>
+                  </div>
+
+
+                  {/* BOTONES */}
+
+                  <div className="form-inline-buttons">
+
+                    <button
+                      className="primary-button delete-block"
+                      onClick={() => {
+                        setShowPanel(false);
+                        setEditingPreview(null);
+                      }}
+                    >
+                      Cancelar
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        addTurn();
+                        setShowPanel(false);
+                        setEditingPreview(null);
+                        setHasChanges(true);
+                      }}
+                      className="primary-button add-turn"
+                    >
+                      Aceptar
+                    </button>
+
+                  </div>
+
+                </div>
+
               </div>
-            )}
+
+            </div>
+
           </div>
+
         </div>
-      </div>
+
+      )}
+
 
       {/* WEEKLY CALENDAR */}
+
       <div className="calendar-wrapper layout-width">
 
         {/* HEADER */}
+
         <div className="calendar-header">
+
           <div className="calendar-week-text">
+
             Semana del{' '}
+
             {weekDates[1].toLocaleDateString('es-ES', {
               day: '2-digit',
               month: 'short',
-            })}{' '}
-            –{' '}
+            })}
+
+            {' '}–{' '}
+
             {weekDates[7].toLocaleDateString('es-ES', {
               day: '2-digit',
               month: 'short',
             })}
+
           </div>
 
+
           <div className="calendar-controls">
+
             <button
               onClick={() =>
 
                 setWeekStart(d => {
+
                   const prev = new Date(d);
+
                   prev.setDate(prev.getDate() - 7);
+
                   return normalizeToWeekStart(prev);
+
                 })
+
               }
               className="calendar-button"
             >
               ←
             </button>
 
+
             <button
               onClick={() =>
+
                 setWeekStart(d => {
+
                   const next = new Date(d);
+
                   next.setDate(next.getDate() + 7);
+
                   return normalizeToWeekStart(next);
+
                 })
+
               }
               className="calendar-button"
             >
               →
             </button>
 
+
             <select
               value={weekStart.getMonth()}
               onChange={e => {
+
                 const d = new Date(weekStart);
+
                 d.setMonth(Number(e.target.value));
 
                 const candidate = normalizeToWeekStart(d);
 
                 console.log('🚨 FRONT setWeekStart', {
                   candidate: formatDateLocal(candidate),
-                  jsDay: candidate.getDay(),      // 0 = domingo
-                  stack: new Error().stack,       // 🔥 para saber desde dónde se llama
+                  jsDay: candidate.getDay(),
+                  stack: new Error().stack,
                 });
 
                 setWeekStart(candidate);
+
                 setWeekStart(normalizeToWeekStart(d));
+
               }}
               className="calendar-select"
             >
+
               {Array.from({ length: 12 }).map((_, i) => (
+
                 <option key={i} value={i}>
+
                   {new Date(0, i).toLocaleString('es-ES', { month: 'short' })}
+
                 </option>
+
               ))}
+
             </select>
+
 
             <select
               value={weekStart.getFullYear()}
               onChange={e => {
+
                 const d = new Date(weekStart);
+
                 d.setFullYear(Number(e.target.value));
+
                 const candidate = normalizeToWeekStart(d);
 
                 console.log('🚨 FRONT setWeekStart', {
                   candidate: formatDateLocal(candidate),
-                  jsDay: candidate.getDay(),      // 0 = domingo
-                  stack: new Error().stack,       // 🔥 para saber desde dónde se llama
+                  jsDay: candidate.getDay(),
+                  stack: new Error().stack,
                 });
+
                 setWeekStart(normalizeToWeekStart(d));
+
               }}
               className="calendar-select"
             >
+
               {Array.from({ length: 5 }).map((_, i) => {
+
                 const year = new Date().getFullYear() - 2 + i;
+
                 return (
                   <option key={year} value={year}>
                     {year}
                   </option>
                 );
+
               })}
+
             </select>
+
           </div>
+
         </div>
-
-
         {/* GRID */}
         {console.log('🎨 RENDER STATE', {
           shiftToDelete,
@@ -2244,6 +2336,7 @@ export default function EmployeeSchedules() {
                   setTimeout(() => {
                     handleConfirmEditShift({ deleting: true });
                   }, 0);
+                  setHasChanges(true);
                 }}
               >
                 Confirmar borrado

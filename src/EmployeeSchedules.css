@@ -4,9 +4,11 @@
   --control-padding-y: 0.9em;
   --day-col-width: 130px;
 }
+
 :root {
-  --hours-col-width: 90px;   
+  --hours-col-width: 90px;
 }
+
 /* ======================================================
    BASE
 ====================================================== */
@@ -26,9 +28,39 @@
    FORMULARIO
 ====================================================== */
 
-.form-card {
-  padding: 40px;
-  padding-bottom: 10px;
+.form-card{
+  position:relative;
+  width:720px;
+  max-width:90vw;
+  background:white;
+  border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.25);
+  z-index:1600;
+}
+
+.form-card::before{
+  content:"";
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,0.35);
+  z-index:-1;
+}
+
+.modal-overlay{
+  position:fixed;
+
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,0.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1500;
 }
 
 .days-selector {
@@ -286,14 +318,18 @@ GRID
   height: 40px;
   border-bottom: 5px solid #e5e7eb;
 
-  align-items: center;       /* centrado vertical */
-  justify-content: center;   /* centrado horizontal */
+  align-items: center;
+  /* centrado vertical */
+  justify-content: center;
+  /* centrado horizontal */
 
-  font-weight: 700;          /* negrita */
+  font-weight: 700;
+  /* negrita */
   font-size: 14px;
   color: #111827;
 
-  text-transform: capitalize; /* primera letra en mayúscula */
+  text-transform: capitalize;
+  /* primera letra en mayúscula */
 
 }
 
@@ -484,12 +520,28 @@ NUEVO LAYOUT PANEL SUPERIOR
 
 /* Fila de botones */
 .form-buttons-row {
-  display: flex;
-  gap: 14px;
-  width: 100%;
-  Height: 100%;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+
+  gap: 16px;
+
+  max-width: 720px;
+  margin: 24px auto;
+
+  align-items: center;
 }
+
+.form-buttons-row>button {
+  width: 100%;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+}
+
 
 
 .delete-block {
@@ -649,7 +701,17 @@ HEADER EMPRESA / EMPLEADO
   align-items: center;
   justify-content: center;
 
-  z-index: 9999; /* 🔥 por encima de TODO */
+  z-index: 9999;
+  /* 🔥 por encima de TODO */
+}
+
+.shift-editor-modal{
+  width:720px;
+  max-width:90vw;
+  background:white;
+  border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.25);
+  position:relative;
 }
 
 .modal {
@@ -660,7 +722,7 @@ HEADER EMPRESA / EMPLEADO
   min-width: 320px;
   max-width: 400px;
   position: relative;
-  z-index: 10000; 
+  z-index: 10000;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
 }
 
