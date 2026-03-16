@@ -262,6 +262,24 @@ body.dark input.search {
   transition: all .15s ease;
 }
 
+/* ===== BOTÓN DESACTIVADO ===== */
+.tablet-actions button:disabled {
+  background-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* evitar hover en disabled */
+.tablet-actions button:disabled:hover {
+  background-color: #cbd5e1;
+  color: #64748b;
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
 /* ===== MAIN ===== */
 .main {
   flex: 1;
@@ -305,6 +323,28 @@ td > button:last-child {
 
 .page-header > button:last-child {
   margin-right: 0;
+}
+
+/* =====================================================
+   HEADER EMPLEADO
+===================================================== */
+.employee-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.employee-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.employee-header .tablet-actions {
+  margin-left: auto;
+}
+
+.employee-photo {
+  margin-right: 10px;
 }
 
 /* =====================================================

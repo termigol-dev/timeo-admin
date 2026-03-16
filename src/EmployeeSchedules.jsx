@@ -7,7 +7,7 @@ async function safeJson(res) {
   const text = await res.text();
   if (!text) return null;
   try {
-    return JSON.parse(text);   
+    return JSON.parse(text);
   } catch {
     return null;
   }
@@ -134,7 +134,7 @@ export default function EmployeeSchedules() {
   const [hasChanges, setHasChanges] = useState(false);
 
   const navigate = useNavigate();
-  
+
   // 📅 Semana actual (lunes)
   const [weekStart, setWeekStart] = useState(() => normalizeToWeekStart(new Date()));
   const [saving, setSaving] = useState(false);
@@ -1482,6 +1482,7 @@ export default function EmployeeSchedules() {
     <div className="container">
 
       <div className="employee-header layout-width">
+
         {employee?.photoUrl && (
           <img
             src={employee.photoUrl}
@@ -1500,29 +1501,31 @@ export default function EmployeeSchedules() {
               ? `${employee.name} ${employee.firstSurname}`
               : 'Empleado'}
           </div>
-          <button
-            className="back-button"
-            onClick={() => navigate(-1)}
-          >
+        </div>
+
+        <div className="tablet-actions employee-back">
+          <button onClick={() => navigate(-1)}>
             ← Volver
           </button>
         </div>
+
       </div>
 
+      {/* BOTONES PRINCIPALES */}
 
-      {/* BOTONES PRINCIPALES (MOVIDOS FUERA DEL PANEL) */}
-
-      <div className="form-buttons-row layout-width">
+      <div className="form-buttons-row layout-width tablet-actions">
 
         <button
           onClick={addVacation}
-          className="primary-button add-vacation full-width"
+          className="add-vacation full-width"
+          style={{ backgroundColor: "#ff6d00" }}
         >
           Añadir vacaciones
         </button>
+
         <button
           onClick={() => setShowPanel(true)}
-          className="primary-button add-turn full-width"
+          className="full-width"
         >
           Añadir turno
         </button>
@@ -1532,11 +1535,12 @@ export default function EmployeeSchedules() {
             completeSchedule();
             setHasChanges(false);
           }}
-          className={`complete-button full-width ${!hasChanges ? 'disabled' : ''}`}
+          className={`full-width ${!hasChanges ? 'disabled' : ''}`}
           disabled={!hasChanges}
         >
           Confirmar horario
         </button>
+
       </div>
 
 
@@ -1546,7 +1550,7 @@ export default function EmployeeSchedules() {
 
         <div
           className="modal-overlay"
-          onClick={() => setEditingShift(null)}
+          onClick={() => setShowPanel(false)}
         >
 
           <div
@@ -1670,10 +1674,9 @@ export default function EmployeeSchedules() {
 
                   {/* BOTONES */}
 
-                  <div className="form-inline-buttons">
+                  <div className="form-inline-buttons tablet-actions">
 
                     <button
-                      className="primary-button delete-block"
                       onClick={() => {
                         setShowPanel(false);
                         setEditingPreview(null);
@@ -1689,7 +1692,6 @@ export default function EmployeeSchedules() {
                         setEditingPreview(null);
                         setHasChanges(true);
                       }}
-                      className="primary-button add-turn"
                     >
                       Aceptar
                     </button>
@@ -1710,11 +1712,9 @@ export default function EmployeeSchedules() {
 
 
       {/* WEEKLY CALENDAR */}
-
       <div className="calendar-wrapper layout-width">
 
         {/* HEADER */}
-
         <div className="calendar-header">
 
           <div className="calendar-week-text">
@@ -2287,7 +2287,8 @@ export default function EmployeeSchedules() {
                   console.log('🧪 EDIT → EDITING SHIFT OBJECT', editingObject);
 
                   setEditingShift(editingObject);
-
+                  setEditingPreview(editingObject);
+                  setShowPanel(true);
                   setSelectedDays([shiftToDelete.day]);
                   setStartTime(shiftToDelete.startTime);
                   setEndTime(shiftToDelete.endTime);
