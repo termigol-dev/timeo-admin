@@ -867,7 +867,8 @@ export default function EmployeeSchedules() {
     } else {
 
       visibleTurns = turns
-        .filter(t => t.date === date)
+      visibleTurns = turns
+        .filter(t => (t.date ? t.date === date : t.days?.includes(day)))
         .map(t => {
 
           if (
@@ -1952,7 +1953,6 @@ export default function EmployeeSchedules() {
                 {savedTurns.map(t =>
                   t.days.map(day => {
 
-                    // ✅ columna REAL 1..7
                     const col = weekDays.indexOf(day);
                     if (col < 1 || col > 7) return null;
 
@@ -1960,7 +1960,6 @@ export default function EmployeeSchedules() {
                     let end = timeToRow(t.endTime);
                     if (end <= start) end += 48;
 
-                    // ✅ fecha local correcta
                     const currentDateObj = new Date(
                       weekStart.getFullYear(),
                       weekStart.getMonth(),
@@ -1968,7 +1967,6 @@ export default function EmployeeSchedules() {
                     );
                     const currentDate = formatDateLocal(currentDateObj);
 
-                    // 🔑 buscar excepción aplicable a este turno
                     const ex = draftExceptions.find(e => {
 
                       if (e.type !== 'MODIFIED_SHIFT') return false;
@@ -1983,30 +1981,74 @@ export default function EmployeeSchedules() {
                       return true;
                     });
 
-                    // 🔴 si hay excepción → comprobar si el bloque sigue existiendo
-                    if (ex) {
+                    // ======================================================
+                    // ✏️ CASO: EXCEPCIÓN (TURNOS EDITADOS)
+                    // ======================================================
+                    if (ex && ex.blocks && ex.blocks.length > 0) {
 
-                      const stillExists = ex.blocks?.some(b =>
-                        b.startTime === t.startTime &&
-                        b.endTime === t.endTime
+                      const block = ex.blocks[0];
+
+                      const newStart = timeToRow(block.startTime);
+                      const newEnd = timeToRow(block.endTime);
+
+                      const pieces = [];
+
+                      // 🟩 PARTE QUE SE MANTIENE
+                      pieces.push(
+                        <div
+                          key={`modified-${t.id}-${day}`}
+                          className="turn-saved"
+                          style={{
+                            gridColumn: col,
+                            gridRow: `${newStart + 1} / ${newEnd + 1}`,
+                          }}
+                        >
+                          {block.startTime} – {block.endTime}
+                        </div>
                       );
 
-                      // ❌ bloque eliminado → pintar negro
-                      if (!stillExists) {
-                        return (
+                      // ⬜ PARTE BORRADA (si se acorta por abajo)
+                      if (block.endTime < t.endTime) {
+
+                        const delStart = timeToRow(block.endTime);
+                        const delEnd = timeToRow(t.endTime);
+
+                        pieces.push(
                           <div
                             key={`deleted-${t.id}-${day}`}
                             className="turn-preview preview-delete"
                             style={{
                               gridColumn: col,
-                              gridRow: `${start + 1} / ${end + 1}`,
+                              gridRow: `${delStart + 1} / ${delEnd + 1}`,
                             }}
                           />
                         );
                       }
+
+                      // ⬜ PARTE BORRADA (si se acorta por arriba)
+                      if (block.startTime > t.startTime) {
+
+                        const delStart = timeToRow(t.startTime);
+                        const delEnd = timeToRow(block.startTime);
+
+                        pieces.push(
+                          <div
+                            key={`deleted-start-${t.id}-${day}`}
+                            className="turn-preview preview-delete"
+                            style={{
+                              gridColumn: col,
+                              gridRow: `${delStart + 1} / ${delEnd + 1}`,
+                            }}
+                          />
+                        );
+                      }
+
+                      return pieces;
                     }
 
+                    // ======================================================
                     // 🔴 ocultar SOLO el bloque exacto en preview DELETE
+                    // ======================================================
                     if (
                       editingPreview &&
                       editingPreview.type === 'DELETE' &&
@@ -2017,15 +2059,18 @@ export default function EmployeeSchedules() {
                       return null;
                     }
 
+                    // ======================================================
+                    // 🟢 TURNO NORMAL
+                    // ======================================================
                     return (
                       <div
                         key={`saved-${t.id}-${day}`}
                         className={`turn-saved ${editingShift &&
-                          editingShift.day === day &&
-                          editingShift.startTime === t.startTime &&
-                          editingShift.endTime === t.endTime
-                          ? 'editing-highlight'
-                          : ''
+                            editingShift.day === day &&
+                            editingShift.startTime === t.startTime &&
+                            editingShift.endTime === t.endTime
+                            ? 'editing-highlight'
+                            : ''
                           }`}
                         style={{
                           gridColumn: col,
@@ -2036,8 +2081,8 @@ export default function EmployeeSchedules() {
                           e.stopPropagation();
 
                           setShiftToDelete({
-                            id: t.id,          // id visual para React
-                            shiftId: t.shiftId, // ⭐ id real de DB
+                            id: t.id,
+                            shiftId: t.shiftId,
                             day,
                             col,
                             date: currentDate,
@@ -2052,6 +2097,7 @@ export default function EmployeeSchedules() {
                         {t.startTime} – {t.endTime}
                       </div>
                     );
+
                   })
                 )}
 
@@ -2093,6 +2139,7 @@ export default function EmployeeSchedules() {
                 )}
 
                 {/* 🖊️ PREVIEW ADD / EDIT / DELETE */}
+                console.log('🧪 PREVIEW OBJECT', editingPreview);
                 {editingPreview && editingPreview.startTime && editingPreview.endTime && (
 
                   <div

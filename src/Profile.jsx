@@ -24,9 +24,13 @@ export default function Profile() {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
 
+  const [devices, setDevices] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+
+  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     if (userId) load();
@@ -58,6 +62,23 @@ export default function Profile() {
       });
 
       setPhotoPreview(u.photoUrl || null);
+
+      // CARGAR DEVICES (solo superadmin)
+      if (currentUser?.role === 'SUPERADMIN') {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/devices/user/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        );
+
+        if (res.ok) {
+          const d = await res.json();
+          setDevices(d || []);
+        }
+      }
 
     } finally {
       setLoading(false);
@@ -140,13 +161,9 @@ export default function Profile() {
   const initials =
     `${user.name?.[0] || ''}${user.firstSurname?.[0] || ''}`.toUpperCase();
 
-  const currentCompany =
-    companies.find(c => c.id === selectedCompany)?.commercialName || '';
-
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 32 }}>
 
-      {/* HEADER */}
       <div
         style={{
           display: 'flex',
@@ -164,7 +181,6 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* CARD */}
       <div
         style={{
           background: '#f8fafc',
@@ -174,111 +190,61 @@ export default function Profile() {
         }}
       >
 
-       {/* FOTO + EMPRESA */}
-<div
-  style={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 28,
-  }}
->
-  {/* IZQUIERDA: FOTO */}
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 20,
-    }}
-  >
-    <div
-      style={{
-        width: 90,
-        height: 90,
-        borderRadius: '50%',
-        overflow: 'hidden',
-        background: '#e5e7eb',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 600,
-        fontSize: 22,
-        color: '#475569',
-        flexShrink: 0,
-      }}
-    >
-      {photoPreview ? (
-        <img
-          src={photoPreview}
-          alt=""
+        {/* FOTO + EMPRESA */}
+        <div
           style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 28,
           }}
-        />
-      ) : (
-        initials
-      )}
-    </div>
+        >
 
-    <div>
-      <label style={labelStyle}>Foto del empleado</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
 
-      <div style={{ marginTop: 8 }}>
-        <label style={photoButtonStyle}>
-          Cambiar foto
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onSelectPhoto}
-            style={{ display: 'none' }}
-          />
-        </label>
-      </div>
-    </div>
-  </div>
+            <div
+              style={{
+                width: 90,
+                height: 90,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                background: '#e5e7eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 600,
+                fontSize: 22,
+                color: '#475569',
+              }}
+            >
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
+            </div>
 
-  {/* DERECHA: EMPRESA */}
-  <div style={{ textAlign: 'right', minWidth: 240 }}>
-    <div
-      style={{
-        fontSize: 24,
-        fontWeight: 800,
-        lineHeight: 1.1,
-      }}
-    >
-      {companies.find(c => c.id === selectedCompany)?.commercialName}
-    </div>
+            <div>
+              <label style={labelStyle}>Foto del empleado</label>
 
-    <div
-      style={{
-        fontSize: 13,
-        opacity: 0.6,
-        marginTop: 4,
-        marginBottom: 10,
-      }}
-    >
-      {companies.find(c => c.id === selectedCompany)?.legalName}
-    </div>
-
-    <select
-      value=""
-      onChange={e => changeCompany(e.target.value)}
-      style={selectStyle}
-    >
-      <option value="" disabled>
-        Cambiar empresa
-      </option>
-
-      {companies.map(c => (
-        <option key={c.id} value={c.id}>
-          {c.commercialName || c.legalName}
-        </option>
-      ))}
-    </select>
-  </div>
-</div>
+              <div style={{ marginTop: 8 }}>
+                <label style={photoButtonStyle}>
+                  Cambiar foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={onSelectPhoto}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* GRID CAMPOS */}
         <div
@@ -288,7 +254,7 @@ export default function Profile() {
             gap: 28,
           }}
         >
-          
+
           <Field label="Nombre">
             <input name="name" value={form.name} onChange={change} style={inputStyle} />
           </Field>
@@ -325,7 +291,36 @@ export default function Profile() {
           </Field>
         </div>
 
-        {/* BOTONES */}
+        {/* DEVICES SOLO SUPERADMIN */}
+        {currentUser?.role === 'SUPERADMIN' && (
+          <div style={{ marginTop: 40 }}>
+            <h3 style={{ marginBottom: 12 }}>Devices</h3>
+
+            {devices.length === 0 && (
+              <div style={{ fontSize: 14, opacity: 0.7 }}>
+                No hay dispositivos registrados
+              </div>
+            )}
+
+            {devices.map(d => (
+              <div
+                key={d.id}
+                style={{
+                  padding: 10,
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  fontSize: 13,
+                  background: '#fff',
+                }}
+              >
+                <div><strong>{d.platform}</strong></div>
+                <div style={{ wordBreak: 'break-all' }}>{d.token}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="tablet-actions" style={{ marginTop: 40 }}>
           <button onClick={saveProfile} disabled={saving}>
             {saving ? 'Guardando…' : 'Guardar cambios'}
@@ -360,7 +355,6 @@ function Field({ label, children }) {
   );
 }
 
-/* STYLES */
 const labelStyle = {
   fontSize: 13,
   fontWeight: 600,
@@ -383,16 +377,6 @@ const selectStyle = {
   cursor: 'pointer',
 };
 
-const scheduleSelectStyle = {
-  padding: '14px 16px',
-  borderRadius: 14,
-  border: '1px solid #cbd5e1',
-  fontSize: 15,
-  fontWeight: 600,
-  background: '#ffffff',
-  cursor: 'pointer',
-};
-
 const photoButtonStyle = {
   padding: '8px 14px',
   borderRadius: 10,
@@ -400,5 +384,4 @@ const photoButtonStyle = {
   background: '#ffffff',
   fontSize: 13,
   cursor: 'pointer',
-  transition: 'all .15s ease',
 };

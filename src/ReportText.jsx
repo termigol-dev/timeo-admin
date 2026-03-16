@@ -1,6 +1,16 @@
 import React from "react";
 import Logo from "./components/Logo";
 
+const INCIDENT_SHORT = {
+    IN_EARLY: "IE",
+    IN_LATE: "IL",
+    FORGOT_IN: "FI",
+    FORGOT_OUT: "FO",
+    OUT_EARLY: "OE",
+    OUT_LATE: "OL",
+    NO_SHOW: "NS"
+};
+
 function weekdayName(dateStr) {
     const [y, m, d] = dateStr.split("-").map(Number);
     const date = new Date(y, m - 1, d);
@@ -188,12 +198,16 @@ export default function ReportText({
                                                     i.type === "OUT_EARLY"
                                                 ) color = "incident-orange";
 
+                                                const label = INCIDENT_SHORT[i.type] || "?";
+
                                                 return (
                                                     <div
                                                         key={i.id}
                                                         className={`incident-dot ${color}`}
                                                         title={i.type}
-                                                    />
+                                                    >
+                                                        {label}
+                                                    </div>
                                                 );
 
                                             })}
@@ -236,13 +250,9 @@ export default function ReportText({
 
     return (
 
-
-
         <div className="report-text-container">
             {renderTextDetailed()}
         </div>
-
-
 
     );
 }
