@@ -1616,8 +1616,11 @@ export default function EmployeeSchedules() {
                         if (editingShift) {
                           setEditingPreview({
                             ...editingShift,
+                            originalStart: editingShift.startTime,
+                            originalEnd: editingShift.endTime,
                             startTime: newStart,
                             endTime,
+
                           });
                         }
 
@@ -1651,6 +1654,8 @@ export default function EmployeeSchedules() {
                         if (editingShift) {
                           setEditingPreview({
                             ...editingShift,
+                            originalStart: editingShift.startTime,
+                            originalEnd: editingShift.endTime,
                             startTime,
                             endTime: newEnd,
                           });
