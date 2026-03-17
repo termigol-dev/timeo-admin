@@ -3,12 +3,16 @@
 ========================= */
 
 @media print {
-
+  
   @page {
     size: A4 portrait;
     margin: 12mm;
   }
 
+  .no-print {
+    display: none !important;
+  }
+  
   body{
     background:white !important;
     font-size:12px;

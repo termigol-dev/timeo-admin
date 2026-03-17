@@ -39,7 +39,8 @@ export default function ReportText({
     workedTotal = "",
     expectedTotal = "",
     ratioPercent = 0,
-    ratioColor = ""
+    ratioColor = "",
+    simpleMode = false // ✅ AÑADIDO
 }) {
 
     function renderTextDetailed() {
@@ -188,7 +189,8 @@ export default function ReportText({
                                                 {hh}:{mm}
                                             </div>
 
-                                            {relatedIncidents.map(i => {
+                                            {/* ✅ SOLO CAMBIO REAL */}
+                                            {!simpleMode && relatedIncidents.map(i => {
 
                                                 let color = "incident-yellow";
 

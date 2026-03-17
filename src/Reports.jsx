@@ -155,6 +155,7 @@ export default function Reports() {
   const [currentWeek, setCurrentWeek] = useState(0);
   const viewMode = 'text';
   const [reportMode, setReportMode] = useState('detailed');
+  const [simpleMode, setSimpleMode] = useState(false);
 
   const { userId } = useParams();
 
@@ -246,7 +247,14 @@ export default function Reports() {
 
   return (
 
-    <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <div
+      className="container"
+      style={{
+        maxWidth: 1100,
+        margin: '0 auto',
+        paddingBottom: 60 // 👈 AIRE FINAL
+      }}
+    >
       <div className="report-main-header">
 
         <Logo size={120} />
@@ -310,6 +318,17 @@ export default function Reports() {
             Mes siguiente →
           </button>
 
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', marginLeft: 20 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={simpleMode}
+                onChange={(e) => setSimpleMode(e.target.checked)}
+              />
+              Modo Simplificado
+            </label>
+          </div>
+
         </div>
 
         <button
@@ -321,6 +340,8 @@ export default function Reports() {
         </button>
 
       </div>
+
+
 
       {viewMode === 'graph' && week && (
         <ReportGraph
@@ -355,7 +376,7 @@ export default function Reports() {
                 key={w.weekStart.toISOString()}
                 week={w}
                 reportMode={reportMode}
-
+                simpleMode={simpleMode}
                 workedTotal={formatMinutes(workedMinutes)}
                 expectedTotal={formatMinutes(expectedMinutes)}
 
@@ -368,49 +389,51 @@ export default function Reports() {
 
         </div>
       )}
-      <div className="report-legend">
+      {!simpleMode && (
+        <div className="report-legend">
 
-        <b>Leyenda</b>
+          <b>Leyenda</b>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
-            gap: 16,
-            marginTop: 8,
-            fontSize: 13
-          }}
-        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              gap: 16,
+              marginTop: 8,
+              fontSize: 13
+            }}
+          >
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 18, height: 10, background: '#2563eb', borderRadius: 3 }} />
-              <span>Horario previsto</span>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 18, height: 10, background: '#2563eb', borderRadius: 3 }} />
+                <span>Horario previsto</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                <div style={{ width: 18, height: 10, background: '#22c55e', borderRadius: 3 }} />
+                <span>Horario trabajado</span>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <div style={{ width: 18, height: 10, background: '#22c55e', borderRadius: 3 }} />
-              <span>Horario trabajado</span>
+            <div>
+              <div>🟨 IN_EARLY, OUT_LATE → tiempo extra</div>
+              <div style={{ marginTop: 4 }}>
+                🟨 FORGOT_IN, FORGOT_OUT → olvido en el registro
+              </div>
             </div>
-          </div>
 
-          <div>
-            <div>🟨 IN_EARLY, OUT_LATE → tiempo extra</div>
-            <div style={{ marginTop: 4 }}>
-              🟨 FORGOT_IN, FORGOT_OUT → olvido en el registro
+            <div>
+              <div>🟧 IN_LATE, OUT_EARLY → ingreso tarde y salida temprana</div>
+              <div style={{ marginTop: 4 }}>
+                🟥 NO_SHOW → sin registros
+              </div>
             </div>
-          </div>
 
-          <div>
-            <div>🟧 IN_LATE, OUT_EARLY → ingreso tarde y salida temprana</div>
-            <div style={{ marginTop: 4 }}>
-              🟥 NO_SHOW → sin registros
-            </div>
           </div>
 
         </div>
-
-      </div>
+      )}
     </div>
 
   );
