@@ -51,7 +51,10 @@ export default function SimulateRecord() {
                 outTime: outTime || null,
             });
             console.log("SIMULATION RESULT:", res.data); // 👈 AQUÍ
-            setResult(res.data);
+            setResetResult({ ...res.data });
+            useEffect(() => {
+                console.log("RESULT UPDATED:", result);
+            }, [result]); sult(res.data);
         } catch (err) {
             console.error(err);
             alert('Error simulando');
