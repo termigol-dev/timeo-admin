@@ -50,7 +50,7 @@ export default function SimulateRecord() {
                 inTime: inTime || null,
                 outTime: outTime || null,
             });
-
+            console.log("SIMULATION RESULT:", res.data); // 👈 AQUÍ
             setResult(res.data);
         } catch (err) {
             console.error(err);
