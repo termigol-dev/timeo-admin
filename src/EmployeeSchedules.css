@@ -112,6 +112,13 @@
   gap: 14px;
 }
 
+.time-edit-btn {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+
 .time-input {
   width: 250px;
   max-width: 200px;
@@ -123,12 +130,6 @@
   caret-color: #9ca3af;
   /* cursor gris suave */
 }
-
-/*.type-selector {
-  display: flex;
-  gap: 18px;
-  margin-top: 6px;
-}*/
 
 .primary-button {
   width: 270px;

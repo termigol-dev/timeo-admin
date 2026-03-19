@@ -110,6 +110,9 @@ export default function EmployeeSchedules() {
   const [showShiftDeleteConfirm, setShowShiftDeleteConfirm] = useState(false);
   const [deleteShiftMode, setDeleteShiftMode] = useState('ONLY_THIS_BLOCK');
 
+  const [editingStart, setEditingStart] = useState(false);
+  const [editingEnd, setEditingEnd] = useState(false);
+
   const [calendarDays, setCalendarDays] = useState([]);
 
   const [showVacationConfirm, setShowVacationConfirm] = useState(false);
@@ -1189,6 +1192,14 @@ export default function EmployeeSchedules() {
     return ops;
   }
 
+  function normalizeTime(value) {
+    if (!value) return "";
+
+    const [h = "0", m = "0"] = value.split(":");
+
+    return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
+  }
+
   async function completeSchedule() {
     const token = localStorage.getItem('token');
 
@@ -1606,75 +1617,138 @@ export default function EmployeeSchedules() {
                   <div className="caption">Entrada</div>
 
                   <div className="time-row">
-                    <select
-                      value={startTime}
-                      onChange={e => {
 
-                        const newStart = e.target.value;
+                    {editingStart ? (
+                      <input
+                        type="time"
+                        value={normalizeTime(editingPreview?.startTime ?? startTime)}
+                        onChange={e => {
 
-                        setStartTime(newStart);
+                          const newStart = e.target.value;
 
-                        if (editingShift) {
-                          setEditingPreview({
-                            ...editingShift,
-                            originalStart: editingShift.startTime,
-                            originalEnd: editingShift.endTime,
-                            startTime: newStart,
-                            endTime,
+                          setStartTime(newStart);
 
-                          });
-                        }
+                          if (editingPreview) {
+                            setEditingPreview({
+                              ...editingPreview,
+                              startTime: newStart,
+                            });
+                          }
 
-                      }}
-                      className="time-input in-select"
-                    >
+                        }}
+                        className="time-input"
+                      />
+                    ) : (
+                      <>
+                        <select
+                          value={startTime}
+                          onChange={e => {
 
-                      <option value="">Hora de entrada</option>
+                            const newStart = e.target.value;
 
-                      {timeOptions.map(t => (
-                        <option key={t} value={t}>
-                          {t} IN
-                        </option>
-                      ))}
+                            setStartTime(newStart);
 
-                    </select>
+                            if (editingShift) {
+                              setEditingPreview({
+                                ...editingShift,
+                                originalStart: editingShift.startTime,
+                                originalEnd: editingShift.endTime,
+                                startTime: newStart,
+                                endTime,
+                              });
+                            }
+
+                          }}
+                          className="time-input in-select"
+                        >
+                          <option value="">Hora de entrada</option>
+
+                          {timeOptions.map(t => (
+                            <option key={t} value={t}>
+                              {t} IN
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingStart(true)}
+                          className="time-edit-btn"
+                        >
+                          🕒
+                        </button>
+                      </>
+                    )}
+
                   </div>
 
 
                   <div className="caption">Salida</div>
 
                   <div className="time-row">
-                    <select
-                      value={endTime}
-                      onChange={e => {
 
-                        const newEnd = e.target.value;
+                    {editingEnd ? (
+                      <input
+                        type="time"
+                        value={normalizeTime(editingPreview?.endTime ?? endTime)}
+                        onChange={e => {
 
-                        setEndTime(newEnd);
+                          const newEnd = e.target.value;
 
-                        if (editingShift) {
-                          setEditingPreview({
-                            ...editingShift,
-                            originalStart: editingShift.startTime,
-                            originalEnd: editingShift.endTime,
-                            startTime,
-                            endTime: newEnd,
-                          });
-                        }
+                          setEndTime(newEnd);
 
-                      }}
-                      className="time-input out select"
-                    >
+                          if (editingPreview) {
+                            setEditingPreview({
+                              ...editingPreview,
+                              endTime: newEnd,
+                            });
+                          }
 
-                      <option value="">Hora de salida</option>
+                        }}
+                        className="time-input"
+                      />
+                    ) : (
+                      <>
+                        <select
+                          value={endTime}
+                          onChange={e => {
 
-                      {timeOptions.map(t => (
-                        <option key={t} value={t}>
-                          {t} OUT
-                        </option>
-                      ))}
+                            const newEnd = e.target.value;
 
-                    </select>
+                            setEndTime(newEnd);
+
+                            if (editingShift) {
+                              setEditingPreview({
+                                ...editingShift,
+                                originalStart: editingShift.startTime,
+                                originalEnd: editingShift.endTime,
+                                startTime,
+                                endTime: newEnd,
+                              });
+                            }
+
+                          }}
+                          className="time-input out-select"
+                        >
+                          <option value="">Hora de salida</option>
+
+                          {timeOptions.map(t => (
+                            <option key={t} value={t}>
+                              {t} OUT
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingEnd(true)}
+                          className="time-edit-btn"
+                        >
+                          🕒
+                        </button>
+                      </>
+                    )}
+
                   </div>
 
 
@@ -2066,11 +2140,11 @@ export default function EmployeeSchedules() {
                       <div
                         key={`saved-${t.id}-${day}`}
                         className={`turn-saved ${editingShift &&
-                            editingShift.day === day &&
-                            editingShift.startTime === t.startTime &&
-                            editingShift.endTime === t.endTime
-                            ? 'editing-highlight'
-                            : ''
+                          editingShift.day === day &&
+                          editingShift.startTime === t.startTime &&
+                          editingShift.endTime === t.endTime
+                          ? 'editing-highlight'
+                          : ''
                           }`}
                         style={{
                           gridColumn: col,
@@ -2332,18 +2406,24 @@ export default function EmployeeSchedules() {
 
                   const editingObject = {
                     ...shiftToDelete,
-                    shiftId: shiftToDelete.shiftId || shiftToDelete.id, // 🔑 asegurar shiftId
+                    shiftId: shiftToDelete.shiftId || shiftToDelete.id,
                     mode: deleteShiftMode,
+                    startTime: normalizeTime(shiftToDelete.startTime),
+                    endTime: normalizeTime(shiftToDelete.endTime),
                   };
 
                   console.log('🧪 EDIT → EDITING SHIFT OBJECT', editingObject);
 
                   setEditingShift(editingObject);
                   setEditingPreview(editingObject);
+
                   setShowPanel(true);
                   setSelectedDays([shiftToDelete.day]);
-                  setStartTime(shiftToDelete.startTime);
-                  setEndTime(shiftToDelete.endTime);
+
+                  // 🔥 SINCRONIZACIÓN CLAVE
+                  setStartTime(editingObject.startTime);
+                  setEndTime(editingObject.endTime);
+
                   setDateFrom(shiftToDelete.date);
 
                   if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
@@ -2351,8 +2431,6 @@ export default function EmployeeSchedules() {
                   } else {
                     setDateTo('');
                   }
-
-                  setEditingPreview(null);
 
                   setShowShiftDeleteConfirm(false);
                 }}
