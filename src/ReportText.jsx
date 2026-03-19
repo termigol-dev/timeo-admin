@@ -163,15 +163,7 @@ export default function ReportText({
 
                                     const timeMin = dt.getHours() * 60 + dt.getMinutes();
 
-                                    const relatedIncidents = incidents.filter(i => {
-
-                                        const it = new Date(i.occurredAt || i.createdAt);
-                                        const imin = it.getHours() * 60 + it.getMinutes();
-
-                                        return Math.abs(imin - timeMin) <= 5;
-
-                                    });
-
+                                    const incident = incidents.find(i => i.recordId === r.id);
                                     return (
                                         <div className="report-record">
 
@@ -190,29 +182,19 @@ export default function ReportText({
                                             </div>
 
                                             {/* ✅ SOLO CAMBIO REAL */}
-                                            {!simpleMode && relatedIncidents.map(i => {
-
-                                                let color = "incident-yellow";
-
-                                                if (i.type === "NO_SHOW") color = "incident-red";
-                                                else if (
-                                                    i.type === "IN_LATE" ||
-                                                    i.type === "OUT_EARLY"
-                                                ) color = "incident-orange";
-
-                                                const label = INCIDENT_SHORT[i.type] || "?";
-
-                                                return (
-                                                    <div
-                                                        key={i.id}
-                                                        className={`incident-dot ${color}`}
-                                                        title={i.type}
-                                                    >
-                                                        {label}
-                                                    </div>
-                                                );
-
-                                            })}
+                                            {!simpleMode && incident && (
+                                                <div
+                                                    className={`incident-dot ${incident.type === "NO_SHOW"
+                                                            ? "incident-red"
+                                                            : (incident.type === "IN_LATE" || incident.type === "OUT_EARLY")
+                                                                ? "incident-orange"
+                                                                : "incident-yellow"
+                                                        }`}
+                                                    title={incident.type}
+                                                >
+                                                    {INCIDENT_SHORT[incident.type] || "?"}
+                                                </div>
+                                            )}
 
                                         </div>
                                     );
