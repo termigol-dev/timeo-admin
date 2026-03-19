@@ -103,6 +103,14 @@ export default function ReportText({
                         ins: [],
                         outs: []
                     }));
+                    /*hello*/
+                    if (shiftRows.length === 0 && records.length > 0) {
+                        shiftRows.push({
+                            shift: { startTime: "--", endTime: "--" },
+                            ins: [],
+                            outs: []
+                        });
+                    }
 
                     records.forEach(r => {
 
@@ -185,10 +193,10 @@ export default function ReportText({
                                             {!simpleMode && incident && (
                                                 <div
                                                     className={`incident-dot ${incident.type === "NO_SHOW"
-                                                            ? "incident-red"
-                                                            : (incident.type === "IN_LATE" || incident.type === "OUT_EARLY")
-                                                                ? "incident-orange"
-                                                                : "incident-yellow"
+                                                        ? "incident-red"
+                                                        : (incident.type === "IN_LATE" || incident.type === "OUT_EARLY")
+                                                            ? "incident-orange"
+                                                            : "incident-yellow"
                                                         }`}
                                                     title={incident.type}
                                                 >
