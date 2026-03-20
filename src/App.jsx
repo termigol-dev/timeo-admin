@@ -81,7 +81,8 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <>
+
       <ScrollToTop />
       <Routes>
 
@@ -203,6 +204,7 @@ export default function App() {
           </>
         )}
       </Routes>
-    </BrowserRouter>
+
+    </>
   );
 }
