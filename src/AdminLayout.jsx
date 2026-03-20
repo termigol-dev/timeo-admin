@@ -22,12 +22,11 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
   if (!user) return null;
 
   return (
-    <div className="app">
+    <div className="app-container"> {/* 👈 NUEVO CONTENEDOR */}
 
       {/* ================= HEADER ================= */}
       <header className="header">
 
-        {/* IZQUIERDA → DASHBOARD */}
         <div className="header-left">
           <button
             className="header-btn"
@@ -38,15 +37,12 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
           </button>
         </div>
 
-        {/* CENTRO → LOGO */}
         <div className="header-center">
-          <Logo dark={dark} size={90} />
+          <Logo dark={dark} size={80} /> {/* un poco más pequeño */}
         </div>
 
-        {/* DERECHA → ACCIONES */}
         <div className="header-right">
 
-          {/* MODO OSCURO */}
           <button
             className="header-btn"
             onClick={() => setDark(d => !d)}
@@ -54,7 +50,6 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
             <Moon />
           </button>
 
-          {/* PERFIL */}
           <button
             className="header-btn"
             onClick={() => {
@@ -65,7 +60,6 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
             <User />
           </button>
 
-          {/* LOGOUT */}
           <button
             className="header-btn logout"
             onClick={logout}
@@ -78,7 +72,7 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
       </header>
 
       {/* ================= CONTENIDO ================= */}
-      <main style={{ flex: 1, padding: 24 }}>
+      <main className="page-content">
         <Outlet />
       </main>
 
