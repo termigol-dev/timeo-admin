@@ -275,7 +275,6 @@ body.dark .dashboard-card:hover {
 .search-input,
 input.search {
   width: 100%;
-  max-width: 420px;
   padding: 14px 44px 14px 16px;
   border-radius: 14px;
   border: 1px solid #e5e7eb;
@@ -447,12 +446,10 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
 }
 
 /* 📱 APP TIPO MÓVIL */
 .app-container {
-  max-width: 420px;           /* 👈 ancho móvil real */
   margin: 0 auto;
   height: 100vh;
   display: flex;
