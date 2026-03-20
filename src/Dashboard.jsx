@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Building2,
-  FileBarChart,
-  User,
 } from 'lucide-react';
 import './dashboard.css';
 
@@ -15,37 +13,90 @@ export default function Dashboard() {
   const rawUser = localStorage.getItem('user');
   const user = rawUser ? JSON.parse(rawUser) : null;
 
+  console.log("🧠 ROLE DETECTADO:", user?.role);
+
+  let options = [];
+
+  if (user?.role === 'SUPERADMIN') {
+    console.log("🟣 RENDER: SUPERADMIN");
+
+    options = [
+      {
+        label: 'Empresas',
+        icon: <Building2 size={34} />,
+        onClick: () => navigate('/admin/companies'),
+      },
+      {
+        label: 'Sucursales',
+        icon: <Building2 size={34} />,
+        onClick: () => navigate('/admin/branches'),
+      },
+      {
+        label: 'Empleados',
+        icon: <Users size={34} />,
+        onClick: () => navigate('/admin/employees'),
+      },
+    ];
+  }
+
+  else if (user?.role === 'ADMIN_EMPRESA') {
+    console.log("🔵 RENDER: ADMIN_EMPRESA");
+
+    options = [
+      {
+        label: 'Sucursales',
+        icon: <Building2 size={34} />,
+        onClick: () => navigate('/admin/branches'),
+      },
+      {
+        label: 'Empleados',
+        icon: <Users size={34} />,
+        onClick: () => navigate('/admin/employees'),
+      },
+    ];
+  }
+
+  else if (user?.role === 'ADMIN_SUCURSAL') {
+    console.log("🟢 RENDER: ADMIN_SUCURSAL");
+
+    options = [
+      {
+        label: 'Empleados',
+        icon: <Users size={34} />,
+        onClick: () => navigate('/admin/employees'),
+      },
+    ];
+  }
+
+  else {
+    console.log("❌ ROL NO CONTROLADO:", user?.role);
+  }
+
   return (
     <div className="dashboard-tablet">
-      <h2 className="dashboard-title">Panel de administración</h2>
+
+      {/* 👇 CAMBIO AQUÍ */}
+      <h2 className="dashboard-title">
+        Principal
+      </h2>
 
       <div className="dashboard-grid">
-        <button
-          className="dashboard-card"
-          onClick={() => navigate('/admin/employees')}
-        >
-          <Users size={32} />
-          <span>Empleados</span>
-        </button>
-
-        <button
-          className="dashboard-card"
-          onClick={() => navigate('/admin/companies')}
-        >
-          <Building2 size={32} />
-          <span>Empresas</span>
-        </button>
-
-        <button
-          className="dashboard-card"
-          onClick={() => navigate('/admin/reports')}
-        >
-          <FileBarChart size={32} />
-          <span>Simulador</span>
-        </button>
+        {options.map((opt, i) => (
+          <button
+            key={i}
+            className="dashboard-card"
+            onClick={opt.onClick}
+          >
+            {opt.icon}
+            <span>{opt.label}</span>
+          </button>
+        ))}
       </div>
 
-      <footer className="dashboard-footer">© Timeo</footer>
+      <footer className="dashboard-footer">
+        © Timeo
+      </footer>
+
     </div>
   );
 }

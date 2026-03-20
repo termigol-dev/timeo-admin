@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   getUserById,
   updateUser,
-  getCompanies,
   getBranches,
+  deleteEmployee,
 } from './api';
 
 export default function Profile() {
@@ -15,10 +15,8 @@ export default function Profile() {
   const [user, setUser] = useState(null);
   const [form, setForm] = useState(null);
 
-  const [companies, setCompanies] = useState([]);
   const [branches, setBranches] = useState([]);
 
-  const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
 
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -32,6 +30,10 @@ export default function Profile() {
 
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
+  const isSuperAdmin = currentUser?.role === 'SUPERADMIN';
+  const isCompanyAdmin = currentUser?.role === 'ADMIN_EMPRESA';
+  const isBranchAdmin = currentUser?.role === 'ADMIN_SUCURSAL';
+
   useEffect(() => {
     if (userId) load();
   }, [userId]);
@@ -40,15 +42,13 @@ export default function Profile() {
     setLoading(true);
     try {
       const u = await getUserById(userId);
-      const allCompanies = await getCompanies();
 
       setUser(u);
-      setCompanies(allCompanies || []);
 
-      setSelectedCompany(u.companyId || '');
       setSelectedBranch(u.branchId || '');
 
-      if (u.companyId) {
+      // 🔥 SOLO si tiene sentido cargar sucursales
+      if (u.companyId && (isSuperAdmin || isCompanyAdmin)) {
         const b = await getBranches(u.companyId);
         setBranches(b || []);
       }
@@ -63,8 +63,8 @@ export default function Profile() {
 
       setPhotoPreview(u.photoUrl || null);
 
-      // CARGAR DEVICES (solo superadmin)
-      if (currentUser?.role === 'SUPERADMIN') {
+      // 🔥 DEVICES SOLO SUPERADMIN
+      if (isSuperAdmin) {
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/devices/user/${userId}`,
           {
@@ -90,14 +90,6 @@ export default function Profile() {
     setForm(f => ({ ...f, [name]: value }));
   }
 
-  async function changeCompany(companyId) {
-    setSelectedCompany(companyId);
-    setSelectedBranch('');
-
-    const b = await getBranches(companyId);
-    setBranches(b || []);
-  }
-
   function changeBranch(branchId) {
     setSelectedBranch(branchId);
   }
@@ -109,7 +101,6 @@ export default function Profile() {
     try {
       await updateUser(userId, {
         ...form,
-        companyId: selectedCompany,
         branchId: selectedBranch,
       });
 
@@ -162,14 +153,15 @@ export default function Profile() {
     `${user.name?.[0] || ''}${user.firstSurname?.[0] || ''}`.toUpperCase();
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 32 }}>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
 
+      {/* HEADER */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 32,
+          marginBottom: 24,
         }}
       >
         <h2 style={{ margin: 0 }}>Perfil de empleado</h2>
@@ -185,7 +177,7 @@ export default function Profile() {
         style={{
           background: '#f8fafc',
           borderRadius: 20,
-          padding: 40,
+          padding: 24,
           border: '1px solid #e2e8f0',
         }}
       >
@@ -195,17 +187,19 @@ export default function Profile() {
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 28,
+            alignItems: 'center',
+            marginBottom: 24,
+            flexWrap: 'wrap',
+            gap: 16
           }}
         >
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
 
             <div
               style={{
-                width: 90,
-                height: 90,
+                width: 80,
+                height: 80,
                 borderRadius: '50%',
                 overflow: 'hidden',
                 background: '#e5e7eb',
@@ -213,7 +207,7 @@ export default function Profile() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 600,
-                fontSize: 22,
+                fontSize: 20,
                 color: '#475569',
               }}
             >
@@ -229,11 +223,18 @@ export default function Profile() {
             </div>
 
             <div>
-              <label style={labelStyle}>Foto del empleado</label>
+              <div style={{ fontWeight: 600 }}>
+                {user.name} {user.firstSurname}
+              </div>
 
-              <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>
+                {user.companyName}
+              </div>
+
+              <label style={labelStyle}>Foto</label>
+              <div style={{ marginTop: 6 }}>
                 <label style={photoButtonStyle}>
-                  Cambiar foto
+                  Cambiar
                   <input
                     type="file"
                     accept="image/*"
@@ -244,14 +245,15 @@ export default function Profile() {
               </div>
             </div>
           </div>
+
         </div>
 
-        {/* GRID CAMPOS */}
+        {/* GRID */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: 28,
+            gap: 20,
           }}
         >
 
@@ -275,53 +277,41 @@ export default function Profile() {
             <input name="email" value={form.email} onChange={change} style={inputStyle} />
           </Field>
 
-          <Field label="Sucursal">
-            <select
-              value={selectedBranch}
-              onChange={e => changeBranch(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="">— Sin sucursal —</option>
-              {branches.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {/* 🔥 SOLO ADMIN EMPRESA */}
+          {(isSuperAdmin || isCompanyAdmin) && (
+            <Field label="Sucursal">
+              <select
+                value={selectedBranch}
+                onChange={e => changeBranch(e.target.value)}
+                style={selectStyle}
+              >
+                <option value="">— Sin sucursal —</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
         </div>
 
-        {/* DEVICES SOLO SUPERADMIN */}
-        {currentUser?.role === 'SUPERADMIN' && (
-          <div style={{ marginTop: 40 }}>
-            <h3 style={{ marginBottom: 12 }}>Devices</h3>
-
-            {devices.length === 0 && (
-              <div style={{ fontSize: 14, opacity: 0.7 }}>
-                No hay dispositivos registrados
-              </div>
-            )}
+        {/* DEVICES */}
+        {isSuperAdmin && (
+          <div style={{ marginTop: 32 }}>
+            <h3>Devices</h3>
 
             {devices.map(d => (
-              <div
-                key={d.id}
-                style={{
-                  padding: 10,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  fontSize: 13,
-                  background: '#fff',
-                }}
-              >
-                <div><strong>{d.platform}</strong></div>
-                <div style={{ wordBreak: 'break-all' }}>{d.token}</div>
+              <div key={d.id} style={{ fontSize: 12 }}>
+                {d.platform}
               </div>
             ))}
           </div>
         )}
 
-        <div className="tablet-actions" style={{ marginTop: 40 }}>
+        {/* ACTIONS */}
+        <div className="tablet-actions" style={{ marginTop: 32 }}>
           <button onClick={saveProfile} disabled={saving}>
             {saving ? 'Guardando…' : 'Guardar cambios'}
           </button>
@@ -331,12 +321,65 @@ export default function Profile() {
               navigate(`/admin/employees/${userId}/reports`)
             }
           >
-            📊 Informes
+            Informes
           </button>
-        </div>
 
+          <button
+            onClick={() =>
+              navigate(`/admin/employees/${userId}/schedules`)
+            }
+          >
+            Horarios
+          </button>
+
+          <button
+            onClick={async () => {
+
+              const first = window.confirm(
+                `⚠️ Eliminar empleado\n\n¿Seguro que quieres eliminar a:\n${user.name} ${user.firstSurname || ''}?`
+              );
+              if (!first) return;
+
+              const second = window.confirm(
+                `🚨 Confirmación final\n\nEl empleado será eliminado.`
+              );
+              if (!second) return;
+
+              try {
+
+                // 🔑 fallback por si user.companyId viene vacío
+                const currentUser = JSON.parse(localStorage.getItem('user'));
+
+                const companyIdToUse = user.companyId || currentUser?.companyId;
+
+                if (!companyIdToUse) {
+                  alert('Error: no se pudo determinar la empresa');
+                  return;
+                }
+
+                await deleteEmployee(companyIdToUse, userId);
+
+                alert('Empleado eliminado');
+
+                navigate(-1);
+
+              } catch (err) {
+                console.error(err);
+                alert(err.message || 'Error eliminando empleado');
+              }
+
+            }}
+            style={{
+              backgroundColor: '#ef4444',
+              color: 'white',
+            }}
+          >
+            Eliminar
+          </button>
+
+        </div>
         {message && (
-          <p style={{ marginTop: 20, fontSize: 14, opacity: 0.7 }}>
+          <p style={{ marginTop: 12, fontSize: 13 }}>
             {message}
           </p>
         )}
@@ -348,7 +391,7 @@ export default function Profile() {
 /* COMPONENTE FIELD */
 function Field({ label, children }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <label style={labelStyle}>{label}</label>
       {children}
     </div>
@@ -356,32 +399,22 @@ function Field({ label, children }) {
 }
 
 const labelStyle = {
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 600,
 };
 
 const inputStyle = {
-  padding: '12px 14px',
-  borderRadius: 12,
-  border: '1px solid #cbd5e1',
-  fontSize: 14,
-  background: '#ffffff',
-};
-
-const selectStyle = {
-  padding: '12px 14px',
-  borderRadius: 12,
-  border: '1px solid #cbd5e1',
-  fontSize: 14,
-  background: '#ffffff',
-  cursor: 'pointer',
-};
-
-const photoButtonStyle = {
-  padding: '8px 14px',
+  padding: '10px 12px',
   borderRadius: 10,
   border: '1px solid #cbd5e1',
-  background: '#ffffff',
-  fontSize: 13,
+};
+
+const selectStyle = inputStyle;
+
+const photoButtonStyle = {
+  padding: '6px 10px',
+  borderRadius: 8,
+  border: '1px solid #cbd5e1',
+  fontSize: 12,
   cursor: 'pointer',
 };

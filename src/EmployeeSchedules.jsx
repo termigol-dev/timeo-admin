@@ -50,7 +50,14 @@ function ensureShiftId(turn) {
 }
 
 function timeToRow(time) {
-  const [h, m] = time.split(':').map(Number);
+
+  // 🛑 PROTECCIÓN TOTAL
+  if (!time || typeof time !== "string") {
+    return 0;
+  }
+
+  const [h, m] = time.split(":").map(Number);
+
   return h * 2 + (m >= 30 ? 1 : 0);
 }
 
@@ -369,15 +376,51 @@ export default function EmployeeSchedules() {
   }, [turns]);
 
 
-  /* 🆕 CARGA EMPRESA + EMPLEADO */
+  /* 🆕 CARGA EMPLEADO + (OPCIONAL) EMPRESA */
   useEffect(() => {
     async function loadHeaderData() {
       try {
         const token = localStorage.getItem('token');
 
-        // 🏢 Empresa
-        const companyRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}`,
+        /* =====================================================
+           🏢 EMPRESA (OPCIONAL — NO BLOQUEA NADA)
+        ===================================================== */
+        let companyData = null;
+
+        if (companyId) {
+          try {
+            const companyRes = await fetch(
+              `${import.meta.env.VITE_API_URL}/companies/${companyId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            if (companyRes.ok) {
+              companyData = await safeJson(companyRes);
+              setCompany(companyData);
+            } else {
+              console.log('ℹ️ Sin acceso a empresa (normal para sucursal)');
+            }
+
+          } catch (err) {
+            console.log('ℹ️ Error empresa ignorado');
+          }
+        }
+
+        /* =====================================================
+           👤 EMPLEADOS (CRÍTICO)
+        ===================================================== */
+        /*if (!companyId) {
+          console.warn('⚠️ No hay companyId → no se pueden cargar empleados');
+          return;
+        }*/
+
+        // 👤 EMPLEADO DIRECTO (SIN companyId)
+        const userRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/users/${employeeId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -385,53 +428,35 @@ export default function EmployeeSchedules() {
           }
         );
 
-        console.log('🏢 COMPANY STATUS:', companyRes.status);
-
-        if (!companyRes.ok) {
-          const text = await companyRes.text();
-          console.error('Error cargando empresa:', text);
+        if (!userRes.ok) {
+          const text = await userRes.text();
+          console.error('Error cargando empleado:', text);
           return;
         }
 
-        const companyData = await safeJson(companyRes);
-        if (!companyData) {
-          console.error('Respuesta vacía al cargar empresa');
-          return;
-        }
-        setCompany(companyData);
+        const foundEmployee = await safeJson(userRes);
 
-        // 👤 Empleados
-        const employeesRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${companyId}/employees`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        console.log('👥 EMPLOYEES STATUS:', employeesRes.status);
-
-        if (!employeesRes.ok) {
-          const text = await employeesRes.text();
-          console.error('Error cargando empleados:', text);
+        if (!foundEmployee) {
+          console.warn('⚠️ Empleado no encontrado');
+          setEmployee(null);
           return;
         }
 
-        const employees = await safeJson(employeesRes);
-        if (!employees) {
-          console.error('Respuesta vacía al cargar empleados');
+        setEmployee(foundEmployee);;
+
+        if (!foundEmployee) {
+          console.warn('⚠️ Empleado no encontrado');
+          setEmployee(null);
           return;
         }
 
-        // 🎯 Empleado concreto
-        const foundEmployee = employees.find(e => e.id === employeeId);
-        setEmployee(foundEmployee || null);
+        setEmployee(foundEmployee);
 
-        // 📅 CARGAR HORARIO ACTIVO
-        if (foundEmployee?.branchId) {
+        /* =====================================================
+           📅 HORARIO ACTIVO (CRÍTICO)
+        ===================================================== */
+        if (foundEmployee.branchId) {
 
-          // 🔑 SIEMPRE FECHA LOCAL — NUNCA ISO
           const weekStartStr = formatDateLocal(weekStart);
 
           const scheduleRes = await fetch(
@@ -454,24 +479,24 @@ export default function EmployeeSchedules() {
           const schedule = await safeJson(scheduleRes);
 
           if (!schedule) {
-            console.log('🟡 NO HAY HORARIO ACTIVO (respuesta vacía)');
+            console.log('🟡 NO HAY HORARIO ACTIVO');
             setTurns([]);
             setVacations([]);
             setScheduleId(null);
             return;
           }
 
-          console.log('🧪 SCHEDULE ACTIVO RAW (NUEVO MODELO):', schedule);
+          console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
 
-          // 🔑 IMPORTANTE:
-          // ❌ aquí NO se construyen turnos ni vacaciones
-          // ✅ TODO el dibujo lo hace reloadActiveSchedule
+          // ⚠️ NO tocar lógica de turns aquí
+          // reloadActiveSchedule se encarga
         }
 
       } catch (err) {
-        console.error('Error cargando empresa / empleado', err);
+        console.error('❌ Error cargando header (empresa / empleado)', err);
       }
     }
+
     loadHeaderData();
   }, [companyId, employeeId, removedTurns]);
 
@@ -893,28 +918,35 @@ export default function EmployeeSchedules() {
 
     const cleaned = visibleTurns.filter(b => b.startTime && b.endTime);
 
-    // ====================================================  
-    // C — Draft Exception (DIBUJO)  
-    // ====================================================  
-    setDraftExceptions(prev => [
-      ...prev,
-      {
-        type: 'MODIFIED_SHIFT',
-        weekday: weekdayIndex,
-        dateFrom: date,
-        dateTo: infinite ? null : date,
-        blocks: cleaned,
-        previewOnly: infinite   // ⭐ clave
-      },
-    ]);
-    console.log('🧪 BASE SHIFT (DELETE CASCADE)', base);
+    // ====================================================
+    // C — DIFERENCIAR CASOS
+    // ====================================================
+
+    // 🟢 CASO 1 → SOLO UN DÍA (EXCEPCIÓN)
+    if (!infinite) {
+
+      setDraftExceptions(prev => [
+        ...prev,
+        {
+          type: 'MODIFIED_SHIFT',
+          weekday: weekdayIndex,
+          dateFrom: date,
+          dateTo: date,
+          blocks: cleaned,
+        },
+      ]);
+
+    }
+
+    // 🔵 CASO 2 → DESDE HOY EN ADELANTE (PATRÓN)
     if (infinite) {
 
+      // 1️⃣ cerrar patrón antiguo
       setRemovedTurns(prev => ([
         ...prev,
         {
           endPattern: true,
-          shiftId: base.shiftId,   // ⭐ ESTA ES LA CLAVE  
+          shiftId: base.shiftId,
           weekday: weekdayIndex,
           startTime: oldStart,
           endTime: oldEnd,
@@ -922,7 +954,24 @@ export default function EmployeeSchedules() {
         },
       ]));
 
+      // 2️⃣ crear nuevo turno
+      if (newStart && newEnd) {
+
+        setDraftTurns(prev => [
+          ...prev,
+          {
+            days: [day],
+            startTime: newStart,
+            endTime: newEnd,
+            validFrom: date,
+            validTo: null,
+            source: 'pattern-replacement'
+          }
+        ]);
+
+      }
     }
+
     cleanup({ keepPreview: true });
 
 
@@ -968,7 +1017,7 @@ export default function EmployeeSchedules() {
       const payload = {
         weekday: weekdayNumber,
         startTime: turn.startTime,
-        endTime: turn.endTime,
+        endTime: turn.endTime || null,
         validFrom: fromDate,
         validTo: toDate,
       };

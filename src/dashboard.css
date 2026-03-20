@@ -1,35 +1,47 @@
 /* =====================================================
-   DASHBOARD TABLET
+   DASHBOARD
 ===================================================== */
 
 .dashboard-tablet {
   min-height: calc(100vh - 80px);
-  padding: 2.5rem 1.5rem;
+  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Título */
 .dashboard-title {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
-/* Grid responsive tablet */
+/* Grid responsive REAL */
 .dashboard-grid {
   width: 100%;
-  max-width: 900px;
+  max-width: 500px; /* 👈 clave para móvil */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 2rem;
+  grid-template-columns: 1fr; /* 👈 una columna */
+  gap: 1.2rem;
 }
 
-/* Botones tablet */
+/* Desktop vuelve a grid */
+@media (min-width: 768px) {
+  .dashboard-grid {
+    max-width: 900px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+  }
+}
+
+/* Botones */
 .dashboard-grid button {
-  height: 180px;
-  border-radius: 22px;
+  height: 140px; /* 👈 más compacto */
+  border-radius: 20px;
   border: 1px solid var(--border-soft);
   background: var(--card-bg);
   color: inherit;
@@ -39,33 +51,32 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: 0.6rem;
 
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
 
-  transition: transform .15s ease, box-shadow .15s ease;
+  transition: transform .12s ease, box-shadow .12s ease;
 }
 
-.dashboard-grid button:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.15);
+/* Hover solo desktop */
+@media (hover: hover) {
+  .dashboard-grid button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,0,0,.15);
+  }
 }
 
-/* Iconos GRANDES */
+/* Icono + texto */
 .dashboard-grid button span {
-  font-size: 18px;
-}
-
-.dashboard-grid button::first-letter {
-  font-size: 56px;
+  font-size: 16px;
 }
 
 /* Footer */
 .dashboard-footer,
 .dashboard-tablet footer {
   margin-top: auto;
-  padding-top: 3rem;
-  font-size: 13px;
-  opacity: 0.6;
+  padding-top: 2rem;
+  font-size: 12px;
+  opacity: 0.5;
 }

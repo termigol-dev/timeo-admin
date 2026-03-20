@@ -5,32 +5,35 @@ import {
   deleteEmployee,
   hardDeleteEmployee,
   getBranches,
-  toggleEmployee,
-  updateUserBranch,
 } from './api';
 import { useAuth } from './auth/AuthContext';
 
 export default function Employees() {
 
-  /* ───────── AUTH ───────── */
   const { user, isSuperAdmin, loading: authLoading } = useAuth();
+  console.log('🧠 AUTH USER:', user);
+  console.log('🧠 ROLE:', user?.role);
 
   const isAdminEmpresa = user?.role === 'ADMIN_EMPRESA';
   const isAdminSucursal = user?.role === 'ADMIN_SUCURSAL';
+  const isLimitedView = isAdminEmpresa || isAdminSucursal;
+  console.log('🧠 ROLE FLAGS:', {
+    isAdminEmpresa,
+    isAdminSucursal,
+    isLimitedView,
+    isSuperAdmin
+  });
 
-  /* ───────── ROUTER ───────── */
   const navigate = useNavigate();
   const { companyId } = useParams();
   const [searchParams] = useSearchParams();
   const branchFilter = searchParams.get('branch');
 
-  /* ───────── STATE ───────── */
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
-  /* ───────── LOAD ───────── */
   useEffect(() => {
     if (companyId) load();
   }, [companyId]);
@@ -49,66 +52,24 @@ export default function Employees() {
     }
   }
 
-  /* ───────── ACTIVAR / DESACTIVAR ───────── */
-  async function toggle(employee) {
-    if (!isSuperAdmin) return;
-    await toggleEmployee(companyId, employee.id);
-    load();
-  }
-
-  /* ───────── CAMBIAR SUCURSAL ───────── */
-  async function changeBranch(employeeId, branchId) {
-    await updateUserBranch(companyId, employeeId, branchId || null);
-    load();
-  }
-
-  /* ───────── ELIMINAR ───────── */
   async function remove(employee) {
-    const first = window.confirm(
-      `⚠️ Eliminar empleado\n\n¿Estás seguro de que quieres eliminar a:\n${employee.name} ${employee.firstSurname || ''}?`
-    );
-    if (!first) return;
+    const ok = window.confirm(`Eliminar a ${employee.name}?`);
+    if (!ok) return;
 
-    const second = window.confirm(
-      `🚨 Confirmación final\n\nEl empleado va a ser eliminado.\n\nPulsa en "Sí" para confirmar la acción.`
-    );
-    if (!second) return;
-
-    try {
-      await deleteEmployee(employee.companyId ?? companyId, employee.id);
-      load();
-      alert('Empleado eliminado');
-    } catch (err) {
-      alert(
-        err.message ||
-        'No se puede eliminar este empleado. Puede tener historial o pertenecer a otra empresa.'
-      );
-    }
+    await deleteEmployee(employee.companyId ?? companyId, employee.id);
+    load();
   }
 
-  /* ───────── HARD DELETE ───────── */
   async function hardDelete(employee) {
-    const first = window.confirm(
-      `⚠️ BORRADO TOTAL (PRUEBAS)\n\nVas a eliminar DEFINITIVAMENTE a:\n${employee.name} ${employee.firstSurname || ''}\n\nEsta acción NO se puede deshacer.`
-    );
-    if (!first) return;
+    const ok = window.confirm('Borrado definitivo');
+    if (!ok) return;
 
-    const second = window.confirm(
-      `🚨 CONFIRMACIÓN FINAL\n\nEsto eliminará TODOS los datos del empleado.\n\n¿Seguro que quieres continuar?`
-    );
-    if (!second) return;
-
-    try {
-      await hardDeleteEmployee(employee.companyId ?? companyId, employee.id);
-      await load();
-      alert('Empleado eliminado definitivamente');
-    } catch (err) {
-      console.error(err);
-      alert(err.message || 'Error en el borrado definitivo');
-    }
+    await hardDeleteEmployee(employee.companyId ?? companyId, employee.id);
+    load();
   }
 
-  /* ───────── FILTERS ───────── */
+  /* ───────── FILTER + SORT ───────── */
+
   const visibleEmployees = isSuperAdmin
     ? employees
     : employees.filter(e => e.active);
@@ -117,34 +78,39 @@ export default function Employees() {
     ? visibleEmployees.filter(e => e.branchId === branchFilter)
     : visibleEmployees;
 
-  const filtered = visible.filter(e =>
-    `${e.name} ${e.firstSurname || ''} ${e.dni || ''}`
-      .toLowerCase()
-      .includes(query.toLowerCase())
-  );
+  const filtered = visible
+    .filter(e =>
+      `${e.name} ${e.firstSurname || ''} ${e.secondSurname || ''}`
+        .toLowerCase()
+        .includes(query.toLowerCase())
+    )
+    .sort((a, b) =>
+      (a.firstSurname || '').localeCompare(b.firstSurname || '')
+    );
 
-  if (authLoading) {
-    return <div className="center">Cargando…</div>;
+  function formatName(e) {
+    return `${e.firstSurname || ''} ${e.secondSurname || ''}, ${e.name}`;
   }
 
-  if (loading) {
-    return <div className="center">Cargando empleados…</div>;
-  }
+  if (authLoading) return <div className="center">Cargando…</div>;
+  if (loading) return <div className="center">Cargando empleados…</div>;
 
   return (
     <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
+
       <div className="page-header" style={{ marginBottom: 24 }}>
         <h2>Empleados</h2>
 
         <div className="tablet-actions">
           <button onClick={() => navigate(-1)}>← Volver</button>
-          <button
-            onClick={() =>
+
+          {!isLimitedView && (
+            <button onClick={() =>
               navigate(`/admin/companies/${companyId}/employees/new`)
-            }
-          >
-            + Nuevo empleado
-          </button>
+            }>
+              + Nuevo empleado
+            </button>
+          )}
         </div>
       </div>
 
@@ -163,7 +129,7 @@ export default function Employees() {
             <th>DNI</th>
             <th>Sucursal</th>
             <th>Activo</th>
-            <th className="right">Acciones</th>
+            {!isLimitedView && <th className="right">Acciones</th>}
           </tr>
         </thead>
 
@@ -173,107 +139,103 @@ export default function Employees() {
             const initials =
               `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
 
+            console.log('🎨 RENDER EMPLOYEE ROW:', {
+              id: e.id,
+              isLimitedView
+            });
             return (
               <tr key={e.id} style={{ opacity: isSuperAdmin && !e.active ? 0.5 : 1 }}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        background: '#e5e7eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 600,
-                        fontSize: 13,
-                        color: '#475569',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {e.photoUrl ? (
-                        <img src={e.photoUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        initials
-                      )}
-                    </div>
 
-                    <span
-                      className="clickable-name"
-                      onClick={() => navigate(`/admin/users/${e.id}/profile`)}
-                    >
-                      {e.name} {e.firstSurname || ''}
-                    </span>
-                  </div>
+                {/* ───── EMPLEADO ───── */}
+                <td
+                  onClick={() => navigate(`/admin/users/${e.id}/profile`)}
+                  style={{ cursor: 'pointer', fontWeight: 500 }}
+                >
+
+                  {isLimitedView ? (
+                    // 👇 ADMIN: SOLO TEXTO
+                    formatName(e)
+                  ) : (
+                    // 👇 SUPERADMIN: FOTO + NOMBRE
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          background: '#e5e7eb',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 600,
+                          fontSize: 13,
+                        }}
+                      >
+                        {e.photoUrl ? (
+                          <img src={e.photoUrl} alt="" style={{ width: '100%', height: '100%' }} />
+                        ) : (
+                          initials
+                        )}
+                      </div>
+
+                      <span>{formatName(e)}</span>
+                    </div>
+                  )}
+
                 </td>
 
                 <td>{e.dni}</td>
-
-                <td>
-                  <select
-                    value={e.branchId || ''}
-                    onChange={ev =>
-                      changeBranch(e.id, ev.target.value)
-                    }
-                  >
-                    <option value="">— Sin sucursal —</option>
-                    {branches.map(b => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-
+                <td>{e.branch?.name || '—'}</td>
                 <td>{e.active ? 'Sí' : 'No'}</td>
 
-                <td className="right">
-                  <div className="tablet-actions">
+                {/* ───── ACCIONES ───── */}
+                {!isLimitedView && (
+                  <td className="right">
+                    <div className="tablet-actions">
 
-                    <button onClick={() => navigate(`/admin/employees/${e.id}/reports`)}>
-                      Informes
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        navigate(`/admin/companies/${companyId}/employees/${e.id}/schedules`)
-                      }
-                    >
-                      Horarios
-                    </button>
-
-                    <button
-                      onClick={() => remove(e)}
-                      style={{ backgroundColor: '#ef4444' }}
-                    >
-                      Eliminar
-                    </button>
-
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => hardDelete(e)}
-                        title="Borrado total (solo pruebas)"
-                        style={{ backgroundColor: '#991b1b', color: 'white', fontWeight: 900 }}
-                      >
-                        ✕
+                      <button onClick={() => navigate(`/admin/employees/${e.id}/reports`)}>
+                        Informes
                       </button>
-                    )}
 
-                  </div>
-                </td>
+                      <button onClick={() =>
+                        navigate(`/admin/companies/${companyId}/employees/${e.id}/schedules`)
+                      }>
+                        Horarios
+                      </button>
+
+                      <button
+                        onClick={() => remove(e)}
+                        style={{ backgroundColor: '#ef4444' }}
+                      >
+                        Eliminar
+                      </button>
+
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => hardDelete(e)}
+                          style={{ backgroundColor: '#991b1b', color: 'white' }}
+                        >
+                          ✕
+                        </button>
+                      )}
+
+                    </div>
+                  </td>
+                )}
+
               </tr>
             );
           })}
 
           {filtered.length === 0 && (
             <tr>
-              <td colSpan="5" className="center muted">
+              <td colSpan={isLimitedView ? 4 : 5} className="center muted">
                 No hay empleados registrados
               </td>
             </tr>
           )}
+
         </tbody>
       </table>
     </div>

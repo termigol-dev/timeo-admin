@@ -3,15 +3,10 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import Logo from "./components/Logo";
 import {
   LayoutDashboard,
-  Building2,
-  Users,
-  FileBarChart,
   User,
   LogOut,
   Moon,
 } from 'lucide-react';
-
-import { can } from './permissions';
 
 export default function AdminLayout({ dark, setDark, onLogout }) {
 
@@ -28,74 +23,65 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
 
   return (
     <div className="app">
+
+      {/* ================= HEADER ================= */}
       <header className="header">
-        {/* LOGO */}
-        <Logo dark={dark} size={110} />
 
-        {/* NAV PRINCIPAL */}
-        <nav className="nav">
-          {can(user.role, 'dashboard') && (
-            <button onClick={() => navigate('/admin/dashboard')}>
-              <LayoutDashboard />
-              <span>Dashboard</span>
-            </button>
-          )}
-
-          {can(user.role, 'companies') && (
-            <button onClick={() => navigate('/admin/companies')}>
-              <Building2 />
-              <span>Empresas</span>
-            </button>
-          )}
-
-          {can(user.role, 'employees') && (
-            <button onClick={() => navigate('/admin/employees')}>
-              <Users />
-              <span>Empleados</span>
-            </button>
-          )}
-
-          {can(user.role, 'reports') && (
-            <button onClick={() => navigate('/admin/dev/simulate')}>
-              <FileBarChart />
-              <span>Simulador</span>
-            </button>
-          )}
-        </nav>
-
-        {/* ACCIONES DERECHA */}
-        <label className="dark-toggle">
-          <Moon />
-          <input
-            type="checkbox"
-            checked={dark}
-            onChange={() => setDark(d => !d)}
-          />
-          <span>Modo oscuro</span>
-        </label>
-
-        <div className="header-right">
+        {/* IZQUIERDA → DASHBOARD */}
+        <div className="header-left">
           <button
+            className="header-btn"
+            onClick={() => navigate('/admin/dashboard')}
+          >
+            <LayoutDashboard />
+            <span>Dashboard</span>
+          </button>
+        </div>
+
+        {/* CENTRO → LOGO */}
+        <div className="header-center">
+          <Logo dark={dark} size={90} />
+        </div>
+
+        {/* DERECHA → ACCIONES */}
+        <div className="header-right">
+
+          {/* MODO OSCURO */}
+          <button
+            className="header-btn"
+            onClick={() => setDark(d => !d)}
+          >
+            <Moon />
+          </button>
+
+          {/* PERFIL */}
+          <button
+            className="header-btn"
             onClick={() => {
               if (!user?.id) return;
               navigate(`/admin/users/${user.id}/profile`);
             }}
           >
             <User />
-            <span>Mi perfil</span>
           </button>
 
-          <button className="logout" onClick={logout}>
+          {/* LOGOUT */}
+          <button
+            className="header-btn logout"
+            onClick={logout}
+          >
             <LogOut />
-            <span>Salir</span>
           </button>
+
         </div>
+
       </header>
 
-      {/* CONTENIDO */}
+      {/* ================= CONTENIDO ================= */}
       <main style={{ flex: 1, padding: 24 }}>
         <Outlet />
       </main>
+
     </div>
   );
 }
