@@ -20,27 +20,19 @@
   text-align: center;
 }
 
-/* Grid responsive REAL */
+/* GRID */
 .dashboard-grid {
   width: 100%;
-  max-width: 500px; /* 👈 clave para móvil */
+  max-width: 500px;
   display: grid;
-  grid-template-columns: 1fr; /* 👈 una columna */
-  gap: 1.2rem;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: 20px;
 }
 
-/* Desktop vuelve a grid */
-@media (min-width: 768px) {
-  .dashboard-grid {
-    max-width: 900px;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 2rem;
-  }
-}
-
-/* Botones */
+/* 🔥 BOTONES (FUENTE REAL) */
 .dashboard-grid button {
-  height: 140px; /* 👈 más compacto */
+  height: 210px;
   border-radius: 20px;
   border: 1px solid var(--border-soft);
   background: var(--card-bg);
@@ -48,7 +40,7 @@
   cursor: pointer;
 
   display: flex;
-  flex-direction: column;
+  flex-direction: column;   /* 👈 mantiene icono arriba + texto abajo */
   justify-content: center;
   align-items: center;
   gap: 0.6rem;
@@ -59,20 +51,30 @@
   transition: transform .12s ease, box-shadow .12s ease;
 }
 
-/* Hover solo desktop */
+/* ICONO */
+.dashboard-grid button svg {
+  width: 42px;
+  height: 42px;
+}
+
+/* TEXTO */
+.dashboard-grid button span {
+  font-size: 26px;
+  font-weight: 500;
+}
+
+/* HOVER (solo desktop) */
 @media (hover: hover) {
-  .dashboard-grid button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 30px rgba(0,0,0,.15);
+  .dashboard-grid button:hover,
+  body.dark .dashboard-grid button:hover {
+    background: var(--brand);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--brand-glow);
   }
 }
 
-/* Icono + texto */
-.dashboard-grid button span {
-  font-size: 16px;
-}
-
-/* Footer */
+/* FOOTER */
 .dashboard-footer,
 .dashboard-tablet footer {
   margin-top: auto;

@@ -77,7 +77,7 @@ export default function Dashboard() {
 
       {/* 👇 CAMBIO AQUÍ */}
       <h2 className="dashboard-title">
-        Principal
+        Inicio
       </h2>
 
       <div className="dashboard-grid">

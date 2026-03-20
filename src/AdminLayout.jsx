@@ -33,12 +33,12 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
             onClick={() => navigate('/admin/dashboard')}
           >
             <LayoutDashboard />
-            <span>Dashboard</span>
+            <span></span>
           </button>
         </div>
 
         <div className="header-center">
-          <Logo dark={dark} size={80} /> {/* un poco más pequeño */}
+          <Logo dark={dark} size={130} /> {/* un poco más pequeño */}
         </div>
 
         <div className="header-right">
