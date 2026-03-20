@@ -38,7 +38,7 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
         </div>
 
         <div className="header-center">
-          <Logo dark={dark} size={130} /> {/* un poco más pequeño */}
+          <Logo dark={dark} size={180} /> {/* un poco más pequeño */}
         </div>
 
         <div className="header-right">

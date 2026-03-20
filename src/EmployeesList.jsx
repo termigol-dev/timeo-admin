@@ -44,9 +44,9 @@ export default function EmployeesList() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <div className="container employees-container">
 
-      <div className="page-header" style={{ marginBottom: 24 }}>
+      <div className="page-header">
         <h2>Empleados</h2>
 
         <div className="tablet-actions">
@@ -59,127 +59,58 @@ export default function EmployeesList() {
         placeholder="Buscar empleado…"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        style={{ marginBottom: 24 }}
       />
 
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div className="employees-grid">
 
         {filtered.map(e => {
 
           const initials =
             `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
 
-          // 🔥 MOCK estado IN/OUT (luego lo conectas a records reales)
           const isIn = e.isIn ?? false;
 
           return (
             <div
               key={e.id}
+              className="employee-card"
               onClick={() => navigate(`/admin/users/${e.id}/profile`)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                padding: '20px 18px',
-                borderRadius: 18,
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border-soft)',
-                cursor: 'pointer',
-                transition: 'transform 0.1s ease, box-shadow 0.1s ease',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
             >
 
               {/* FOTO */}
-              <div
-                style={{
-                  width: 54,
-                  height: 54,
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  background: '#e5e7eb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  flexShrink: 0,
-                }}
-              >
+              <div className="employee-avatar">
                 {e.photoUrl ? (
-                  <img
-                    src={e.photoUrl}
-                    alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+                  <img src={e.photoUrl} alt="" />
                 ) : (
                   initials
                 )}
               </div>
 
-              {/* IZQUIERDA: ESTADO + NOMBRE + DNI */}
-              <div style={{ flex: 1 }}>
+              {/* CONTENIDO */}
+              <div className="employee-main">
 
-                {/* Estado activo */}
-                <span
-                  style={{
-                    display: 'inline-block',
-                    marginBottom: 6,
-                    padding: '4px 10px',
-                    borderRadius: 999,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    background: e.active ? '#dcfce7' : '#fee2e2',
-                    color: e.active ? '#166534' : '#991b1b',
-                  }}
-                >
-                  {e.active ? 'Activo' : 'Inactivo'}
-                </span>
+                <div className="employee-line">
 
-                {/* Nombre + DNI */}
-                <div
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {e.name} {e.firstSurname || ''}
+                  <span className="employee-name">
+                    {e.name} {e.firstSurname || ''}
+                  </span>
+
+                  {e.dni && (
+                    <span className="employee-dni">
+                      {e.dni}
+                    </span>
+                  )}
+
+                  <span className={`employee-status ${e.active ? 'active' : 'inactive'}`}>
+                    {e.active ? 'Activo' : 'Inactivo'}
+                  </span>
+
                 </div>
-
-                {e.dni && (
-                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
-                    {e.dni}
-                  </div>
-                )}
-
               </div>
 
-              {/* DERECHA: BOTÓN IN/OUT */}
-              <div>
-
-                <div
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 12,
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: 'white',
-                    background: isIn ? '#16a34a' : '#dc2626', // verde / rojo
-                    minWidth: 70,
-                    textAlign: 'center',
-                  }}
-                >
-                  {isIn ? 'IN' : 'OUT'}
-                </div>
-
+              {/* IN / OUT */}
+              <div className={`employee-check ${isIn ? 'in' : 'out'}`}>
+                {isIn ? 'IN' : 'OUT'}
               </div>
 
             </div>

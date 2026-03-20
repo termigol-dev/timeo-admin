@@ -41,7 +41,7 @@ body.dark {
   border-radius: 22px;
   padding: 36px 32px;
   text-align: center;
-  box-shadow: 0 12px 30px rgba(0,0,0,.1);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .1);
 }
 
 body.dark .login-card {
@@ -55,7 +55,9 @@ body.dark .login-card {
   margin-bottom: 28px;
 }
 
-body.dark /* ===== RESET ===== */
+body.dark
+
+/* ===== RESET ===== */
 * {
   box-sizing: border-box;
 }
@@ -99,7 +101,7 @@ body.dark {
   border-radius: 22px;
   padding: 36px 32px;
   text-align: center;
-  box-shadow: 0 12px 30px rgba(0,0,0,.1);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .1);
 }
 
 body.dark .login-card {
@@ -187,10 +189,10 @@ button.primary {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
-  
+
 }
 
-.header > *:nth-child(2) {
+.header>*:nth-child(2) {
   display: flex;
   justify-content: center;
   flex-shrink: 0;
@@ -213,9 +215,9 @@ button.primary {
 }
 
 .header-left button {
-  
+
   border-radius: 18px;
-  font-size: 42px;
+  font-size: 62px;
   gap: 10px;
 }
 
@@ -233,9 +235,10 @@ button.primary {
   transition: all .15s ease;
   font-size: 18px;
 }
+
 .header-right button svg {
-  width: 22px;
-  height: 22px;
+  width: 42px;
+  height: 42px;
 }
 
 .header button {
@@ -251,8 +254,8 @@ button.primary {
 }
 
 .header button svg {
-  width: 42px;
-  height: 42px;
+  width: 62px;
+  height: 62px;
 }
 
 body.dark .header {
@@ -404,11 +407,13 @@ body.dark .header {
 .dashboard-card:active {
   transform: translateY(1px) scale(0.98);
   filter: brightness(0.92);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.15) !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* ===== APP MOVIL ===== */
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
@@ -425,4 +430,149 @@ html, body, #root {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+}
+
+
+/*======================================================
+============EMPLOYEES LIST==============================
+======================================================*/
+
+.employee-line {
+  flex-wrap: nowrap;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* CONTENEDOR */
+.employees-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* GRID */
+.employees-grid {
+  display: grid;
+  gap: 14px;
+}
+
+/* CARD */
+.employee-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  padding: 20px 18px;
+  border-radius: 18px;
+
+  background: var(--card-bg);
+  border: 1px solid var(--border-soft);
+
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.employee-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* FOTO */
+.employee-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+
+  background: #e5e7eb;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 500;
+  font-size: 15px;
+
+  flex-shrink: 0;
+}
+
+.employee-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* CONTENIDO CENTRAL */
+.employee-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ESTADO */
+.employee-status {
+  width:80px;
+  opacity: 0;
+  pointer-events: none;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+.employee-status.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.employee-status.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* NOMBRE */
+.employee-name {
+  flex: 1;
+  font-size: 26px !important;
+  font-weight: 450 !important;
+  letter-spacing: -0.3px !important;
+  white-space: nowrap;
+  margin-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* DNI */
+.employee-dni {
+  width: 120px;
+  font-size: 20px;
+  opacity: 0.6;
+  white-space: nowrap;
+  margin-left: 20px;
+}
+
+
+/* IN / OUT */
+.employee-check {
+  padding: 10px 16px;
+  border-radius: 12px;
+
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+
+  min-width: 70px;
+  text-align: center;
+
+  flex-shrink: 0;
+}
+
+.employee-check.in {
+  background: #16a34a;
+}
+
+.employee-check.out {
+  background: #dc2626;
 }
