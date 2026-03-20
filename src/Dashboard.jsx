@@ -9,10 +9,13 @@ import './dashboard.css';
 export default function Dashboard() {
 
   const navigate = useNavigate();
-
+  
   const rawUser = localStorage.getItem('user');
   const user = rawUser ? JSON.parse(rawUser) : null;
-
+  const companyId =
+  user?.companyId ||
+  user?.company?.id ||
+  user?.memberships?.[0]?.companyId;
   console.log("🧠 ROLE DETECTADO:", user?.role);
 
   let options = [];
@@ -39,10 +42,15 @@ export default function Dashboard() {
     ];
   }
 
-  else if (user?.role === 'ADMIN_EMPRESA') {
-    console.log("🔵 RENDER: ADMIN_EMPRESA");
+  if (user?.role === 'SUPERADMIN') {
+    console.log("🟣 RENDER: SUPERADMIN");
 
     options = [
+      {
+        label: 'Empresas',
+        icon: <Building2 size={34} />,
+        onClick: () => navigate('/admin/companies'),
+      },
       {
         label: 'Sucursales',
         icon: <Building2 size={34} />,
@@ -56,6 +64,30 @@ export default function Dashboard() {
     ];
   }
 
+ else if (user?.role === 'ADMIN_EMPRESA') {
+  console.log("🔵 RENDER: ADMIN_EMPRESA");
+
+  options = [
+    {
+      label: 'Sucursales',
+      icon: <Building2 size={34} />,
+      onClick: () => {
+        if (!companyId) {
+          console.error('❌ No companyId');
+          return;
+        }
+        navigate(`/admin/companies/${companyId}/branches`);
+      },
+    },
+    {
+      label: 'Empleados',
+      icon: <Users size={34} />,
+      onClick: () => navigate('/admin/employees'),
+    },
+  ];
+}
+
+  
   else if (user?.role === 'ADMIN_SUCURSAL') {
     console.log("🟢 RENDER: ADMIN_SUCURSAL");
 

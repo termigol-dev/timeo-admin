@@ -163,7 +163,6 @@ export default function Branches() {
           <tbody>
             {filteredBranches.map(b => (
               <React.Fragment key={b.id}>
-                {/* Fila de datos */}
                 <tr style={{ opacity: b.active ? 1 : 0.5 }}>
                   <td style={{ fontSize: 22, fontWeight: 600 }}>
                     {b.name}
@@ -174,14 +173,12 @@ export default function Branches() {
                   <td />
                 </tr>
 
-                {/* Fila de acciones */}
                 <tr style={{ opacity: b.active ? 1 : 0.5 }}>
                   <td colSpan={5}>
                     <div
                       className="tablet-actions"
                       style={{
                         display: 'flex',
-                        justifyContent: 'flex-start',
                         gap: 8,
                         paddingBottom: 14,
                         borderBottom: '1px solid rgba(0,0,0,0.08)',
@@ -247,7 +244,7 @@ export default function Branches() {
 
             <div style={{ margin: '24px 0' }}>
               <QRCodeSVG
-                value={`https://timeo-tablet.app/tablet?token=${tabletInfo.token}`}
+                value={`https://timeo-tablet.onrender.com?token=${tabletInfo.token}`}
                 size={220}
               />
             </div>

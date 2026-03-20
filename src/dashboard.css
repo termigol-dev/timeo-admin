@@ -32,7 +32,8 @@
 
 /* 🔥 BOTONES (FUENTE REAL) */
 .dashboard-grid button {
-  height: 210px;
+  height: 500px;
+  width: 500px;
   border-radius: 20px;
   border: 1px solid var(--border-soft);
   background: var(--card-bg);
@@ -59,7 +60,7 @@
 
 /* TEXTO */
 .dashboard-grid button span {
-  font-size: 26px;
+  font-size: 36px;
   font-weight: 500;
 }
 
