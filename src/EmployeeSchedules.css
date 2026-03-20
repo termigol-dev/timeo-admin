@@ -138,7 +138,7 @@
   font-size: var(--control-font-size);
   line-height: var(--control-line-height);
   padding: var(--control-padding-y) 0;
-  font-weight: 700;
+  font-weight: 500;
   border-radius: 14px;
   border: none;
   cursor: pointer;
@@ -256,8 +256,9 @@ CALENDARIO
   margin-top: 0;
   padding-top: 0;
   padding: 10px;
-  background: #ccfbf1;
+  background: #c5e9e9;
   border-radius: 20px;
+  min-height: 770px;
   max-width: 1050px;
   margin-left: auto;
   margin-right: auto;
@@ -279,6 +280,9 @@ CALENDARIO
   padding: 6px 8px;
   margin-bottom: 6px;
   overflow-x: hidden;
+  font-size: 18px;
+  font-weight: 500;
+
 }
 
 .calendar-controls {
@@ -342,7 +346,7 @@ GRID
 
 .calendar-scroll {
   margin-left: 60px;
-  height: 360px;
+  height: 650px;
   display: flex;
   align-items: flex-start;
   overflow-x: hidden;
@@ -368,7 +372,10 @@ GRID
   grid-template-columns: repeat(7, var(--day-col-width));
   min-width: calc(7 * var(--day-col-width));
   font-size: 14px;
+  
+
 }
+
 
 .calendar-grid-rows {
   grid-template-rows: repeat(48, 24px);
@@ -418,7 +425,7 @@ GRID
   top: 40px;
   /* debajo del header de días */
   width: 60px;
-  height: 360px;
+  height: 650px;
   background: white;
   z-index: 2;
   pointer-events: none;

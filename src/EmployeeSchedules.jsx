@@ -89,6 +89,14 @@ export default function EmployeeSchedules() {
   const { companyId, employeeId } = useParams();
   const headerXRef = useRef(null);
   const calendarRef = useRef(null);
+  useEffect(() => {
+  if (!calendarRef.current) return;
+
+  const HOUR_HEIGHT = 48; // 1h = 48px (2 filas de 24px)
+  const START_HOUR = 8;
+
+  calendarRef.current.scrollTop = START_HOUR * HOUR_HEIGHT;
+}, []);
   const hoursRef = useRef(null);
   const [showPanel, setShowPanel] = useState(false);
   /* 🆕 DATOS CABECERA */
@@ -2262,7 +2270,7 @@ export default function EmployeeSchedules() {
                 )}
 
                 {/* 🖊️ PREVIEW ADD / EDIT / DELETE */}
-                console.log('🧪 PREVIEW OBJECT', editingPreview);
+
                 {editingPreview && editingPreview.startTime && editingPreview.endTime && (
 
                   <div
