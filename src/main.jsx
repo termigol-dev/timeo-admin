@@ -6,7 +6,8 @@ import "./style.css";
 import { AuthProvider } from './auth/AuthContext';
 import "./print.css";
 import "./reports.css";
-
+import './mobile.css'
+import './EmployeeSchedules.css';
 
 const root = document.getElementById("root");
 

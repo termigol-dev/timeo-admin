@@ -1,0 +1,83 @@
+/* =========================================
+   MOBILE TEST LAYER (DEBUG + UI FIXES)
+========================================= */
+
+@media (max-width: 600px) {
+
+  /* 🚨 TEST VISUAL (INEQUÍVOCO) */
+  body {
+    outline: 5px solid red !important;
+  }
+
+  /* 🔥 TEXTO DEBUG */
+  body::before {
+    content: "MODO MÓVIL ACTIVO";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: red;
+    color: white;
+    font-size: 16px;
+    text-align: center;
+    padding: 6px;
+    z-index: 9999;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    height: auto !important;
+    min-height: unset !important;
+    padding: 10px 12px !important;
+  }
+
+  .header button svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .header-right button {
+    padding: 6px 8px !important;
+    font-size: 14px !important;
+  }
+
+  /* ===== DASHBOARD (SIN CARDS) ===== */
+  .dashboard-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    padding: 16px !important;
+  }
+
+  .dashboard-grid button {
+    all: unset;
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    font-size: 18px;
+    padding: 10px 4px;
+    cursor: pointer;
+  }
+
+  .dashboard-grid button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .dashboard-grid button:hover {
+    color: #22B8CF;
+  }
+
+  /* ===== EMPLOYEES ===== */
+  .employee-dni {
+    display: none !important;
+  }
+
+  .employee-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+}
