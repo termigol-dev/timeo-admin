@@ -26,42 +26,60 @@
 
   /* ===== HEADER ===== */
   .header {
-    height: auto !important;
+    height: 64px !important;
     min-height: unset !important;
-    padding: 10px 12px !important;
+    padding: 6px 10px !important;
+    grid-template-columns: auto 1fr auto !important;
+    align-items: center;
   }
 
+  /* 🔥 LOGO CONTROLADO (CLAVE) */
+  .header img {
+    height: 28px !important;
+    max-width: 110px !important;
+    object-fit: contain;
+  }
+
+  /* ICONOS */
   .header button svg {
     width: 20px !important;
     height: 20px !important;
   }
 
   .header-right button {
-    padding: 6px 8px !important;
-    font-size: 14px !important;
+    padding: 4px 6px !important;
+    font-size: 13px !important;
+    min-height: unset !important;
   }
 
-  /* ===== DASHBOARD (SIN CARDS) ===== */
+  .header-left button {
+    font-size: 18px !important;
+  }
+
+  /* ===== DASHBOARD (CENTRADO Y LIMPIO) ===== */
   .dashboard-grid {
     display: flex !important;
     flex-direction: column !important;
-    gap: 16px !important;
-    padding: 16px !important;
+    align-items: center !important;   /* 🔥 CENTRADO */
+    justify-content: center !important;
+    gap: 22px !important;
+    padding: 24px 16px !important;
   }
 
   .dashboard-grid button {
     all: unset;
     display: flex !important;
     align-items: center;
+    justify-content: center;          /* 🔥 CENTRADO */
     gap: 12px;
-    font-size: 18px;
-    padding: 10px 4px;
+    font-size: 20px;
+    padding: 12px 8px;
     cursor: pointer;
   }
 
   .dashboard-grid button svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
   }
 
   .dashboard-grid button:hover {
