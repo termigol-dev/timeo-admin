@@ -3,19 +3,17 @@
   --control-line-height: 1.2;
   --control-padding-y: 0.9em;
   --day-col-width: 130px;
-}
-
-:root {
   --hours-col-width: 90px;
 }
 
 /* ======================================================
-   BASE
+   BASE (🔥 FIX GLOBAL)
 ====================================================== */
 
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
 }
 
 .card {
@@ -28,240 +26,42 @@
    FORMULARIO
 ====================================================== */
 
-.form-card{
-  position:relative;
-  width:720px;
-  max-width:90vw;
-  background:white;
-  border-radius:12px;
-  box-shadow:0 20px 60px rgba(0,0,0,0.25);
-  z-index:1600;
-}
-
-.form-card::before{
-  content:"";
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
-  background:rgba(0,0,0,0.35);
-  z-index:-1;
-}
-
-.modal-overlay{
-  position:fixed;
-
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:1500;
-}
-
-.days-selector {
-  display: flex;
-  justify-content: center;
-  gap: 22px;
-  margin-bottom: 10px;
-  padding: 14px 0;
-  background: #9ae0db;
-  border-radius: 14px;
-}
-
-.day-checkbox {
-  font-size: 20px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/*.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 36px;
-}*/
-
-/* ======================================================
-   COLUMNA DERECHA
-====================================================== */
-
-.left-column {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 14px;
-  background: #f0fdf4;
-  padding: 24px;
-  border-radius: 16px;
-}
-
-.caption {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.time-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.time-edit-btn {
-  border: none;
-  background: transparent;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.time-input {
-  width: 250px;
-  max-width: 200px;
-  font-size: 18px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  color: #000;
-  /* texto negro */
-  caret-color: #9ca3af;
-  /* cursor gris suave */
-}
-
-.primary-button {
-  width: 270px;
-  height: 50px;
-  margin-top: 10px;
-  font-size: var(--control-font-size);
-  line-height: var(--control-line-height);
-  padding: var(--control-padding-y) 0;
-  font-weight: 500;
-  border-radius: 14px;
-  border: none;
-  cursor: pointer;
-}
-
-/*.controls-buttons button,*/
-.complete-button {
-  width: 85%;
-  font-size: var(--control-font-size);
-  line-height: var(--control-line-height);
-  height: 50px;
-  padding: var(--control-padding-y) 0;
-  font-weight: 700;
-  border-radius: 14px;
-  color: #ffffff;
-  background: #14b8a6;
-  border: none;
-  cursor: pointer;
-}
-
-
-.add-turn {
-  background: #14b8a6;
-  color: white;
-}
-
-.add-vacation {
-  margin-top: 0;
-  color: #ffffff;
-  background: #f97316;
-  color: white;
-}
-
-/* ======================================================
-   COLUMNA IZDA
-====================================================== */
-
-.right-column {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-  background: #f8fafc;
-  padding: 24px;
-  border-radius: 16px;
-}
-
-.date-input {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-
-  width: 40%;
-  height: 44px;
-  padding: 0.6em 0.9em;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 12px;
-  color: #111827;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.date-input:hover {
-  border-color: #17ecec;
-}
-
-.date-input:focus {
-  border-color: #14b8a6;
-  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25);
-}
-
-.total-hours {
-  margin-top: 24px;
+.form-card {
+  position: relative;
   width: 100%;
-  text-align: center;
+  max-width: 100%;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  z-index: 1600;
 }
 
-.total-hours-number {
-  font-size: 56px;
-  font-weight: 800;
-  line-height: 1;
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
 }
-
-.total-hours-minutes {
-  font-size: 32px;
-}
-
-.total-hours-label {
-  margin-top: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-}
-
-
-
 
 /* ======================================================
-CALENDARIO
+   CALENDARIO (🔥 FIX IMPORTANTE)
 ====================================================== */
-
-/* Panel blanco del grid 
-.calendar-grid-panel {
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #e5e7eb;
-}*/
 
 .calendar-wrapper {
   margin-top: 0;
-  padding-top: 0;
   padding: 10px;
   background: #c5e9e9;
   border-radius: 20px;
   min-height: 770px;
-  max-width: 1050px;
-  margin-left: auto;
-  margin-right: auto;
+
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .calendar-grid-wrapper {
@@ -272,47 +72,8 @@ CALENDARIO
   overflow: hidden;
 }
 
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 8px;
-  margin-bottom: 6px;
-  overflow-x: hidden;
-  font-size: 18px;
-  font-weight: 500;
-
-}
-
-.calendar-controls {
-  display: flex;
-  gap: 6px;
-}
-
-.calendar-cell {
-  border-left: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.calendar-button {
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  cursor: pointer;
-}
-
-.calendar-select {
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: white;
-}
-
 /* ======================================================
-GRID
+   GRID
 ====================================================== */
 
 .calendar-days-header {
@@ -324,45 +85,11 @@ GRID
   border-bottom: 5px solid #e5e7eb;
 
   align-items: center;
-  /* centrado vertical */
   justify-content: center;
-  /* centrado horizontal */
 
   font-weight: 700;
-  /* negrita */
   font-size: 14px;
   color: #111827;
-
-  text-transform: capitalize;
-  /* primera letra en mayúscula */
-
-}
-
-.calendar-day {
-  text-align: center;
-  font-weight: 700;
-  line-height: 40px;
-}
-
-.calendar-scroll {
-  margin-left: 60px;
-  height: 650px;
-  display: flex;
-  align-items: flex-start;
-  overflow-x: hidden;
-  overflow-y: hidden;
-}
-
-.calendar-scroll.focused {
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.calendar-grid-panel {
-  background: white;
-  border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  overflow: hidden;
 }
 
 .calendar-grid {
@@ -372,69 +99,36 @@ GRID
   grid-template-columns: repeat(7, var(--day-col-width));
   min-width: calc(7 * var(--day-col-width));
   font-size: 14px;
-  
-
-}
-
-
-.calendar-grid-rows {
-  grid-template-rows: repeat(48, 24px);
-}
-
-.hour-label {
-  height: 48px;
-  text-align: right;
-  padding-right: 6px;
-  color: #6b7280;
-  font-size: 14px;
-  font-weight: 600;
-  background: white;
-}
-
-.calendar-week-text {
-  font-weight: 600;
-}
-
-.calendar-cell {
-  border-left: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-
-}
-
-/* HEADER HORIZONTAL */
-.calendar-header-x {
-  overflow-x: hidden;
-  overflow-y: hidden;
-}
-
-.calendar-header-x.focused {
-  overflow-x: auto;
-  /* aparece SOLO con click */
-}
-
-/* CUERPO */
-.calendar-body {
-  display: flex;
-}
-
-/* HORAS — SOLO SCROLL VERTICAL */
-.calendar-hours-y {
-  position: absolute;
-  left: 0;
-  top: 40px;
-  /* debajo del header de días */
-  width: 60px;
-  height: 650px;
-  background: white;
-  z-index: 2;
-  pointer-events: none;
-  /* no interfieren */
-  overflow: hidden;
 }
 
 /* ======================================================
-BLOQUES
+   LAYOUT (🔥 FIX GLOBAL)
+====================================================== */
+
+.layout-width {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding-left: 12px;
+  padding-right: 12px;
+  box-sizing: border-box;
+}
+
+/* ======================================================
+   HEADER EMPLEADO
+====================================================== */
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* ======================================================
+   BLOQUES
 ====================================================== */
 
 .turn-saved {
@@ -447,382 +141,13 @@ BLOQUES
   z-index: 1;
 }
 
-.turn-draft {
-  background: #22c55e;
-  color: white;
-  border-radius: 10px;
-  padding: 6px;
-  font-size: 13px;
-  margin: 2px;
-  z-index: 2;
-  border: 2px solid #4b5563;
-}
-
-.vacation {
-  background: #f97316;
-  color: white;
-  border-radius: 12px;
-  padding: 8px;
-  margin: 2px;
-  position: relative;
-  z-index: 10;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-}
-
-.vacation.draft {
-  border: 2px solid #4b5563;
-}
-
-/* ======================================================
-NUEVO LAYOUT PANEL SUPERIOR
-====================================================== */
-
-/* Contenedor principal del formulario */
-.form-single-column {
-  max-width: 900px;
-  margin: 0 auto;
-  /* 👈 CENTRADO */
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* Fila con dos columnas (fechas / horas) */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  /* 👈 DOS COLUMNAS */
-  gap: 40px;
-  justify-content: center;
-}
-
-/* Columna de fechas */
-.form-dates {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  align-items: flex-start;
-}
-
-/* Columna de horas */
-.form-times {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  align-items: flex-start;
-  width: 100%;
-}
-
-/* Botones */
-.form-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: center;
-  /* 👈 CENTRADO */
-}
-
-/* Fila de botones */
-.form-buttons-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-
-  gap: 16px;
-
-  max-width: 720px;
-  margin: 24px auto;
-
-  align-items: center;
-}
-
-.form-buttons-row>button {
-  width: 100%;
-  height: 48px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin: 0;
-}
-
-
-
-.delete-block {
-  background: #ef4444;
-  color: white;
-}
-
-.delete-block:disabled {
+.turn-saved.deleted {
+  background-color: #999;
   opacity: 0.6;
-  cursor: not-allowed;
 }
 
-/* ======================================================
-PANEL INTERMEDIO (CONTROLES)
-====================================================== */
-
-/* Quitamos margen inferior de la barra de días */
-.days-selector {
-  margin-bottom: 0;
-  /* 👈 pegado al panel */
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* Panel principal debajo de los días */
-.controls-panel {
-  background: #dbf4ef;
-  border-radius: 0 0 16px 16px;
-  padding: 20px;
-  border: 1px solid #e5e7eb;
-  border-top: none;
-  /* 👈 unido visualmente */
-  max-width: 100%;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-/* Subpanel de fechas (color distinto) */
-.controls-dates-panel {
-  background: #f1f5f9;
-  padding: 16px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Controles IN / OUT */
-.controls-times {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-/* Fila de botones */
-.controls-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Afinado visual */
-.controls-panel .caption {
-  margin-bottom: 4px;
-}
-
-/* ======================================================
-LAYOUT UNIFICADO
-====================================================== */
-
-.layout-width {
-  width: 100%;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 12px;
-  padding-right: 12px;
-  box-sizing: border-box;
-}
-
-/* ======================================================
-HEADER EMPRESA / EMPLEADO
-====================================================== */
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.employee-photo {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #14b8a6;
-  flex-shrink: 0;
-}
-
-.page-title {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.company-name {
-  font-size: 28px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.employee-texts {
-  display: flex;
-  flex-direction: row;
-  /* ← CLAVE */
-  align-items: center;
-  gap: 16px;
-  /* espacio entre empresa y empleado */
-}
-
-.employee-name {
-  font-size: 22px;
-  font-weight: 700;
-  color: #475569;
-}
-
-.form-inline-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.form-inline-buttons .primary-button {
-  flex: 1;
-}
-
-/* =========================
-   MODALES (POPUPS)
-========================= */
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-
-  background: rgba(0, 0, 0, 0.4);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  z-index: 9999;
-  /* 🔥 por encima de TODO */
-}
-
-.shift-editor-modal{
-  width:720px;
-  max-width:90vw;
-  background:white;
-  border-radius:12px;
-  box-shadow:0 20px 60px rgba(0,0,0,0.25);
-  position:relative;
-}
-
-.modal {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  border: 5px solid red;
-  min-width: 320px;
-  max-width: 400px;
-  position: relative;
-  z-index: 10000;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-}
-
-.modal-buttons {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.modal-label {
-  cursor: pointer;
-  font-size: 14px;
-}
-
-
-/* 🔥 RADIOS VISIBLES Y CLAROS EN MODAL */
-.modal input[type="radio"] {
-  all: unset;
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  border: 2px solid #111;
-  border-radius: 50%;
-  margin-right: 8px;
-  cursor: pointer;
-  position: relative;
-  vertical-align: middle;
-  background: white;
-}
-
-.modal input[type="radio"]:checked::after {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 8px;
-  height: 8px;
-  background: #111;
-  border-radius: 50%;
-}
-
-/* =========================
-   PREVIEW EDICIÓN DE TURNOS
-========================= */
-
-.turn-preview {
-  border-radius: 5px;
-  /*padding: 6px;*/
-  margin: 2px;
-  font-size: 13px;
-  z-index: 40;
-  box-shadow: 0 0 0 2px #000000;
-}
-
-/* 🟢 Tramo que se VA A AÑADIR */
-.preview-add {
-  background: #22c55e;
-  color: white;
-}
-
-/* 🔴 Tramo que se VA A BORRAR */
-.preview-delete {
-  background: white;
-  color: #111827;
-  border: 2px dashed #000000;
-}
-
-/* 🔒 MODO EDICIÓN DE TURNO — capa de atenuación, NO blur */
-.editing-mode {
-  position: relative;
-}
-
-/* Capa oscura encima de todo el grid */
-.editing-mode::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.editing-highlight {
-  outline: 3px solid #111827;
-  z-index: 50;
-  position: relative;
-}
-
-/* 🟢 En modo edición, el turno seleccionado NO se atenúa */
-.editing-mode .editing-highlight {
-  filter: none !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
+.turn-saved.edited {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
 }

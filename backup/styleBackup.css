@@ -36,7 +36,7 @@ body.dark {
 
 .login-card {
   width: 100%;
-  max-width: 85%;
+  max-width: 420px;
   background: #ffffff;
   border-radius: 22px;
   padding: 36px 32px;
@@ -92,6 +92,16 @@ body.dark {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .1);
 }
 
 body.dark .login-card {
@@ -165,6 +175,7 @@ button.primary {
   display: flex;
   flex-direction: column;
 }
+
 /* ===== HEADER ===== */
 .header {
   height: 20dvh;
@@ -178,45 +189,7 @@ button.primary {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
-}
 
-/* 🔥 MOBILE FIX REAL */
-@media (max-width: 600px) {
-  .header {
-    height: auto;
-    min-height: unset;
-    padding: 12px 16px;
-
-    grid-template-columns: auto 1fr auto;
-    gap: 8px;
-  }
-
-  .header-left {
-    display: none; /* 🔥 ocultamos lado izquierdo */
-  }
-
-  .header button {
-    font-size: 18px;
-  }
-
-  .header button svg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .header-right {
-    gap: 10px;
-  }
-
-  .header-right button {
-    padding: 8px 10px;
-    font-size: 14px;
-  }
-
-  .header-right button svg {
-    width: 24px;
-    height: 24px;
-  }
 }
 
 .header>*:nth-child(2) {
@@ -242,6 +215,7 @@ button.primary {
 }
 
 .header-left button {
+
   border-radius: 18px;
   font-size: 62px;
   gap: 10px;
@@ -327,20 +301,6 @@ body.dark .header {
   color: #ffffff !important;
 }
 
-/* =========================================
-   HEADER HOVER CLEAN (GLOBAL)
-========================================= */
-
-.header button:hover {
-  color: var(--brand);
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.header button:hover svg {
-  color: var(--brand);
-}
-
 /* ===== DARK TOGGLE ===== */
 .dark-toggle {
   display: flex;
@@ -380,7 +340,7 @@ body.dark .header {
 /* ===== MAIN ===== */
 .main {
   flex: 1;
-  padding: 16px;   /* 🔽 antes 24px */
+  padding: 24px;
   overflow-y: auto;
 }
 
@@ -459,21 +419,12 @@ body,
 }
 
 .app-container {
-  width: 100%;              /* 🔥 CLAVE */
-  max-width: 100%;          /* 🔥 CLAVE */
-  margin: 0;                /* 🔥 QUITAR CENTRADO */
-
-  height: 100dvh;
+  margin: 0 auto;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-
   background: var(--bg);
   overflow: hidden;
-}
-
-html, body, #root {
-  width: 100%;
-  overflow-x: hidden;
 }
 
 .page-content {
@@ -488,7 +439,7 @@ html, body, #root {
 ======================================================*/
 
 .employee-line {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   display: flex;
   align-items: center;
   width: 100%;
@@ -496,7 +447,7 @@ html, body, #root {
 
 /* CONTENEDOR */
 .employees-container {
-  max-width: 100%;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
@@ -588,7 +539,7 @@ html, body, #root {
   font-size: 26px !important;
   font-weight: 450 !important;
   letter-spacing: -0.3px !important;
-  white-space: normal;
+  white-space: nowrap;
   margin-left: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -596,12 +547,10 @@ html, body, #root {
 
 /* DNI */
 .employee-dni {
-  width: auto;
-  max-width: 100%;
+  width: 120px;
   font-size: 20px;
   opacity: 0.6;
-  white-space: normal;
-  word-break: break-word;
+  white-space: nowrap;
   margin-left: 20px;
 }
 
@@ -628,38 +577,3 @@ html, body, #root {
 .employee-check.out {
   background: #dc2626;
 }
-
-body > div {
-  width: 100%;
-  max-width: 100%;
-}
-
-/*calendarGrid*/
-.turn-saved.deleted {
-  background-color: #999;
-  opacity: 0.6;
-}
-.turn-saved.edited {
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
-  color: #856404;
-}
-
-/* 🔥 FORCE FULL WIDTH APP */
-#root,
-.app,
-.app-container,
-.main,
-.page-content {
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-   align-items: stretch !important;
-}
-
-
-* {
-  max-width: 100%;
-  min-width: 0;
-}
-

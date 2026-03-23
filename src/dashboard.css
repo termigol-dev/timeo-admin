@@ -8,6 +8,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center; /* 🔥 centra vertical */
   width: 100%;
   overflow-x: hidden;
 }
@@ -23,55 +24,56 @@
 /* GRID */
 .dashboard-grid {
   width: 100%;
-  max-width: 500px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  padding: 20px;
+  max-width: 100%;
+
+  display: flex;                 /* 🔥 antes grid */
+  flex-direction: column;        /* 🔥 vertical */
+  align-items: center;           /* 🔥 centrado */
+  justify-content: center;
+
+  gap: 48px;                     /* 🔥 aire entre opciones */
+
+  padding: 0;
 }
 
-/* 🔥 BOTONES (FUENTE REAL) */
+/* BOTÓN = TEXTO + ICONO (sin card) */
 .dashboard-grid button {
-  height: 500px;
-  width: 500px;
-  border-radius: 20px;
-  border: 1px solid var(--border-soft);
-  background: var(--card-bg);
-  color: inherit;
-  cursor: pointer;
+  all: unset;                    /* 🔥 elimina estilo card */
 
   display: flex;
-  flex-direction: column;   /* 👈 mantiene icono arriba + texto abajo */
-  justify-content: center;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: center;
 
-  font-size: 18px;
-  font-weight: 600;
+  gap: 16px;                     /* 🔥 espacio icono-texto */
 
-  transition: transform .12s ease, box-shadow .12s ease;
+  font-size: 28px;
+  font-weight: 500;
+
+  cursor: pointer;
+  transition: color 0.2s ease;
 }
 
 /* ICONO */
 .dashboard-grid button svg {
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
+  transition: color 0.2s ease;
 }
 
 /* TEXTO */
 .dashboard-grid button span {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 500;
 }
 
-/* HOVER (solo desktop) */
+/* HOVER LIMPIO (solo desktop real) */
 @media (hover: hover) {
-  .dashboard-grid button:hover,
-  body.dark .dashboard-grid button:hover {
-    background: var(--brand);
-    color: #ffffff;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px var(--brand-glow);
+  .dashboard-grid button:hover {
+    color: var(--brand);
+  }
+
+  .dashboard-grid button:hover svg {
+    color: var(--brand);
   }
 }
 
