@@ -36,12 +36,13 @@ body.dark {
 
 .login-card {
   width: 100%;
-  max-width: 85%;
+  max-width: 420px;
   background: #ffffff;
   border-radius: 22px;
   padding: 36px 32px;
   text-align: center;
   box-shadow: 0 12px 30px rgba(0, 0, 0, .1);
+  margin: 0 auto;
 }
 
 body.dark .login-card {
@@ -315,16 +316,18 @@ body.dark .header {
 .header-right button:hover,
 .dark-toggle:hover,
 .tablet-actions button:hover {
-  background: var(--brand);
-  color: #ffffff;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px var(--brand-glow);
+  /*box-shadow: 0 6px 18px var(--brand-glow);*/
+  background: transparent;
 }
+
+
 
 .nav button:hover *,
 .header-right button:hover *,
 .dark-toggle:hover * {
-  color: #ffffff !important;
+  color: #22B8CF !important;
+
 }
 
 /* =========================================
@@ -659,7 +662,7 @@ body > div {
 
 
 * {
-  max-width: 100%;
+  /*max-width: 100%;*/
   min-width: 0;
 }
 

@@ -4,26 +4,6 @@
 
 @media (max-width: 600px) {
 
-  /* 🚨 TEST VISUAL (INEQUÍVOCO) */
-  body {
-    outline: 5px solid red !important;
-  }
-
-  /* 🔥 TEXTO DEBUG */
-  body::before {
-    content: "MODO MÓVIL ACTIVO";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: red;
-    color: white;
-    font-size: 16px;
-    text-align: center;
-    padding: 6px;
-    z-index: 9999;
-  }
-
   /* ===== HEADER ===== */
   .header {
     height: 64px !important;

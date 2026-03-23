@@ -9,7 +9,7 @@ import Dashboard from './Dashboard';
 import Companies from './Companies';
 import CompanyProfile from './CompanyProfile';
 import Employees from './Employees';
-import EmployeesList from './EmployeesList';   // 👈 AÑADIDO
+import EmployeesList from './EmployeesList';
 import Branches from './Branches';
 import Reports from './Reports';
 import Profile from './Profile';
@@ -20,6 +20,7 @@ import EmployeeSchedules from './EmployeeSchedules';
 import SimulateRecord from './SimulateRecord';
 import SendPushTest from './SendPushTest.jsx';
 import ScrollToTop from './ScrollToTop';
+import PrivateRoute from './components/PrivateRoute';
 
 export default function App() {
 
@@ -82,8 +83,8 @@ export default function App() {
 
   return (
     <>
-
       <ScrollToTop />
+
       <Routes>
 
         {/* ───────── NO LOGUEADO ───────── */}
@@ -100,111 +101,76 @@ export default function App() {
           />
         )}
 
-        {/* ───────── LOGUEADO (ADMIN / SUPERADMIN) ───────── */}
+        {/* ───────── LOGUEADO ───────── */}
         {logged && (
           <>
             <Route
               path="/admin"
               element={
-                <AdminLayout
-                  dark={dark}
-                  setDark={setDark}
-                  onLogout={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    setLogged(false);
-                  }}
-                />
+                <PrivateRoute>
+                  <AdminLayout
+                    dark={dark}
+                    setDark={setDark}
+                    onLogout={() => {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('user');
+                      setLogged(false);
+                    }}
+                  />
+                </PrivateRoute>
               }
             >
-              {/* 🔥 AÑADIDO AQUÍ */}
               <Route path="push-test" element={<SendPushTest />} />
-
-              {/* SIMULADOR */}
               <Route path="/admin/dev/simulate" element={<SimulateRecord />} />
 
-              {/* DASHBOARD */}
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
 
-              {/* EMPLEADOS (GLOBAL) */}
-              <Route
-                path="employees"
-                element={<EmployeesList />}
-              />
+              <Route path="employees" element={<EmployeesList />} />
 
-              {/* EMPRESAS */}
               <Route path="companies" element={<Companies />} />
               <Route path="companies/new" element={<NewCompany />} />
-              <Route
-                path="companies/:companyId"
-                element={<CompanyProfile />}
-              />
+              <Route path="companies/:companyId" element={<CompanyProfile />} />
 
-              {/* SUCURSALES */}
-              <Route
-                path="companies/:companyId/branches"
-                element={<Branches />}
-              />
-              <Route
-                path="companies/:companyId/branches/new"
-                element={<NewBranch />}
-              />
+              <Route path="companies/:companyId/branches" element={<Branches />} />
+              <Route path="companies/:companyId/branches/new" element={<NewBranch />} />
 
-              {/* EMPLEADOS (POR EMPRESA) */}
-              <Route
-                path="companies/:companyId/employees"
-                element={<Employees />}
-              />
-              <Route
-                path="companies/:companyId/employees/new"
-                element={<CreateUser defaultRole="EMPLEADO" />}
-              />
-              <Route
-                path="companies/:companyId/employees/:employeeId/schedules"
-                element={<EmployeeSchedules />}
-              />
-              <Route
-                path="employees/:employeeId/schedules"
-                element={<EmployeeSchedules />}
-              />
-              {/* PERFIL DE CUALQUIER USUARIO (GLOBAL) */}
-              <Route
-                path="users/:userId/profile"
-                element={<Profile />}
-              />
+              <Route path="companies/:companyId/employees" element={<Employees />} />
+              <Route path="companies/:companyId/employees/new" element={<CreateUser defaultRole="EMPLEADO" />} />
 
-              {/* MI PERFIL (ATAJO) */}
+              <Route path="companies/:companyId/employees/:employeeId/schedules" element={<EmployeeSchedules />} />
+              <Route path="employees/:employeeId/schedules" element={<EmployeeSchedules />} />
+
+              <Route path="users/:userId/profile" element={<Profile />} />
+
               <Route
                 path="profile"
                 element={
                   user?.id
-                    ? (
-                      <Navigate
-                        to={`/admin/users/${user.id}/profile`}
-                        replace
-                      />
-                    )
+                    ? <Navigate to={`/admin/users/${user.id}/profile`} replace />
                     : <Navigate to="/admin" replace />
                 }
               />
-
             </Route>
 
+            {/* 🔥 PROTEGIDO TAMBIÉN */}
             <Route
               path="/admin/employees/:userId/reports"
-              element={<Reports />}
+              element={
+                <PrivateRoute>
+                  <Reports />
+                </PrivateRoute>
+              }
             />
 
-            {/* FALLBACK SOLO ADMIN */}
             <Route
               path="*"
               element={<Navigate to="/admin" replace />}
             />
           </>
         )}
-      </Routes>
 
+      </Routes>
     </>
   );
 }

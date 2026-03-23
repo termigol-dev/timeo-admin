@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { adminLogin } from './api';
-import { useAuth } from "./auth/AuthContext";
 import Logo from "./components/Logo";
 
 export default function Login({ dark, setDark, onLogin }) {
@@ -12,7 +10,10 @@ export default function Login({ dark, setDark, onLogin }) {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    console.log('🚀 LOGIN SUBMIT', email);
+    if (loading) return; // 🔥 evita doble click
+
+    setLoading(true);
+    setError('');
 
     try {
       const res = await fetch(
@@ -24,35 +25,36 @@ export default function Login({ dark, setDark, onLogin }) {
         }
       );
 
-      console.log('📡 STATUS:', res.status);
-
-      const text = await res.text();
-      console.log('📦 RAW RESPONSE:', text);
-
       if (!res.ok) {
-        throw new Error('Login incorrecto');
+        throw new Error('Email o contraseña incorrectos');
       }
 
-      const data = JSON.parse(text);
+      const data = await res.json(); // 🔥 más rápido y limpio
 
+      // 🔐 guardar sesión
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      onLogin();
+      onLogin(); // 🔥 dispara render inmediato
+
     } catch (err) {
       console.error('❌ LOGIN ERROR', err);
+      setError(err.message || 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <div className="login-page">
       <div className="login-card">
+
         <div style={{
           display: "flex",
           justifyContent: "center",
           marginBottom: 32
         }}>
-          <Logo dark={dark} size={150} />
+          <Logo dark={dark} size={120} /> {/* 🔥 un poco más pequeño */}
         </div>
 
         <div className="subtitle">Panel de administración</div>
