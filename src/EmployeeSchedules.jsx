@@ -1163,7 +1163,7 @@ export default function EmployeeSchedules() {
   return (
     <div className="container">
 
-      <div className="employee-header layout-width">
+      <div className="employee-header">
 
         {employee?.photoUrl && (
           <img
@@ -1185,7 +1185,7 @@ export default function EmployeeSchedules() {
           </div>
         </div>
 
-        <div className="tablet-actions employee-back">
+        <div className="employee-back">
           <button onClick={() => navigate(-1)}>
             ← Volver
           </button>
@@ -1195,26 +1195,23 @@ export default function EmployeeSchedules() {
 
       {/* BOTONES PRINCIPALES */}
 
-      <div className="form-buttons-row layout-width tablet-actions">
+      <div className="form-buttons-row">
 
         <button
           onClick={addVacation}
-          className="add-vacation full-width"
-          style={{ backgroundColor: "#ff6d00" }}
+          className="add-vacation"
         >
           Añadir vacaciones
         </button>
 
         <button
           onClick={() => setShowPanel(true)}
-          className="full-width"
         >
           Añadir turno
         </button>
 
         <button
           onClick={completeSchedule}
-          className="full-width"
         >
           Confirmar horario
         </button>
@@ -1231,11 +1228,11 @@ export default function EmployeeSchedules() {
         >
 
           <div
-            className="form-card layout-width"
+            className="form-card"
             onClick={(e) => e.stopPropagation()}
           >
 
-            {/* DAYS — CABECERA DEL PANEL */}
+            {/* DAYS */}
             <div className="days-selector">
               {days.map(d => (
                 <label key={d.key} className="day-checkbox">
@@ -1249,8 +1246,8 @@ export default function EmployeeSchedules() {
               ))}
             </div>
 
-            {/* PANEL DE CONTROLES */}
-            <div className={`controls-panel ${editingShift ? '' : ''}`}>
+            {/* CONTROLES */}
+            <div className="controls-panel">
 
               <div className="form-row">
 
@@ -1275,7 +1272,6 @@ export default function EmployeeSchedules() {
 
                 </div>
 
-
                 {/* HORAS */}
                 <div className="form-times">
 
@@ -1296,17 +1292,12 @@ export default function EmployeeSchedules() {
                   />
 
                   {/* BOTONES */}
-
-                  <div className="form-inline-buttons tablet-actions">
+                  <div className="form-inline-buttons">
 
                     <button
                       onClick={() => {
-
-                        console.log('❌ CANCELAR → no se aplica ningún cambio');
-
                         setEditingShift(null);
                         setShowPanel(false);
-
                       }}
                     >
                       Cancelar
@@ -1314,12 +1305,7 @@ export default function EmployeeSchedules() {
 
                     <button
                       onClick={() => {
-                        if (!editingShift?.day) {
-                          console.error('❌ editingShift sin day', editingShift);
-                          alert('Error interno: falta el día del turno');
-                          return;
-                        }
-                        // 🔴 VALIDACIÓN  
+
                         if (!startTime || !endTime) {
                           alert('Debes indicar hora de entrada y salida');
                           return;
@@ -1330,10 +1316,7 @@ export default function EmployeeSchedules() {
                           return;
                         }
 
-                        // 🟡 EDICIÓN → NO BORRAR  
                         if (editingShift) {
-
-                          console.log('🧪 CLICK EDIT', editingShift);
 
                           const finalBlocks = buildFinalDayBlocks({
                             date: editingShift.date,
@@ -1347,28 +1330,20 @@ export default function EmployeeSchedules() {
                               endTime,
                               originalStartTime: editingShift.startTime,
                               originalEndTime: editingShift.endTime,
-
                             }
                           });
 
-                          console.log('🧪 FINAL BLOCKS RESULT', finalBlocks);
-
                           setDraftTurns(prev => {
-
                             const cleaned = prev.filter(d => d.date !== editingShift.date);
 
-                            const next = [
+                            return [
                               ...cleaned,
                               {
-                                type: 'SET_DAY',          // 🔥 CLAVE  
+                                type: 'SET_DAY',
                                 date: editingShift.date,
-                                blocks: finalBlocks       // 🔥 CLAVE  
+                                blocks: finalBlocks
                               }
                             ];
-
-                            console.log('🧪 NEW DRAFT TURNS', next);
-
-                            return next;
                           });
 
                           setEditingShift(null);
@@ -1378,22 +1353,24 @@ export default function EmployeeSchedules() {
                           addTurn();
                           setShowPanel(false);
                         }
+
                       }}
                     >
                       Aceptar
                     </button>
+
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* WEEKLY CALENDAR */}
-      <div className="calendar-wrapper layout-width">
+      {/* CALENDARIO */}
+      <div className="calendar-wrapper">
 
-        {/* HEADER */}
         <div className="calendar-header">
 
           <div className="calendar-week-text">

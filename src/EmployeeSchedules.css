@@ -1,5 +1,3 @@
-
-
 :root {
   --control-font-size: 1rem;
   --control-line-height: 1.2;
@@ -13,9 +11,9 @@
 ====================================================== */
 
 .container {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
+  width: 90%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .card {
@@ -35,14 +33,14 @@
   margin: 0 auto;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   z-index: 1600;
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -60,10 +58,10 @@
   border-radius: 20px;
   min-height: 770px;
 
-  width: 100%;
+  width: fit-content;
   max-width: 100%;
-  margin-left: 0;
-  margin-right: 0;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .calendar-grid-wrapper {
@@ -72,6 +70,10 @@
   border-radius: 16px;
   border: 1px solid #e5e7eb;
   overflow: hidden;
+  width: fit-content;
+  max-width: 95%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ======================================================
@@ -81,8 +83,8 @@
 .calendar-days-header {
   background: white;
   display: grid;
-  grid-template-columns: 125px repeat(7, var(--day-col-width));
-  min-width: calc(60px + 7 * var(--day-col-width));
+  grid-template-columns: var(--hours-col-width) repeat(7, var(--day-col-width));
+  min-width: calc(var(--hours-col-width) + 7 * var(--day-col-width));
   height: 40px;
   border-bottom: 5px solid #e5e7eb;
 
@@ -108,9 +110,10 @@
 ====================================================== */
 
 .layout-width {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
+  width: fit-content;
+  max-width: 85%;
+  margin-left: auto;
+  margin-right: auto;
   padding-left: 12px;
   padding-right: 12px;
   box-sizing: border-box;
@@ -127,6 +130,75 @@
   gap: 14px;
   text-align: center;
   margin-bottom: 12px;
+}
+
+.employee-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+/* FOTO */
+.employee-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* TEXTO */
+.employee-texts {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* EMPRESA */
+.company-name {
+  font-size: 18px;
+  font-weight: 700;
+  justify-content: left;
+}
+
+/* NOMBRE */
+.employee-name {
+  font-size: 22px;
+  font-weight: 600;
+  justify-content: left;
+}
+
+/* BOTÓN VOLVER A LA DERECHA */
+.employee-back {
+margin-left: auto; /* 🔥 esto lo empuja a la derecha */
+}
+
+.employee-back button {
+  background: linear-gradient(135deg, #22c1c3, #0ea5e9);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 8px 14px;
+
+  font-size: 18px;
+  font-weight: 500;
+  margin-left: auto; /* 🔥 esto lo empuja a la derecha */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* HOVER */
+.employee-back button:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+/* ACTIVE (click) */
+.employee-back button:active {
+  transform: translateY(0);
+  filter: brightness(0.9);
 }
 
 /* ======================================================
@@ -152,4 +224,154 @@
   background-color: #fff3cd;
   border: 1px solid #ffc107;
   color: #856404;
+}
+
+/*RESTAURANDO LO DEL VIEJO*/
+
+/* =========================================
+   🔥 BACKUP RECOVERY (CLASES FALTANTES)
+   NO PISA TU CSS ACTUAL
+========================================= */
+
+/* ===== CALENDAR STRUCTURE ===== */
+
+.calendar-cell {
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.calendar-scroll {
+  margin-left: 60px;
+  height: 650px;
+  display: flex;
+  align-items: flex-start;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.calendar-scroll.focused {
+  overflow-y: auto;
+}
+
+.calendar-grid-panel {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.calendar-grid-rows {
+  display: grid;
+  grid-template-rows: repeat(48, 24px);
+}
+
+.calendar-header-x {
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.calendar-header-x.focused {
+  overflow-x: auto;
+}
+
+.calendar-body {
+  display: flex;
+}
+
+.calendar-hours-y {
+  position: absolute;
+  left: 0;
+  top: 40px;
+  width: 60px;
+  height: 650px;
+  background: white;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ===== HEADER + CONTROLS ===== */
+
+.calendar-button {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+}
+
+.calendar-select {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+}
+
+.calendar-controls {
+  display: flex;
+  justify-content: flex-end;
+  /* 🔥 a la derecha */
+  gap: 6px;
+  width: 100%;
+}
+
+/* ===== HOURS ===== */
+
+.hour-label {
+  height: 48px;
+  text-align: right;
+  padding-right: 6px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+  background: white;
+}
+
+.calendar-week-text {
+  font-weight: 600;
+}
+
+/* ===== MISSING LAYOUT PIECES ===== */
+
+.calendar-day {
+  text-align: center;
+  font-weight: 700;
+  line-height: 40px;
+}
+
+/* ===== SAFETY (no rompe nada) ===== */
+
+.calendar-grid {
+  position: relative;
+}
+
+.form-buttons-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  width: 100%;
+  margin: 16px 0 24px;
+}
+
+.form-buttons-row button {
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+}
+
+/* estilos reales */
+.add-vacation {
+  background: #f97316;
+  color: white;
+}
+
+.form-buttons-row button:not(.add-vacation) {
+  background: var(--brand);
+  color: white;
 }
