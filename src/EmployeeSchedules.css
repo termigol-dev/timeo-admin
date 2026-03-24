@@ -56,7 +56,8 @@
   padding: 10px;
   background: #c5e9e9;
   border-radius: 20px;
-  min-height: 770px;
+  height: 100%;
+
 
   width: fit-content;
   max-width: 100%;
@@ -110,7 +111,7 @@
 ====================================================== */
 
 .layout-width {
-  width: fit-content;
+  /*width: fit-content; */
   max-width: 85%;
   margin-left: auto;
   margin-right: auto;
@@ -266,6 +267,13 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
   grid-template-rows: repeat(48, 24px);
 }
 
+.calendar-header {
+  display: flex;
+  flex-direction: column;     /* 👈 clave */
+  align-items: flex-start;    /* 👈 izquierda */
+  gap: 8px;                   /* 👈 aire */
+}
+
 .calendar-header-x {
   overflow-x: hidden;
   overflow-y: hidden;
@@ -310,10 +318,11 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
 
 .calendar-controls {
   display: flex;
-  justify-content: flex-end;
-  /* 🔥 a la derecha */
-  gap: 6px;
-  width: 100%;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap; /* por si no cabe */
+  margin-bottom: 8px;
+  margin-left: 5%;
 }
 
 /* ===== HOURS ===== */
@@ -329,7 +338,8 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
 }
 
 .calendar-week-text {
-  font-weight: 600;
+  font-weight: 500;
+  margin-left: 5%;
 }
 
 /* ===== MISSING LAYOUT PIECES ===== */

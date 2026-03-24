@@ -592,7 +592,6 @@ html, body, #root {
   font-weight: 450 !important;
   letter-spacing: -0.3px !important;
   white-space: normal;
-  margin-left: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -648,6 +647,13 @@ body > div {
   color: #856404;
 }
 
+.calendar-scale-wrapper {
+  width: 100%;
+  overflow: auto;
+}
+@media (max-width: 768px) {
+ 
+}
 /*🔥 FORCE FULL WIDTH APP 
 #root,
 .app,

@@ -73,9 +73,38 @@
 
   .employee-name {
     min-width: 0;
+    font-size: 60%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    
   }
+
+   .calendar-grid-wrapper {
+    /*transform: scale(0.5);*/
+    transform-origin: top left;
+    width: 200%;
+   
+  }
+  .container {
+    width: 100%;
+  }
+
+   .calendar-scale-wrapper {
+    transform: scale(0.6);
+    transform-origin: top left;
+    width: calc(100% / 0.6); /* 🔥 compensación */
+
+  }
+
+  .calendar-wrapper {
+    width: 100%;
+    padding: 0 8px;
+    overflow: hidden;
+    max-height: 520px;
+
+  }
+
+  
 
 }

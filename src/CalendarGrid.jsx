@@ -70,6 +70,7 @@ export default function CalendarGrid({
   }
 
   return (
+    <div className="calendar-scale-wrapper">
     <div className="calendar-grid-wrapper">
 
       {/* HEADER */}
@@ -228,6 +229,7 @@ export default function CalendarGrid({
           </div>
         </div>
       </div>
+    </div>
     </div>
 
   );
