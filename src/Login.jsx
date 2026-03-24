@@ -98,3 +98,4 @@ export default function Login({ dark, setDark, onLogin }) {
       </div>
     </div>
   );
+}
