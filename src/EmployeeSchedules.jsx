@@ -436,47 +436,15 @@ export default function EmployeeSchedules() {
 
   /* 🆕 CARGA EMPLEADO + (OPCIONAL) EMPRESA */
   useEffect(() => {
+
     async function loadHeaderData() {
       try {
         const token = localStorage.getItem('token');
 
         /* =====================================================
-           🏢 EMPRESA (OPCIONAL — NO BLOQUEA NADA)
+           👤 EMPLEADO (FUENTE PRINCIPAL)
         ===================================================== */
-        let companyData = null;
 
-        if (companyId) {
-          try {
-            const companyRes = await fetch(
-              `${import.meta.env.VITE_API_URL}/companies/${companyId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-
-            if (companyRes.ok) {
-              companyData = await safeJson(companyRes);
-              setCompany(companyData);
-            } else {
-              console.log('ℹ️ Sin acceso a empresa (normal para sucursal)');
-            }
-
-          } catch (err) {
-            console.log('ℹ️ Error empresa ignorado');
-          }
-        }
-
-        /* =====================================================
-           👤 EMPLEADOS (CRÍTICO)
-        ===================================================== */
-        /*if (!companyId) {
-          console.warn('⚠️ No hay companyId → no se pueden cargar empleados');
-          return;
-        }*/
-
-        // 👤 EMPLEADO DIRECTO (SIN companyId)
         const userRes = await fetch(
           `${import.meta.env.VITE_API_URL}/users/${employeeId}`,
           {
@@ -493,22 +461,22 @@ export default function EmployeeSchedules() {
         }
 
         const foundEmployee = await safeJson(userRes);
-
+        console.log('🔥 EMPLOYEE BACKEND:', foundEmployee);
         if (!foundEmployee) {
           console.warn('⚠️ Empleado no encontrado');
           setEmployee(null);
           return;
         }
 
-        setEmployee(foundEmployee);;
-
-        if (!foundEmployee) {
-          console.warn('⚠️ Empleado no encontrado');
-          setEmployee(null);
-          return;
-        }
-
+        // ✅ SET EMPLOYEE
         setEmployee(foundEmployee);
+
+        // 🔥 CLAVE — AQUÍ METEMOS LA EMPRESA
+        if (foundEmployee.companyName) {
+          setCompany({
+            commercialName: foundEmployee.companyName,
+          });
+        }
 
         /* =====================================================
            📅 HORARIO ACTIVO (CRÍTICO)
@@ -518,7 +486,7 @@ export default function EmployeeSchedules() {
           const weekStartStr = formatDateLocal(weekStart);
 
           const scheduleRes = await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
+            `${import.meta.env.VITE_API_URL}/companies/${foundEmployee.companyId}/branches/${foundEmployee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -547,7 +515,6 @@ export default function EmployeeSchedules() {
           console.log('🧪 SCHEDULE ACTIVO RAW:', schedule);
 
           // ⚠️ NO tocar lógica de turns aquí
-          // reloadActiveSchedule se encarga
         }
 
       } catch (err) {
@@ -556,6 +523,7 @@ export default function EmployeeSchedules() {
     }
 
     loadHeaderData();
+
   }, [companyId, employeeId]);
 
 
@@ -1159,7 +1127,7 @@ export default function EmployeeSchedules() {
   const totalHours = Math.floor(totalMinutes / 60);
   const totalRestMinutes = totalMinutes % 60;
 
-
+  console.log('EMPLOYEE:', employee);
   return (
     <div className="container">
 
@@ -1175,7 +1143,8 @@ export default function EmployeeSchedules() {
 
         <div className="employee-texts">
           <div className="company-name">
-            {company?.commercialName || 'Empresa'}
+
+            {company?.commercialName || 'Horarios de empleado'}
           </div>
 
           <div className="employee-name">
