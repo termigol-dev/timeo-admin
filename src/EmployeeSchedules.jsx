@@ -664,67 +664,96 @@ export default function EmployeeSchedules() {
     });
   }
 
-  async function addTurn() {
-    if (!startTime || !endTime || selectedDays.length === 0) return;
+ async function addTurn() {
+  if (!startTime || !endTime || selectedDays.length === 0) return;
 
-    if (!dateFrom) {
-      alert('Debes indicar una fecha de inicio');
+  if (!dateFrom) {
+    alert('Debes indicar una fecha de inicio');
+    return;
+  }
+
+  // ======================================================
+  // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
+  // ======================================================
+  if (editingShift) {
+
+    console.log('✏️ EDIT → GENERANDO DELETE + ADD_SHIFT');
+
+    const map = { L:1, M:2, X:3, J:4, V:5, S:6, D:7 };
+
+    const weekdays = selectedDays.map(d => map[d]);
+
+    if (weekdays.length === 0) {
+      alert('Debes seleccionar al menos un día');
       return;
     }
 
-    // ======================================================
-    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
-    // ======================================================
-    if (editingShift) {
+    // 🔴 DELETE → uno por cada día
+    // ⚠️ IMPORTANTE: usamos horas del turno ORIGINAL
+    const deleteOps = weekdays.map(day => ({
+      type: 'DELETE',
+      mode: 'FROM_THIS_DAY_ON',
+      fromDate: dateFrom,
+      weekday: day,
+      startTime: editingShift.startTime,
+      endTime: editingShift.endTime
+    }));
 
-      console.log('✏️ ADD TURN DESDE EDICIÓN', editingShift.mode);
-
-      await handleConfirmEditShift();
-      return;
-    }
-
-    // ======================================================
-    // 🟢 ALTA NORMAL
-    // ======================================================
-
-    const dayMap = {
-      L: 1,
-      M: 2,
-      X: 3,
-      J: 4,
-      V: 5,
-      S: 6,
-      D: 7,
-    };
-
-    const newTurn = selectedDays.map(day => ({
-      type: 'ADD_SHIFT', // 🔥 CLAVE
-      weekday: dayMap[day],
+    // 🟢 ADD_SHIFT → uno por cada día (nuevo patrón)
+    const addOps = weekdays.map(day => ({
+      type: 'ADD_SHIFT',
+      weekday: day,
       startTime,
       endTime,
       validFrom: dateFrom,
-      validTo: dateTo && dateTo !== '' ? dateTo : null,
+      validTo: null
     }));
 
-    setDraftTurns(prev => [...prev, ...newTurn]);
+    setDraftTurns(prev => [...prev, ...deleteOps, ...addOps]);
 
-    /*if (hasOverlap(newTurn)) {
-      alert(
-        'El turno que intentas añadir se solapa parcial o totalmente con otro ya existente.'
-      );
-      return;
-    }*/
-
-
-
-    // 🧹 LIMPIAR FORM
+    // 🧹 LIMPIAR
+    setEditingShift(null);
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
     setDateFrom('');
-    setDateTo(''); // 🔥 AÑADIDO (evita arrastre)
+    setDateTo('');
 
+    return;
   }
+
+  // ======================================================
+  // 🟢 ALTA NORMAL (NO TOCADA)
+  // ======================================================
+
+  const dayMap = {
+    L: 1,
+    M: 2,
+    X: 3,
+    J: 4,
+    V: 5,
+    S: 6,
+    D: 7,
+  };
+
+  const newTurn = selectedDays.map(day => ({
+    type: 'ADD_SHIFT',
+    weekday: dayMap[day],
+    startTime,
+    endTime,
+    validFrom: dateFrom,
+    validTo: dateTo && dateTo !== '' ? dateTo : null,
+  }));
+
+  setDraftTurns(prev => [...prev, ...newTurn]);
+
+  // 🧹 LIMPIAR FORM
+  setSelectedDays([]);
+  setStartTime('');
+  setEndTime('');
+  setDateFrom('');
+  setDateTo('');
+}
 
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
@@ -867,12 +896,12 @@ export default function EmployeeSchedules() {
             throw new Error('Error creando excepción: ' + text);
           }
 
-          continue; // 🔥 CLAVE
+          continue;
         }
 
-        // 🔴 DELETE
+        // 🔴 DELETE (NUEVO MODELO POR PATRÓN)
         if (op.type === 'DELETE') {
-          console.log('🗑️ DELETE', op);
+          console.log('🗑️ DELETE (PATTERN)', op);
 
           const res = await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
@@ -883,8 +912,11 @@ export default function EmployeeSchedules() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                shiftId: op.shiftId,
-                mode: op.mode || 'ONLY_THIS_BLOCK',
+                mode: 'END_SHIFT',
+                fromDate: op.fromDate,
+                weekdays: op.weekdays,
+                startTime: op.startTime,
+                endTime: op.endTime,
               }),
             }
           );
@@ -893,9 +925,11 @@ export default function EmployeeSchedules() {
             const text = await res.text();
             throw new Error('Error borrando turno: ' + text);
           }
+
+          continue;
         }
 
-        // 🟢 ADD_SHIFT (NUEVO MODELO TIMEO)
+        // 🟢 ADD_SHIFT
         if (op.type === 'ADD_SHIFT') {
           console.log('🟢 ADD_SHIFT', op);
 
@@ -922,9 +956,8 @@ export default function EmployeeSchedules() {
             throw new Error('Error creando turno (ADD_SHIFT): ' + text);
           }
 
-          continue; // 🔥 MUY IMPORTANTE
+          continue;
         }
-
 
       }
 
@@ -1266,92 +1299,32 @@ export default function EmployeeSchedules() {
                       Cancelar
                     </button>
 
-                    <button
-                      onClick={() => {
+                   <button
+  onClick={() => {
 
-                        if (!startTime || !endTime) {
-                          alert('Debes indicar hora de entrada y salida');
-                          return;
-                        }
+    console.log('🧪 selectedDays CLICK', selectedDays);
 
-                        if (endTime <= startTime) {
-                          alert('La hora de salida debe ser mayor que la de entrada');
-                          return;
-                        }
+    if (!startTime || !endTime) {
+      alert('Debes indicar hora de entrada y salida');
+      return;
+    }
 
-                        if (editingShift) {
+    if (endTime <= startTime) {
+      alert('La hora de salida debe ser mayor que la de entrada');
+      return;
+    }
 
-                          // 🟢 CASO 1: DESDE ESTE DÍA EN ADELANTE
-                          if (editingShift.mode === 'FROM_THIS_DAY_ON') {
+    // 🔥 UNIFICAMOS TODO
+    addTurn();
 
-                            const weekdayNumber = weekDays.indexOf(editingShift.day);
+    setEditingShift(null);
+    setDateTo('');
+    setShowPanel(false);
 
-                            setDraftTurns(prev => [
-                              ...prev,
-                              {
-                                type: 'DELETE',
-                                shiftId: editingShift.shiftId,
-                                mode: 'FROM_THIS_DAY_ON',
-                              },
-                              {
-                                type: 'ADD_SHIFT',
-                                weekday: weekdayNumber,
-                                startTime,
-                                endTime,
-                                validFrom: editingShift.date,
-                                validTo: null,
-                              }
-                            ]);
-
-                          } else {
-
-                            // 🟡 SOLO ESTE DÍA
-                            const finalBlocks = buildFinalDayBlocks({
-                              date: editingShift.date,
-                              day: editingShift.day,
-                              savedTurns,
-                              draftTurns,
-                              action: {
-                                type: 'edit',
-                                shiftId: editingShift.shiftId,
-                                startTime,
-                                endTime,
-                                originalStartTime: editingShift.startTime,
-                                originalEndTime: editingShift.endTime,
-                              }
-                            });
-
-                            setDraftTurns(prev => {
-                              const cleaned = prev.filter(d => d.date !== editingShift.date);
-
-                              return [
-                                ...cleaned,
-                                {
-                                  type: 'SET_DAY',
-                                  date: editingShift.date,
-                                  blocks: finalBlocks
-                                }
-                              ];
-                            });
-
-                          }
-
-                          setEditingShift(null);
-                          setDateTo('');
-                          setShowPanel(false);
-
-                        } else {
-
-                          // 🟢 🔥 ESTO FALTABA
-                          addTurn();
-                          setShowPanel(false);
-
-                        }
-                      }}
-                    >
-                      Aceptar
-                    </button>
-
+  }}
+>
+  Aceptar
+</button>
                   </div>
 
                 </div>
@@ -1656,12 +1629,12 @@ export default function EmployeeSchedules() {
                   console.log('🧪 EDIT → EDITING SHIFT OBJECT', editingObject);
 
                   setEditingShift(editingObject);
-                
+
 
                   // 🔥 SINCRONIZACIÓN FORM
                   setStartTime(editingObject.startTime);
                   setEndTime(editingObject.endTime);
-                  setSelectedDays([shiftToDelete.day]);
+                  setSelectedDays([]);
 
                   setDateFrom(shiftToDelete.date);
 
