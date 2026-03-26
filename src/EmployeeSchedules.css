@@ -39,14 +39,51 @@
 
 .modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* 👈 esto faltaba seguro */
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1500;
+  z-index: 9999;
 }
 
+.modal {
+  background: white; /* 👈 clave */
+  color: #111;       /* 👈 asegura texto visible */
+
+  padding: 20px;
+  border-radius: 12px;
+
+  min-width: 300px;
+  max-width: 400px;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* BOTONES */
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.delete-block {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.delete-block:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 /* ======================================================
    CALENDARIO (🔥 FIX IMPORTANTE)
 ====================================================== */
@@ -228,6 +265,98 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
 }
 
 /*RESTAURANDO LO DEL VIEJO*/
+
+/* ======================================================
+PANEL INTERMEDIO (CONTROLES)
+====================================================== */
+
+/* Quitamos margen inferior de la barra de días */
+.days-selector {
+   display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-bottom: 0px;
+  padding: 14px 0;
+  background: #9ae0db;
+  border-radius: 14px;
+  
+  /* 👈 pegado al panel */
+  border-bottom-left-radius: 0;
+  
+}
+
+.day-checkbox {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Panel principal debajo de los días */
+.controls-panel {
+  background: #dbf4ef;
+  border-radius: 0 0 16px 16px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  /* 👈 unido visualmente */
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Subpanel de fechas (color distinto) */
+.controls-dates-panel {
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Controles IN / OUT */
+.controls-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Fila de botones */
+.controls-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Afinado visual */
+.controls-panel .caption {
+  margin-bottom: 4px;
+}
+
+
+.form-card{
+  position:relative;
+  width:720px;
+  max-width:90vw;
+  background:white;
+  border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.25);
+  z-index:1600;
+}
+
+.form-card::before{
+  content:"";
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,0.35);
+  z-index:-1;
+}
 
 /* =========================================
    🔥 BACKUP RECOVERY (CLASES FALTANTES)

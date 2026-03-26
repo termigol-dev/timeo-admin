@@ -32,8 +32,11 @@ export default function CalendarGrid({
   // 🧠 ÚNICA FUENTE DE VERDAD POR DÍA
   function getBlocksForDate(date) {
 
+    const dateObj = new Date(date);
+    const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+
     // ======================================================
-    // 1. DRAFT (estado final del día)
+    // 1. DRAFT (estado final del día) → SET_DAY
     // ======================================================
     const draft = draftTurns?.find(d =>
       d.type === 'SET_DAY' && d.date === date
@@ -43,18 +46,36 @@ export default function CalendarGrid({
       return draft.blocks.map((b, idx) => ({
         startTime: b.startTime,
         endTime: b.endTime,
-
-        // 🔥 IMPORTANTE: shape consistente
         id: `${date}-${b.startTime}-${b.endTime}-${idx}`,
-        shiftId: null, // no viene de backend
-
-        // 🔥 NUEVO
+        shiftId: null,
         edited: b.edited ?? true,
       }));
     }
 
     // ======================================================
-    // 2. BACKEND (saved)
+    // 2. DRAFT (ADD_SHIFT) 🔥 NUEVO
+    // ======================================================
+    const draftShifts = draftTurns
+      ?.filter(d =>
+        d.type === 'ADD_SHIFT' &&
+        d.weekday === weekday &&
+        date >= d.validFrom &&
+        (!d.validTo || date <= d.validTo)
+      )
+      .map((d, idx) => ({
+        startTime: d.startTime,
+        endTime: d.endTime,
+        id: `draft-${weekday}-${idx}`,
+        shiftId: null,
+        edited: true,
+      }));
+
+    if (draftShifts && draftShifts.length > 0) {
+      return draftShifts;
+    }
+
+    // ======================================================
+    // 3. BACKEND (saved)
     // ======================================================
     const backendTurns = savedTurns.filter(t => t.date === date);
 
@@ -63,173 +84,163 @@ export default function CalendarGrid({
       endTime: t.endTime,
       shiftId: t.shiftId,
       id: t.id,
-
-      // 🔥 NUEVO
       edited: false,
     }));
   }
 
   return (
     <div className="calendar-scale-wrapper">
-    <div className="calendar-grid-wrapper">
+      <div className="calendar-grid-wrapper">
 
-      {/* HEADER */}
-      <div
-        ref={headerXRef}
-        className={`calendar-header-x ${calendarFocused ? 'focused' : ''}`}
-        onMouseDown={() => setCalendarFocused(true)}
-      >
-        <div className="calendar-days-header">
-          <div />
-          {weekDates.slice(1).map((date, i) => (
-            <div key={i + 1} className="calendar-day-header">
-              {date.toLocaleDateString('es-ES', {
-                weekday: 'long',
-                day: 'numeric',
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* BODY */}
-      <div className="calendar-body">
+        {/* HEADER */}
         <div
-          ref={calendarRef}
+          ref={headerXRef}
+          className={`calendar-header-x ${calendarFocused ? 'focused' : ''}`}
           onMouseDown={() => setCalendarFocused(true)}
-          className={`calendar-scroll ${calendarFocused ? 'focused' : ''}`}
         >
-
-          {/* HORAS */}
-          <div className="calendar-hours-y" ref={hoursRef}>
-            {Array.from({ length: 24 }).map((_, h) => (
-              <div key={h} className="hour-label">
-                {String(h).padStart(2, '0')}:00
+          <div className="calendar-days-header">
+            <div />
+            {weekDates.slice(1).map((date, i) => (
+              <div key={i + 1} className="calendar-day-header">
+                {date.toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  day: 'numeric',
+                })}
               </div>
             ))}
           </div>
+        </div>
 
-          {/* GRID */}
-          <div className="calendar-grid calendar-grid-rows">
+        {/* BODY */}
+        <div className="calendar-body">
+          <div
+            ref={calendarRef}
+            onMouseDown={() => setCalendarFocused(true)}
+            className={`calendar-scroll ${calendarFocused ? 'focused' : ''}`}
+          >
 
-            {/* CELDAS */}
-            {Array.from({ length: 48 }).map((_, row) =>
-              Array.from({ length: 7 }).map((_, i) => {
-                const col = i + 1;
-
-                return (
-                  <div
-                    key={`${row}-${col}`}
-                    className="calendar-cell"
-                    style={{
-                      gridColumn: col,
-                      gridRow: row + 1,
-                    }}
-                  />
-                );
-              })
-            )}
-
-            {/* VACACIONES */}
-            {weekVacationBlocks.map(v => (
-              <div
-                key={v.key}
-                className={`vacation ${v.source === 'draft' ? 'draft' : ''}`}
-                style={{
-                  gridColumn: v.col,
-                  gridRow: '1 / 49',
-                }}
-                onMouseDown={e => e.stopPropagation()}
-              >
-                Vacaciones
-              </div>
-            ))}
-
-            {/* TURNOS */}
-            {weekDates.slice(1).map((dateObj, i) => {
-
-              const col = i + 1;
-              const currentDate = formatDateLocal(dateObj);
-              const day = weekDays[col];
-
-              const blocks = getBlocksForDate(currentDate);
-
-              return blocks.map((b, idx) => {
-
-                const start = timeToRow(b.startTime);
-                let end = timeToRow(b.endTime);
-                if (end <= start) end += 48;
-
-                return (
-                  <div
-                    key={`${currentDate}-${idx}`}
-                    className={`turn-saved ${b.edited ? 'edited' : ''}`}
-                    style={{
-                      gridColumn: col,
-                      gridRow: `${start + 1} / ${end + 1}`,
-                    }}
-                    onMouseDown={e => e.stopPropagation()}
-                    onClick={e => {
-                      e.stopPropagation();
-
-                      const blockId = b.id || `${currentDate}-${b.startTime}-${b.endTime}`;
-
-                      console.log('🧪 CLICK BLOQUE', {
-                        blockId,
-                        shiftId: b.shiftId,
-                        startTime: b.startTime,
-                        endTime: b.endTime,
-                      });
-
-                      if (!blockId) return;
-
-                      const effectiveShiftId = b.shiftId || blockId;
-
-                      setEditingShift({
-                        id: blockId,
-                        shiftId: effectiveShiftId,
-                        day,
-                        col,
-                        date: currentDate,
-                        startTime: b.startTime,
-                        endTime: b.endTime,
-                      });
-
-                      setStartTime(b.startTime);
-                      setEndTime(b.endTime);
-                      setSelectedDays([day]);
-
-                      setShowPanel(true);
-                    }}
-                  >
-                    {b.startTime} – {b.endTime}
-                  </div>
-                );
-              });
-
-            })}
-
-            {/* PREVIEW */}
-            {editingShift &&
-              editingPreview &&
-              editingPreview.startTime &&
-              editingPreview.endTime && (
-                <div
-                  key={`preview-${editingPreview.day}-${editingPreview.startTime}`}
-                  className="turn-preview preview-add"
-                  style={{
-                    gridColumn: editingPreview.col ?? editingPreview.day,
-                    gridRow: `${timeToRow(editingPreview.startTime) + 1} / ${timeToRow(editingPreview.endTime) + 1}`,
-                  }}
-                >
-                  {editingPreview.startTime} – {editingPreview.endTime}
+            {/* HORAS */}
+            <div className="calendar-hours-y" ref={hoursRef}>
+              {Array.from({ length: 24 }).map((_, h) => (
+                <div key={h} className="hour-label">
+                  {String(h).padStart(2, '0')}:00
                 </div>
+              ))}
+            </div>
+
+            {/* GRID */}
+            <div className="calendar-grid calendar-grid-rows">
+
+              {/* CELDAS */}
+              {Array.from({ length: 48 }).map((_, row) =>
+                Array.from({ length: 7 }).map((_, i) => {
+                  const col = i + 1;
+
+                  return (
+                    <div
+                      key={`${row}-${col}`}
+                      className="calendar-cell"
+                      style={{
+                        gridColumn: col,
+                        gridRow: row + 1,
+                      }}
+                    />
+                  );
+                })
               )}
 
+              {/* VACACIONES */}
+              {weekVacationBlocks.map(v => (
+                <div
+                  key={v.key}
+                  className={`vacation ${v.source === 'draft' ? 'draft' : ''}`}
+                  style={{
+                    gridColumn: v.col,
+                    gridRow: '1 / 49',
+                  }}
+                  onMouseDown={e => e.stopPropagation()}
+                >
+                  Vacaciones
+                </div>
+              ))}
+
+              {/* TURNOS */}
+              {weekDates.slice(1).map((dateObj, i) => {
+
+                const col = i + 1;
+                const currentDate = formatDateLocal(dateObj);
+                const day = weekDays[col];
+
+                const blocks = getBlocksForDate(currentDate);
+
+                return blocks.map((b, idx) => {
+
+                  const start = timeToRow(b.startTime);
+                  let end = timeToRow(b.endTime);
+                  if (end <= start) end += 48;
+
+                  return (
+                    <div
+                      key={`${currentDate}-${idx}`}
+                      className={`turn-saved ${b.edited ? 'edited' : ''}`}
+                      style={{
+                        gridColumn: col,
+                        gridRow: `${start + 1} / ${end + 1}`,
+                      }}
+                      onMouseDown={e => e.stopPropagation()}
+                      onClick={e => {
+                        e.stopPropagation();
+
+                        const blockId = b.id || `${currentDate}-${b.startTime}-${b.endTime}`;
+                        if (!blockId) return;
+
+                        const effectiveShiftId = b.shiftId || blockId;
+
+                        const blockData = {
+                          id: blockId,
+                          shiftId: effectiveShiftId,
+                          day,
+                          col,
+                          date: currentDate,
+                          startTime: b.startTime,
+                          endTime: b.endTime,
+                        };
+
+                        console.log('🖱️ CLICK TURNO → MODAL', blockData);
+
+                        setShiftToDelete(blockData);
+                        setDeleteShiftMode('ONLY_THIS_BLOCK');
+                        setShowShiftDeleteConfirm(true);
+                      }}
+                    >
+                      {b.startTime} – {b.endTime}
+                    </div>
+                  );
+                });
+
+              })}
+
+              {/* PREVIEW */}
+              {editingShift &&
+                editingPreview &&
+                editingPreview.startTime &&
+                editingPreview.endTime && (
+                  <div
+                    key={`preview-${editingPreview.day}-${editingPreview.startTime}`}
+                    className="turn-preview preview-add"
+                    style={{
+                      gridColumn: editingPreview.col ?? editingPreview.day,
+                      gridRow: `${timeToRow(editingPreview.startTime) + 1} / ${timeToRow(editingPreview.endTime) + 1}`,
+                    }}
+                  >
+                    {editingPreview.startTime} – {editingPreview.endTime}
+                  </div>
+                )}
+
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
 
   );
