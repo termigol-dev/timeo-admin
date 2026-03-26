@@ -27,7 +27,7 @@ export default function CalendarGrid({
   setShowPanel,
 }) {
 
-  console.log('🧪 DRAFT TURNS:', draftTurns);
+  //console.log('🧪 DRAFT TURNS:', draftTurns);
 
   // 🧠 ÚNICA FUENTE DE VERDAD POR DÍA
   function getBlocksForDate(date) {

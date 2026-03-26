@@ -664,96 +664,96 @@ export default function EmployeeSchedules() {
     });
   }
 
- async function addTurn() {
-  if (!startTime || !endTime || selectedDays.length === 0) return;
+  async function addTurn() {
+    if (!startTime || !endTime || selectedDays.length === 0) return;
 
-  if (!dateFrom) {
-    alert('Debes indicar una fecha de inicio');
-    return;
-  }
-
-  // ======================================================
-  // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
-  // ======================================================
-  if (editingShift) {
-
-    console.log('✏️ EDIT → GENERANDO DELETE + ADD_SHIFT');
-
-    const map = { L:1, M:2, X:3, J:4, V:5, S:6, D:7 };
-
-    const weekdays = selectedDays.map(d => map[d]);
-
-    if (weekdays.length === 0) {
-      alert('Debes seleccionar al menos un día');
+    if (!dateFrom) {
+      alert('Debes indicar una fecha de inicio');
       return;
     }
 
-    // 🔴 DELETE → uno por cada día
-    // ⚠️ IMPORTANTE: usamos horas del turno ORIGINAL
-    const deleteOps = weekdays.map(day => ({
-      type: 'DELETE',
-      mode: 'FROM_THIS_DAY_ON',
-      fromDate: dateFrom,
-      weekday: day,
-      startTime: editingShift.startTime,
-      endTime: editingShift.endTime
-    }));
+    // ======================================================
+    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
+    // ======================================================
+    if (editingShift) {
 
-    // 🟢 ADD_SHIFT → uno por cada día (nuevo patrón)
-    const addOps = weekdays.map(day => ({
+      console.log('✏️ EDIT → GENERANDO DELETE + ADD_SHIFT');
+
+      const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
+
+      const weekdays = selectedDays.map(d => map[d]);
+
+      if (weekdays.length === 0) {
+        alert('Debes seleccionar al menos un día');
+        return;
+      }
+
+      // 🔴 DELETE → uno con todos los days
+      // ⚠️ IMPORTANTE: usamos horas del turno ORIGINAL
+      const deleteOps = [{
+        type: 'DELETE',
+        mode: 'FROM_THIS_DAY_ON',
+        fromDate: dateFrom,
+        weekdays, // 💥 AQUÍ EL CAMBIO CLAVE
+        startTime: editingShift.startTime,
+        endTime: editingShift.endTime
+      }];
+
+      // 🟢 ADD_SHIFT → uno por cada día (nuevo patrón)
+      const addOps = weekdays.map(day => ({
+        type: 'ADD_SHIFT',
+        weekday: day,
+        startTime,
+        endTime,
+        validFrom: dateFrom,
+        validTo: null
+      }));
+
+      setDraftTurns(prev => [...prev, ...deleteOps, ...addOps]);
+
+      // 🧹 LIMPIAR
+      setEditingShift(null);
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+      setDateFrom('');
+      setDateTo('');
+
+      return;
+    }
+
+    // ======================================================
+    // 🟢 ALTA NORMAL (NO TOCADA)
+    // ======================================================
+
+    const dayMap = {
+      L: 1,
+      M: 2,
+      X: 3,
+      J: 4,
+      V: 5,
+      S: 6,
+      D: 7,
+    };
+
+    const newTurn = selectedDays.map(day => ({
       type: 'ADD_SHIFT',
-      weekday: day,
+      weekday: dayMap[day],
       startTime,
       endTime,
       validFrom: dateFrom,
-      validTo: null
+      validTo: dateTo && dateTo !== '' ? dateTo : null,
     }));
 
-    setDraftTurns(prev => [...prev, ...deleteOps, ...addOps]);
+    setDraftTurns(prev => [...prev, ...newTurn]);
 
-    // 🧹 LIMPIAR
-    setEditingShift(null);
+    // 🧹 LIMPIAR FORM
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
     setDateFrom('');
     setDateTo('');
-
-    return;
   }
-
-  // ======================================================
-  // 🟢 ALTA NORMAL (NO TOCADA)
-  // ======================================================
-
-  const dayMap = {
-    L: 1,
-    M: 2,
-    X: 3,
-    J: 4,
-    V: 5,
-    S: 6,
-    D: 7,
-  };
-
-  const newTurn = selectedDays.map(day => ({
-    type: 'ADD_SHIFT',
-    weekday: dayMap[day],
-    startTime,
-    endTime,
-    validFrom: dateFrom,
-    validTo: dateTo && dateTo !== '' ? dateTo : null,
-  }));
-
-  setDraftTurns(prev => [...prev, ...newTurn]);
-
-  // 🧹 LIMPIAR FORM
-  setSelectedDays([]);
-  setStartTime('');
-  setEndTime('');
-  setDateFrom('');
-  setDateTo('');
-}
 
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
@@ -901,8 +901,14 @@ export default function EmployeeSchedules() {
 
         // 🔴 DELETE (NUEVO MODELO POR PATRÓN)
         if (op.type === 'DELETE') {
-          console.log('🗑️ DELETE (PATTERN)', op);
-
+          console.log('🟡 FRONT → DELETE BODY', {
+            mode: op.mode,
+            fromDate: op.fromDate,
+            weekday: op.weekday,
+            startTime: op.startTime,
+            endTime: op.endTime,
+          });
+          console.log('🟡 FRONT → DELETE BODY', op);
           const res = await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
             {
@@ -912,7 +918,7 @@ export default function EmployeeSchedules() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                mode: 'END_SHIFT',
+                mode: op.mode,
                 fromDate: op.fromDate,
                 weekdays: op.weekdays,
                 startTime: op.startTime,
@@ -942,7 +948,7 @@ export default function EmployeeSchedules() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                weekday: op.weekday,
+                //weekday: op.weekday,
                 startTime: op.startTime,
                 endTime: op.endTime,
                 validFrom: op.validFrom,
@@ -1154,7 +1160,7 @@ export default function EmployeeSchedules() {
   const totalHours = Math.floor(totalMinutes / 60);
   const totalRestMinutes = totalMinutes % 60;
 
-  console.log('EMPLOYEE:', employee);
+  //console.log('EMPLOYEE:', employee);
   return (
     <div className="container">
 
@@ -1299,32 +1305,32 @@ export default function EmployeeSchedules() {
                       Cancelar
                     </button>
 
-                   <button
-  onClick={() => {
+                    <button
+                      onClick={() => {
 
-    console.log('🧪 selectedDays CLICK', selectedDays);
+                        console.log('🧪 selectedDays CLICK', selectedDays);
 
-    if (!startTime || !endTime) {
-      alert('Debes indicar hora de entrada y salida');
-      return;
-    }
+                        if (!startTime || !endTime) {
+                          alert('Debes indicar hora de entrada y salida');
+                          return;
+                        }
 
-    if (endTime <= startTime) {
-      alert('La hora de salida debe ser mayor que la de entrada');
-      return;
-    }
+                        if (endTime <= startTime) {
+                          alert('La hora de salida debe ser mayor que la de entrada');
+                          return;
+                        }
 
-    // 🔥 UNIFICAMOS TODO
-    addTurn();
+                        // 🔥 UNIFICAMOS TODO
+                        addTurn();
 
-    setEditingShift(null);
-    setDateTo('');
-    setShowPanel(false);
+                        setEditingShift(null);
+                        setDateTo('');
+                        setShowPanel(false);
 
-  }}
->
-  Aceptar
-</button>
+                      }}
+                    >
+                      Aceptar
+                    </button>
                   </div>
 
                 </div>
