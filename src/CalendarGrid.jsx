@@ -36,7 +36,7 @@ export default function CalendarGrid({
     const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
 
     // ======================================================
-    // 1. DRAFT (estado final del día) → SET_DAY
+    // 1. SET_DAY → sustituye todo (igual que ahora)
     // ======================================================
     const draft = draftTurns?.find(d =>
       d.type === 'SET_DAY' && d.date === date
@@ -48,12 +48,34 @@ export default function CalendarGrid({
         endTime: b.endTime,
         id: `${date}-${b.startTime}-${b.endTime}-${idx}`,
         shiftId: null,
-        edited: b.edited ?? true,
+        edited: true,
       }));
     }
 
     // ======================================================
-    // 2. DRAFT (ADD_SHIFT) 🔥 NUEVO
+    // 🔴 2. DELETE → SOLO LO DETECTAMOS (NO filtramos)
+    // ======================================================
+    const deleteDrafts = draftTurns?.filter(d => {
+      if (d.type !== 'DELETE') return false;
+
+      // 🟡 CASO 1 → borrado de un solo día
+      if (d.date) {
+        return d.date === date;
+      }
+
+      // 🔴 CASO 2 → borrado en cascada
+      if (d.fromDate && d.weekdays) {
+        return (
+          d.weekdays.includes(weekday) &&
+          date >= d.fromDate
+        );
+      }
+
+      return false;
+    });
+
+    // ======================================================
+    // 3. ADD_SHIFT
     // ======================================================
     const draftShifts = draftTurns
       ?.filter(d =>
@@ -75,17 +97,41 @@ export default function CalendarGrid({
     }
 
     // ======================================================
-    // 3. BACKEND (saved)
+    // 4. BACKEND
     // ======================================================
     const backendTurns = savedTurns.filter(t => t.date === date);
 
-    return backendTurns.map(t => ({
-      startTime: t.startTime,
-      endTime: t.endTime,
-      shiftId: t.shiftId,
-      id: t.id,
-      edited: false,
-    }));
+
+
+    // 🟢 backend normal
+    const backendBlocks = backendTurns.map(t => {
+
+      const isDeleted = (deleteDrafts || []).some(d => {
+
+        // 🟡 mismo patrón (horas iguales)
+        if (d.startTime === t.startTime && d.endTime === t.endTime) {
+          return true;
+        }
+
+        // 🔴 intersección de horas (CLAVE PARA CASCADA)
+        return (
+          d.startTime <= t.startTime &&
+          d.endTime >= t.endTime
+        );
+      });
+
+      return {
+        startTime: t.startTime,
+        endTime: t.endTime,
+        shiftId: t.shiftId,
+        id: t.id,
+        edited: false,
+        isDelete: isDeleted, // 👈 SOLO ESTO NUEVO
+      };
+    });
+
+    // 🔥 CLAVE: overlay (NO sustituir)
+    return backendBlocks;
   }
 
   return (
@@ -182,7 +228,11 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={`${currentDate}-${idx}`}
-                      className={`turn-saved ${b.edited ? 'edited' : ''}`}
+                      className={`
+  turn-saved
+  ${b.edited ? 'edited' : ''}
+  ${b.isDelete ? 'deleted' : ''}
+`}
                       style={{
                         gridColumn: col,
                         gridRow: `${start + 1} / ${end + 1}`,

@@ -290,24 +290,24 @@ export default function EmployeeSchedules() {
 
           const dayKey = weekDays[day.weekday];
 
-          console.log('🧪 PROCESSING DAY', {
+          /*console.log('🧪 PROCESSING DAY', {
             date: day.date,
             weekday: day.weekday,
             turns: day.turns?.length
-          });
+          });*/
 
           // 🟢 TURNOS
           if (Array.isArray(day.turns)) {
 
             day.turns.forEach(t => {
 
-              console.log('🧪 SHIFT DESDE BACKEND', {
+              /*console.log('🧪 SHIFT DESDE BACKEND', {
                 backendShiftId: t.id,
                 date: day.date,
                 startTime: t.startTime,
                 endTime: t.endTime,
                 source: t.source
-              });
+              });*/
 
               const uiId = `${day.date}-${t.startTime}-${t.endTime}`;
 
@@ -322,13 +322,13 @@ export default function EmployeeSchedules() {
                 date: day.date,
               };
 
-              console.log('🧪 BLOQUE CALENDARIO CREADO', {
+              /*console.log('🧪 BLOQUE CALENDARIO CREADO', {
                 uiId: turnBlock.id,
                 shiftId: turnBlock.shiftId,
                 date: turnBlock.date,
                 startTime: turnBlock.startTime,
                 endTime: turnBlock.endTime
-              });
+              });*/
 
               loadedTurns.push(ensureShiftId(turnBlock));
 
@@ -688,16 +688,27 @@ export default function EmployeeSchedules() {
         return;
       }
 
-      // 🔴 DELETE → uno con todos los days
-      // ⚠️ IMPORTANTE: usamos horas del turno ORIGINAL
+      // 🔴 DELETE REAL (backend)
       const deleteOps = [{
         type: 'DELETE',
         mode: 'FROM_THIS_DAY_ON',
         fromDate: dateFrom,
-        weekdays, // 💥 AQUÍ EL CAMBIO CLAVE
+        weekdays,
         startTime: editingShift.startTime,
         endTime: editingShift.endTime
       }];
+
+      // 🔥 DELETE VISUAL (gris)
+      const deleteVisualOps = selectedDays.map(day => {
+        const index = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].indexOf(day);
+
+        return {
+          type: 'DELETE_PREVIEW', // 👈 importante para distinguir
+          date: weekDates[index], // 👈 fecha real visible
+          startTime: editingShift.startTime,
+          endTime: editingShift.endTime
+        };
+      });
 
       // 🟢 ADD_SHIFT → uno por cada día (nuevo patrón)
       const addOps = weekdays.map(day => ({
@@ -709,7 +720,12 @@ export default function EmployeeSchedules() {
         validTo: null
       }));
 
-      setDraftTurns(prev => [...prev, ...deleteOps, ...addOps]);
+      setDraftTurns(prev => [
+        ...prev,
+        ...deleteVisualOps, // 👈 gris
+        ...deleteOps,       // 👈 backend
+        ...addOps           // 👈 amarillo/normal
+      ]);
 
       // 🧹 LIMPIAR
       setEditingShift(null);
@@ -814,16 +830,6 @@ export default function EmployeeSchedules() {
       draftTurns: draftTurns.length,
     });
 
-    const dayMap = {
-      L: 1,
-      M: 2,
-      X: 3,
-      J: 4,
-      V: 5,
-      S: 6,
-      D: 7,
-    };
-
     let activeScheduleId = scheduleId;
 
     try {
@@ -860,6 +866,7 @@ export default function EmployeeSchedules() {
       });
 
       console.log('🚀 OPS QUE SE ENVÍAN AL BACKEND:', JSON.stringify(ordered, null, 2));
+      console.log('🧪 ORDERED DEBUG:', ordered);
 
       // ======================================================
       // 3️⃣ ejecutar operaciones
@@ -899,16 +906,60 @@ export default function EmployeeSchedules() {
           continue;
         }
 
-        // 🔴 DELETE (NUEVO MODELO POR PATRÓN)
+        // 🔴 DELETE (BLINDADO)
         if (op.type === 'DELETE') {
-          console.log('🟡 FRONT → DELETE BODY', {
-            mode: op.mode,
-            fromDate: op.fromDate,
-            weekday: op.weekday,
-            startTime: op.startTime,
-            endTime: op.endTime,
-          });
+
+          if (op.type === 'DELETE') {
+
+            console.log('🟡 FRONT → DELETE BODY', op);
+
+            let body;
+
+            // 🟢 CASO 1 — DELETE POR shiftId (ONLY_THIS_BLOCK)
+            if (op.shiftId) {
+              body = {
+                shiftId: op.shiftId,
+              };
+            }
+
+            // 🔵 CASO 2 — DELETE POR PATRÓN
+            else {
+              if (!op.weekdays || op.weekdays.length === 0) {
+                console.log('💣 DELETE IGNORADO (corrupto):', op);
+                continue;
+              }
+
+              body = {
+                mode: op.mode,
+                fromDate: op.fromDate,
+                weekdays: op.weekdays,
+                startTime: op.startTime,
+                endTime: op.endTime,
+              };
+            }
+
+            const res = await fetch(
+              `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
+              {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+              }
+            );
+
+            if (!res.ok) {
+              const text = await res.text();
+              throw new Error('Error borrando turno: ' + text);
+            }
+
+            continue;
+          }
+
           console.log('🟡 FRONT → DELETE BODY', op);
+
           const res = await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
             {
@@ -932,6 +983,15 @@ export default function EmployeeSchedules() {
             throw new Error('Error borrando turno: ' + text);
           }
 
+          // 🔥 NUEVO → VALIDAR RESULTADO
+          const result = await res.json();
+
+          console.log('🧪 DELETE RESULT:', result);
+
+          if (!result.affected || result.affected === 0) {
+            throw new Error('DELETE no ha afectado a ningún turno → operación cancelada');
+          }
+
           continue;
         }
 
@@ -948,7 +1008,7 @@ export default function EmployeeSchedules() {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                //weekday: op.weekday,
+                weekday: op.weekday,
                 startTime: op.startTime,
                 endTime: op.endTime,
                 validFrom: op.validFrom,
@@ -964,7 +1024,6 @@ export default function EmployeeSchedules() {
 
           continue;
         }
-
       }
 
       // ======================================================
@@ -997,6 +1056,7 @@ export default function EmployeeSchedules() {
       setSaving(false);
     }
   }
+
 
   async function handleConfirmDeleteVacation() {
     if (!vacationToDelete || !scheduleId) return;
@@ -1664,17 +1724,37 @@ export default function EmployeeSchedules() {
                 className="delete-block"
                 onClick={() => {
 
-                  setDraftTurns(prev => [
-                    ...prev,
-                    {
-                      type: 'DELETE',
-                      shiftId: shiftToDelete.shiftId,
-                      date: shiftToDelete.date,
-                      startTime: shiftToDelete.startTime,
-                      endTime: shiftToDelete.endTime,
-                      mode: deleteShiftMode, // 🔥 CLAVE
-                    },
-                  ]);
+                  const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
+
+                  // 🟡 CASO 1 → SOLO ESTE DÍA
+                  if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+                    setDraftTurns(prev => [
+                      ...prev,
+                      {
+                        type: 'DELETE',
+                        shiftId: shiftToDelete.shiftId,
+                        date: shiftToDelete.date,
+                        startTime: shiftToDelete.startTime,
+                        endTime: shiftToDelete.endTime,
+                        mode: deleteShiftMode,
+                      },
+                    ]);
+                  }
+
+                  // 🔴 CASO 2 → CASCADA
+                  else if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
+                    setDraftTurns(prev => [
+                      ...prev,
+                      {
+                        type: 'DELETE',
+                        mode: 'FROM_THIS_DAY_ON',
+                        fromDate: shiftToDelete.date,
+                        weekdays: [map[shiftToDelete.day]], // 🔥 CLAVE
+                        startTime: shiftToDelete.startTime,
+                        endTime: shiftToDelete.endTime,
+                      },
+                    ]);
+                  }
 
                   setShowShiftDeleteConfirm(false);
                   setShiftToDelete(null);

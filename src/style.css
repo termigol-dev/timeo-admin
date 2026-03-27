@@ -641,6 +641,11 @@ body > div {
   background-color: #999;
   opacity: 0.6;
 }
+
+.delete-preview {
+  background-color: gray;
+  opacity: 0.5;
+}
 .turn-saved.edited {
   background-color: #fff3cd;
   border: 1px solid #ffc107;
