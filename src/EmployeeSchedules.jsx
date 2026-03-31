@@ -1787,51 +1787,25 @@ export default function EmployeeSchedules() {
                     : new Date(shiftToDelete.date).getDay();
 
                   // 🔥 GENERAR DELETE VISUAL (gris)
-                  const deleteVisualOps = weekDates.map((dateObj) => {
-
-                    if (!dateObj) {
-                      console.log('💣 dateObj NULL DETECTED → skip');
-                      return null;
-                    }
-
-                    const dateStr = formatDateLocal(dateObj);
-
-                    const weekday = new Date(dateObj).getDay() === 0
-                      ? 7
-                      : new Date(dateObj).getDay();
-
-                    console.log('🧪 CHECK DAY', {
-                      dateStr,
-                      weekday,
-                      clickedWeekday,
-                      mode: deleteShiftMode,
-                      compareDate: shiftToDelete.date,
-                      isAfter: dateStr >= shiftToDelete.date
-                    });
-
-                    // ❌ ELIMINADO → esto rompía la cascada
-                    // if (weekday !== clickedWeekday) return null;
+                  const deleteVisualOp = {
+                    type: 'DELETE_PREVIEW',
+                    mode: deleteShiftMode,
 
                     // 🟡 SOLO ESTE DÍA
-                    if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
-                      if (dateStr !== shiftToDelete.date) return null;
-                    }
+                    date: deleteShiftMode === 'ONLY_THIS_BLOCK'
+                      ? shiftToDelete.date
+                      : undefined,
 
-                    // 🔴 DESDE ESTE DÍA EN ADELANTE
-                    if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
-                      if (dateStr < shiftToDelete.date) return null;
-                    }
+                    // 🔴 CASCADA
+                    fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON'
+                      ? shiftToDelete.date
+                      : undefined,
 
-                    console.log('🟢 ADDING GREY BLOCK', { dateStr });
+                    weekdays: [map[shiftToDelete.day]],
 
-                    return {
-                      type: 'DELETE_PREVIEW',
-                      date: dateStr,
-                      startTime: shiftToDelete.startTime,
-                      endTime: shiftToDelete.endTime
-                    };
-
-                  }).filter(Boolean);
+                    startTime: shiftToDelete.startTime,
+                    endTime: shiftToDelete.endTime,
+                  };
 
                   console.log('🧪 FINAL DELETE VISUAL OPS', deleteVisualOps);
 
@@ -1860,7 +1834,7 @@ export default function EmployeeSchedules() {
 
                   setDraftTurns(prev => [
                     ...prev,
-                    ...deleteVisualOps,
+                    ...deleteVisualOp,
                     deleteOp
                   ]);
 

@@ -53,27 +53,27 @@ export default function CalendarGrid({
     }
 
     // ======================================================
-    // 🔴 2. DELETE → SOLO LO DETECTAMOS (NO filtramos)
+    // 🔴 2. DELETE_PREVIEW → REGLA (gris)
     // ======================================================
     const deleteDrafts = draftTurns?.filter(d => {
-      if (d.type !== 'DELETE') return false;
 
-      // 🟡 CASO 1 → borrado de un solo día
-      if (d.date) {
+      if (d.type !== 'DELETE_PREVIEW') return false;
+
+      // 🟡 SOLO ESTE DÍA
+      if (d.mode === 'ONLY_THIS_BLOCK') {
         return d.date === date;
       }
 
-      // 🔴 CASO 2 → borrado en cascada
-      if (d.fromDate && d.weekdays) {
+      // 🔴 CASCADA
+      if (d.mode === 'FROM_THIS_DAY_ON') {
         return (
-          d.weekdays.includes(weekday) &&
+          d.weekdays?.includes(weekday) &&
           date >= d.fromDate
         );
       }
 
       return false;
     });
-
     // ======================================================
     // 3. ADD_SHIFT
     // ======================================================
