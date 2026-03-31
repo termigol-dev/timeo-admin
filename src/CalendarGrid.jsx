@@ -59,21 +59,44 @@ export default function CalendarGrid({
 
       if (d.type !== 'DELETE_PREVIEW') return false;
 
+      console.log('🧪 CHECK DELETE RULE', {
+        d,
+        date,
+        weekday
+      });
+
       // 🟡 SOLO ESTE DÍA
       if (d.mode === 'ONLY_THIS_BLOCK') {
-        return d.date === date;
+        const match = d.date === date;
+
+        console.log('🟡 ONLY_THIS_BLOCK', {
+          match
+        });
+
+        return match;
       }
 
       // 🔴 CASCADA
       if (d.mode === 'FROM_THIS_DAY_ON') {
-        return (
-          d.weekdays?.includes(weekday) &&
-          date >= d.fromDate
-        );
+
+        const matchesWeekday = d.weekdays?.includes(weekday);
+        const matchesDate = date >= d.fromDate;
+
+        console.log('🔴 CASCADE CHECK', {
+          weekdays: d.weekdays,
+          currentWeekday: weekday,
+          matchesWeekday,
+          fromDate: d.fromDate,
+          currentDate: date,
+          matchesDate
+        });
+
+        return matchesWeekday && matchesDate;
       }
 
       return false;
     });
+
     // ======================================================
     // 3. ADD_SHIFT
     // ======================================================
