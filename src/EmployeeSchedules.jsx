@@ -705,60 +705,26 @@ export default function EmployeeSchedules() {
         endTime: editingShift.endTime
       }];
 
-      // 🔥 DELETE VISUAL (gris)
-      const deleteVisualOps = weekDates.map((dateObj) => {
-        if (!dateObj) {
-          console.log('💣 dateObj NULL DETECTED');
-          return null;
-        }
-        let dateStr;
+      // 🔥 DELETE VISUAL (gris) → MODELO NUEVO (REGLA)
+      const deleteVisualOp = {
+        type: 'DELETE_PREVIEW',
+        mode: deleteShiftMode,
 
-        try {
-          dateStr = formatDateLocal(dateObj);
-        } catch (e) {
-          console.log('💣 ERROR FORMAT DATE', dateObj);
-          return null;
-        }
+        // 🟡 solo este día
+        date: deleteShiftMode === 'ONLY_THIS_BLOCK'
+          ? dateFrom
+          : undefined,
 
-        // 🔥 weekday REAL (L=1 ... D=7)
-        const weekday = new Date(dateObj).getDay() === 0
-          ? 7
-          : new Date(dateObj).getDay();
+        // 🔴 cascada
+        fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON'
+          ? dateFrom
+          : undefined,
 
-        console.log('🧪 CHECK DAY', {
-          dateStr,
-          weekday,
-          inWeekdays: weekdays.includes(weekday),
-          deleteShiftMode,
-          dateFrom,
-        });
+        weekdays,
 
-        // 🔴 solo si está en los días seleccionados
-        if (!weekdays.includes(weekday)) return null;
-
-        // 🔥 SOLO ESTE DÍA
-        if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
-          if (dateStr !== dateFrom) return null;
-        }
-
-        // 🔥 DESDE ESTE DÍA EN ADELANTE
-        if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
-          if (dateStr < dateFrom) return null;
-        }
-
-        console.log('🟢 DAY INCLUDED FOR DELETE', {
-          dateStr,
-          weekday
-        });
-
-        return {
-          type: 'DELETE_PREVIEW',
-          date: dateStr,
-          startTime: editingShift.startTime,
-          endTime: editingShift.endTime
-        };
-
-      }).filter(Boolean);
+        startTime: editingShift.startTime,
+        endTime: editingShift.endTime
+      };
 
       // 🟢 ADD_SHIFT → uno por cada día (nuevo patrón)
       const addOps = weekdays.map(day => ({
@@ -772,7 +738,7 @@ export default function EmployeeSchedules() {
 
       setDraftTurns(prev => [
         ...prev,
-        ...deleteVisualOps, // 👈 gris
+        deleteVisualOp, // 👈 gris
         ...deleteOps,       // 👈 backend
         ...addOps           // 👈 amarillo/normal
       ]);
@@ -1806,8 +1772,7 @@ export default function EmployeeSchedules() {
                     startTime: shiftToDelete.startTime,
                     endTime: shiftToDelete.endTime,
                   };
-
-                  console.log('🧪 FINAL DELETE VISUAL OPS', deleteVisualOps);
+                  console.log('🧪 DELETE VISUAL OPS', [deleteVisualOp]);
 
                   // 🔴 DELETE REAL
                   let deleteOp;
