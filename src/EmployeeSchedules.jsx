@@ -707,8 +707,18 @@ export default function EmployeeSchedules() {
 
       // 🔥 DELETE VISUAL (gris)
       const deleteVisualOps = weekDates.map((dateObj) => {
+        if (!dateObj) {
+          console.log('💣 dateObj NULL DETECTED');
+          return null;
+        }
+        let dateStr;
 
-        const dateStr = formatDateLocal(dateObj);
+        try {
+          dateStr = formatDateLocal(dateObj);
+        } catch (e) {
+          console.log('💣 ERROR FORMAT DATE', dateObj);
+          return null;
+        }
 
         // 🔥 weekday REAL (L=1 ... D=7)
         const weekday = new Date(dateObj).getDay() === 0
@@ -1766,35 +1776,86 @@ export default function EmployeeSchedules() {
 
                   const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
 
-                  // 🟡 CASO 1 → SOLO ESTE DÍA
+                  console.log('🧪 DELETE CLICK INPUT', {
+                    shiftToDelete,
+                    deleteShiftMode,
+                    weekDates: weekDates.map(d => formatDateLocal(d))
+                  });
+
+                  const clickedWeekday = new Date(shiftToDelete.date).getDay() === 0
+                    ? 7
+                    : new Date(shiftToDelete.date).getDay();
+
+                  // 🔥 GENERAR DELETE VISUAL (gris)
+                  const deleteVisualOps = weekDates.map((dateObj) => {
+
+                    const dateStr = formatDateLocal(dateObj);
+
+                    const weekday = new Date(dateObj).getDay() === 0
+                      ? 7
+                      : new Date(dateObj).getDay();
+
+                    console.log('🧪 CHECK DAY', {
+                      dateStr,
+                      weekday,
+                      clickedWeekday,
+                      mode: deleteShiftMode,
+                      compareDate: shiftToDelete.date,
+                      isSameWeekday: weekday === clickedWeekday,
+                      isAfter: dateStr >= shiftToDelete.date
+                    });
+
+                    if (weekday !== clickedWeekday) return null;
+
+                    if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+                      if (dateStr !== shiftToDelete.date) return null;
+                    }
+
+                    if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
+                      if (dateStr < shiftToDelete.date) return null;
+                    }
+
+                    console.log('🟢 ADDING GREY BLOCK', { dateStr });
+
+                    return {
+                      type: 'DELETE_PREVIEW',
+                      date: dateStr,
+                      startTime: shiftToDelete.startTime,
+                      endTime: shiftToDelete.endTime
+                    };
+
+                  }).filter(Boolean);
+
+                  console.log('🧪 FINAL DELETE VISUAL OPS', deleteVisualOps);
+
+                  // 🔴 DELETE REAL
+                  let deleteOp;
+
                   if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
-                    setDraftTurns(prev => [
-                      ...prev,
-                      {
-                        type: 'DELETE',
-                        shiftId: shiftToDelete.shiftId,
-                        date: shiftToDelete.date,
-                        startTime: shiftToDelete.startTime,
-                        endTime: shiftToDelete.endTime,
-                        mode: deleteShiftMode,
-                      },
-                    ]);
+                    deleteOp = {
+                      type: 'DELETE',
+                      shiftId: shiftToDelete.shiftId,
+                      date: shiftToDelete.date,
+                      startTime: shiftToDelete.startTime,
+                      endTime: shiftToDelete.endTime,
+                      mode: deleteShiftMode,
+                    };
+                  } else {
+                    deleteOp = {
+                      type: 'DELETE',
+                      mode: 'FROM_THIS_DAY_ON',
+                      fromDate: shiftToDelete.date,
+                      weekdays: [map[shiftToDelete.day]],
+                      startTime: shiftToDelete.startTime,
+                      endTime: shiftToDelete.endTime,
+                    };
                   }
 
-                  // 🔴 CASO 2 → CASCADA
-                  else if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
-                    setDraftTurns(prev => [
-                      ...prev,
-                      {
-                        type: 'DELETE',
-                        mode: 'FROM_THIS_DAY_ON',
-                        fromDate: shiftToDelete.date,
-                        weekdays: [map[shiftToDelete.day]], // 🔥 CLAVE
-                        startTime: shiftToDelete.startTime,
-                        endTime: shiftToDelete.endTime,
-                      },
-                    ]);
-                  }
+                  setDraftTurns(prev => [
+                    ...prev,
+                    ...deleteVisualOps,
+                    deleteOp
+                  ]);
 
                   setShowShiftDeleteConfirm(false);
                   setShiftToDelete(null);
