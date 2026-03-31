@@ -699,16 +699,32 @@ export default function EmployeeSchedules() {
       }];
 
       // 🔥 DELETE VISUAL (gris)
-      const deleteVisualOps = selectedDays.map(day => {
-        const index = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].indexOf(day);
+      const deleteVisualOps = weekDates.map((dateObj, i) => {
+
+        const dateStr = formatDateLocal(dateObj);
+        const weekday = i + 1;
+
+        // 🔴 SOLO si el weekday está seleccionado
+        if (!weekdays.includes(weekday)) return null;
+
+        // 🔥 CASO SOLO UN DÍA
+        if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+          if (dateStr !== dateFrom) return null;
+        }
+
+        // 🔥 CASO CASCADA
+        if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
+          if (dateStr < dateFrom) return null;
+        }
 
         return {
-          type: 'DELETE_PREVIEW', // 👈 importante para distinguir
-          date: weekDates[index], // 👈 fecha real visible
+          type: 'DELETE_PREVIEW',
+          date: dateStr,
           startTime: editingShift.startTime,
           endTime: editingShift.endTime
         };
-      });
+
+      }).filter(Boolean);
 
       // 🟢 ADD_SHIFT → uno por cada día (nuevo patrón)
       const addOps = weekdays.map(day => ({
