@@ -683,6 +683,13 @@ export default function EmployeeSchedules() {
 
       const weekdays = selectedDays.map(d => map[d]);
 
+      console.log('🧪 DEBUG DELETE INPUT', {
+        selectedDays,
+        weekdays,
+        deleteShiftMode,
+        dateFrom,
+      });
+
       if (weekdays.length === 0) {
         alert('Debes seleccionar al menos un día');
         return;
@@ -699,23 +706,40 @@ export default function EmployeeSchedules() {
       }];
 
       // 🔥 DELETE VISUAL (gris)
-      const deleteVisualOps = weekDates.map((dateObj, i) => {
+      const deleteVisualOps = weekDates.map((dateObj) => {
 
         const dateStr = formatDateLocal(dateObj);
-        const weekday = i + 1;
 
-        // 🔴 SOLO si el weekday está seleccionado
+        // 🔥 weekday REAL (L=1 ... D=7)
+        const weekday = new Date(dateObj).getDay() === 0
+          ? 7
+          : new Date(dateObj).getDay();
+
+        console.log('🧪 CHECK DAY', {
+          dateStr,
+          weekday,
+          inWeekdays: weekdays.includes(weekday),
+          deleteShiftMode,
+          dateFrom,
+        });
+
+        // 🔴 solo si está en los días seleccionados
         if (!weekdays.includes(weekday)) return null;
 
-        // 🔥 CASO SOLO UN DÍA
+        // 🔥 SOLO ESTE DÍA
         if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
           if (dateStr !== dateFrom) return null;
         }
 
-        // 🔥 CASO CASCADA
+        // 🔥 DESDE ESTE DÍA EN ADELANTE
         if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
           if (dateStr < dateFrom) return null;
         }
+
+        console.log('🟢 DAY INCLUDED FOR DELETE', {
+          dateStr,
+          weekday
+        });
 
         return {
           type: 'DELETE_PREVIEW',
