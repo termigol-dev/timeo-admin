@@ -1779,7 +1779,7 @@ export default function EmployeeSchedules() {
                   console.log('🧪 DELETE CLICK INPUT', {
                     shiftToDelete,
                     deleteShiftMode,
-                    weekDates: weekDates.map(d => formatDateLocal(d))
+                    weekDates: weekDates.map(d => d ? formatDateLocal(d) : 'NULL')
                   });
 
                   const clickedWeekday = new Date(shiftToDelete.date).getDay() === 0
@@ -1806,16 +1806,18 @@ export default function EmployeeSchedules() {
                       clickedWeekday,
                       mode: deleteShiftMode,
                       compareDate: shiftToDelete.date,
-                      isSameWeekday: weekday === clickedWeekday,
                       isAfter: dateStr >= shiftToDelete.date
                     });
 
-                    if (weekday !== clickedWeekday) return null;
+                    // ❌ ELIMINADO → esto rompía la cascada
+                    // if (weekday !== clickedWeekday) return null;
 
+                    // 🟡 SOLO ESTE DÍA
                     if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
                       if (dateStr !== shiftToDelete.date) return null;
                     }
 
+                    // 🔴 DESDE ESTE DÍA EN ADELANTE
                     if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
                       if (dateStr < shiftToDelete.date) return null;
                     }
