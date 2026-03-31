@@ -2542,7 +2542,15 @@ export default function EmployeeSchedules() {
                   const clickedWeekday = new Date(shiftToDelete.date).getDay() === 0
                     ? 7
                     : new Date(shiftToDelete.date).getDay();
-
+                  console.log('🧪 CHECK DAY', {
+                    dateStr,
+                    weekday,
+                    clickedWeekday,
+                    mode: deleteShiftMode,
+                    compareDate: shiftToDelete.date,
+                    isSameWeekday: weekday === clickedWeekday,
+                    isAfter: dateStr >= shiftToDelete.date
+                  });
                   // 🔥 GENERAR DELETE VISUAL (gris)
                   const deleteVisualOps = weekDates.map((dateObj) => {
 
@@ -2564,7 +2572,9 @@ export default function EmployeeSchedules() {
                     if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
                       if (dateStr < shiftToDelete.date) return null;
                     }
-
+                    console.log('🟢 ADDING GREY BLOCK', {
+                      dateStr
+                    });
                     return {
                       type: 'DELETE_PREVIEW',
                       date: dateStr,
@@ -2573,7 +2583,7 @@ export default function EmployeeSchedules() {
                     };
 
                   }).filter(Boolean);
-
+                  console.log('🧪 FINAL DELETE VISUAL OPS', deleteVisualOps);
                   // 🔴 DELETE REAL
                   let deleteOp;
 
@@ -2596,7 +2606,11 @@ export default function EmployeeSchedules() {
                       endTime: shiftToDelete.endTime,
                     };
                   }
-
+                  console.log('🧪 DELETE CLICK INPUT', {
+                    shiftToDelete,
+                    deleteShiftMode,
+                    weekDates: weekDates.map(d => formatDateLocal(d))
+                  });
                   setDraftTurns(prev => [
                     ...prev,
                     ...deleteVisualOps, // 👈 gris
