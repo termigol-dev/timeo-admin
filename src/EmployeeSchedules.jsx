@@ -1748,33 +1748,46 @@ export default function EmployeeSchedules() {
                     weekDates: weekDates.map(d => d ? formatDateLocal(d) : 'NULL')
                   });
 
-                  const clickedWeekday = new Date(shiftToDelete.date).getDay() === 0
-                    ? 7
-                    : new Date(shiftToDelete.date).getDay();
+                  // 🔥 BUSCAR EL TURNO REAL (patrón completo)
+                  const originalShift = savedTurns.find(t =>
+                    t.shiftId === shiftToDelete.shiftId &&
+                    t.startTime === shiftToDelete.startTime &&
+                    t.endTime === shiftToDelete.endTime
+                  );
 
-                  // 🔥 GENERAR DELETE VISUAL (gris)
+                  console.log('🧪 ORIGINAL SHIFT', originalShift);
+
+                  // 🔥 WEEKDAYS REALES (fallback = solo día clicado)
+                  const weekdays = originalShift?.weekdays || [map[shiftToDelete.day]];
+
+                  console.log('🧪 WEEKDAYS USADOS', weekdays);
+
+                  // ======================================================
+                  // 🔥 DELETE VISUAL (gris) → REGLA
+                  // ======================================================
                   const deleteVisualOp = {
                     type: 'DELETE_PREVIEW',
                     mode: deleteShiftMode,
 
-                    // 🟡 SOLO ESTE DÍA
                     date: deleteShiftMode === 'ONLY_THIS_BLOCK'
                       ? shiftToDelete.date
                       : undefined,
 
-                    // 🔴 CASCADA
                     fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON'
                       ? shiftToDelete.date
                       : undefined,
 
-                    weekdays: [map[shiftToDelete.day]],
+                    weekdays,
 
                     startTime: shiftToDelete.startTime,
                     endTime: shiftToDelete.endTime,
                   };
+
                   console.log('🧪 DELETE VISUAL OPS', [deleteVisualOp]);
 
+                  // ======================================================
                   // 🔴 DELETE REAL
+                  // ======================================================
                   let deleteOp;
 
                   if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
@@ -1791,7 +1804,7 @@ export default function EmployeeSchedules() {
                       type: 'DELETE',
                       mode: 'FROM_THIS_DAY_ON',
                       fromDate: shiftToDelete.date,
-                      weekdays: [map[shiftToDelete.day]],
+                      weekdays, // 🔥 MISMO FIX AQUÍ
                       startTime: shiftToDelete.startTime,
                       endTime: shiftToDelete.endTime,
                     };
@@ -1799,7 +1812,7 @@ export default function EmployeeSchedules() {
 
                   setDraftTurns(prev => [
                     ...prev,
-                    ...deleteVisualOp,
+                    deleteVisualOp,
                     deleteOp
                   ]);
 
