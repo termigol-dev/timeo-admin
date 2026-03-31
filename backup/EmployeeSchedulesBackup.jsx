@@ -90,13 +90,13 @@ export default function EmployeeSchedules() {
   const headerXRef = useRef(null);
   const calendarRef = useRef(null);
   useEffect(() => {
-  if (!calendarRef.current) return;
+    if (!calendarRef.current) return;
 
-  const HOUR_HEIGHT = 48; // 1h = 48px (2 filas de 24px)
-  const START_HOUR = 8;
+    const HOUR_HEIGHT = 48; // 1h = 48px (2 filas de 24px)
+    const START_HOUR = 8;
 
-  calendarRef.current.scrollTop = START_HOUR * HOUR_HEIGHT;
-}, []);
+    calendarRef.current.scrollTop = START_HOUR * HOUR_HEIGHT;
+  }, []);
   const hoursRef = useRef(null);
   const [showPanel, setShowPanel] = useState(false);
   /* 🆕 DATOS CABECERA */
@@ -648,13 +648,44 @@ export default function EmployeeSchedules() {
     }
 
     // ======================================================
-    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
+    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE (SOLO ADD)
     // ======================================================
     if (editingShift) {
 
-      console.log('✏️ ADD TURN DESDE EDICIÓN', editingShift.mode);
+      console.log('✏️ EDIT → SOLO ADD_SHIFT (SIN DELETE)');
 
-      await handleConfirmEditShift();
+      const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
+
+      const weekdays = selectedDays.map(d => map[d]);
+
+      if (weekdays.length === 0) {
+        alert('Debes seleccionar al menos un día');
+        return;
+      }
+
+      // 🟢 ADD_SHIFT → uno por cada día
+      const addOps = weekdays.map(day => ({
+        type: 'ADD_SHIFT',
+        weekday: day,
+        startTime,
+        endTime,
+        validFrom: dateFrom,
+        validTo: null
+      }));
+
+      setDraftTurns(prev => [
+        ...prev,
+        ...addOps
+      ]);
+
+      // 🧹 LIMPIAR
+      setEditingShift(null);
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+      setDateFrom('');
+      setDateTo('');
+
       return;
     }
 
@@ -662,27 +693,33 @@ export default function EmployeeSchedules() {
     // 🟢 ALTA NORMAL
     // ======================================================
 
-    const newTurn = {
-      days: selectedDays,
-      startTime,
-      endTime,
-      source: 'draft',
-      validFrom: dateFrom,
-      validTo: dateTo ?? null,
-      date: dateFrom,
+    const dayMap = {
+      L: 1,
+      M: 2,
+      X: 3,
+      J: 4,
+      V: 5,
+      S: 6,
+      D: 7,
     };
 
-    if (hasOverlap(newTurn)) {
-      alert(
-        'El turno que intentas añadir se solapa parcial o totalmente con otro ya existente.'
-      );
-      return;
-    }
+    const newTurn = selectedDays.map(day => ({
+      type: 'ADD_SHIFT',
+      weekday: dayMap[day],
+      startTime,
+      endTime,
+      validFrom: dateFrom,
+      validTo: dateTo && dateTo !== '' ? dateTo : null,
+    }));
 
-    setDraftTurns(prev => [...prev, newTurn]);
+    setDraftTurns(prev => [...prev, ...newTurn]);
+
+    // 🧹 LIMPIAR FORM
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
+    setDateFrom('');
+    setDateTo('');
   }
 
   function handleDeleteBlock() {
@@ -2500,30 +2537,74 @@ export default function EmployeeSchedules() {
                 className="delete-block"
                 onClick={() => {
 
-                  console.log('🧪 DELETE SHIFT CLICK', shiftToDelete);
+                  const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
 
-                  const editingObject = {
-                    ...shiftToDelete,
-                    shiftId: shiftToDelete.shiftId || shiftToDelete.id, // 🔑 asegurar shiftId
-                    mode: deleteShiftMode,
-                    deleteIntent: true,
-                  };
+                  const clickedWeekday = new Date(shiftToDelete.date).getDay() === 0
+                    ? 7
+                    : new Date(shiftToDelete.date).getDay();
 
-                  console.log('🧪 DELETE → EDITING SHIFT OBJECT', editingObject);
+                  // 🔥 GENERAR DELETE VISUAL (gris)
+                  const deleteVisualOps = weekDates.map((dateObj) => {
 
-                  setEditingShift(editingObject);
+                    const dateStr = formatDateLocal(dateObj);
 
-                  setStartTime(shiftToDelete.startTime);
-                  setEndTime(shiftToDelete.startTime);
+                    const weekday = new Date(dateObj).getDay() === 0
+                      ? 7
+                      : new Date(dateObj).getDay();
 
-                  setDateFrom(shiftToDelete.date);
-                  setDateTo(shiftToDelete.date);
+                    // mismo día de la semana
+                    if (weekday !== clickedWeekday) return null;
+
+                    // 🟡 SOLO ESTE DÍA
+                    if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+                      if (dateStr !== shiftToDelete.date) return null;
+                    }
+
+                    // 🔴 CASCADA
+                    if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
+                      if (dateStr < shiftToDelete.date) return null;
+                    }
+
+                    return {
+                      type: 'DELETE_PREVIEW',
+                      date: dateStr,
+                      startTime: shiftToDelete.startTime,
+                      endTime: shiftToDelete.endTime
+                    };
+
+                  }).filter(Boolean);
+
+                  // 🔴 DELETE REAL
+                  let deleteOp;
+
+                  if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+                    deleteOp = {
+                      type: 'DELETE',
+                      shiftId: shiftToDelete.shiftId,
+                      date: shiftToDelete.date,
+                      startTime: shiftToDelete.startTime,
+                      endTime: shiftToDelete.endTime,
+                      mode: deleteShiftMode,
+                    };
+                  } else {
+                    deleteOp = {
+                      type: 'DELETE',
+                      mode: 'FROM_THIS_DAY_ON',
+                      fromDate: shiftToDelete.date,
+                      weekdays: [map[shiftToDelete.day]],
+                      startTime: shiftToDelete.startTime,
+                      endTime: shiftToDelete.endTime,
+                    };
+                  }
+
+                  setDraftTurns(prev => [
+                    ...prev,
+                    ...deleteVisualOps, // 👈 gris
+                    deleteOp            // 👈 backend
+                  ]);
 
                   setShowShiftDeleteConfirm(false);
-
-                  setTimeout(() => {
-                    handleConfirmEditShift({ deleting: true });
-                  }, 0);
+                  setShiftToDelete(null);
                   setHasChanges(true);
                 }}
               >
