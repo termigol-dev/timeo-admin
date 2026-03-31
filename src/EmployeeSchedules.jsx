@@ -1748,19 +1748,22 @@ export default function EmployeeSchedules() {
                     weekDates: weekDates.map(d => d ? formatDateLocal(d) : 'NULL')
                   });
 
-                  // 🔥 BUSCAR EL TURNO REAL (patrón completo)
-                  const originalShift = savedTurns.find(t =>
+                  // 🔥 reconstruir patrón real desde savedTurns
+                  const relatedShifts = savedTurns.filter(t =>
                     t.shiftId === shiftToDelete.shiftId &&
                     t.startTime === shiftToDelete.startTime &&
                     t.endTime === shiftToDelete.endTime
                   );
 
-                  console.log('🧪 ORIGINAL SHIFT', originalShift);
+                  // 🔥 sacar weekdays únicos
+                  const weekdays = [...new Set(
+                    relatedShifts.map(t => {
+                      const d = new Date(t.date);
+                      return d.getDay() === 0 ? 7 : d.getDay();
+                    })
+                  )];
 
-                  // 🔥 WEEKDAYS REALES (fallback = solo día clicado)
-                  const weekdays = originalShift?.weekdays || [map[shiftToDelete.day]];
-
-                  console.log('🧪 WEEKDAYS USADOS', weekdays);
+                  console.log('🧪 WEEKDAYS RECONSTRUIDOS', weekdays);
 
                   // ======================================================
                   // 🔥 DELETE VISUAL (gris) → REGLA
