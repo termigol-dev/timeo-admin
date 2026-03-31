@@ -1789,6 +1789,11 @@ export default function EmployeeSchedules() {
                   // 🔥 GENERAR DELETE VISUAL (gris)
                   const deleteVisualOps = weekDates.map((dateObj) => {
 
+                    if (!dateObj) {
+                      console.log('💣 dateObj NULL DETECTED → skip');
+                      return null;
+                    }
+
                     const dateStr = formatDateLocal(dateObj);
 
                     const weekday = new Date(dateObj).getDay() === 0
