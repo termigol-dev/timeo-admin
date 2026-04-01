@@ -1740,21 +1740,31 @@ export default function EmployeeSchedules() {
                 className="delete-block"
                 onClick={() => {
 
-                  const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
-
                   console.log('🧪 DELETE CLICK INPUT', {
                     shiftToDelete,
-                    deleteShiftMode,
-                    weekDates: weekDates.map(d => d ? formatDateLocal(d) : 'NULL')
+                    deleteShiftMode
                   });
 
-                  // 🔥 reconstruir patrón real desde savedTurns
-                  const weekdays = shiftToDelete.weekdays || [];
+                  // ======================================================
+                  // 🔥 RECONSTRUIR PATRÓN REAL DESDE savedTurns
+                  // ======================================================
+                  const relatedShifts = savedTurns.filter(t =>
+                    t.shiftId === shiftToDelete.shiftId &&
+                    t.startTime === shiftToDelete.startTime &&
+                    t.endTime === shiftToDelete.endTime
+                  );
 
-                  console.log('🧪 WEEKDAYS DESDE GRID', weekdays);
+                  const weekdays = [...new Set(
+                    relatedShifts.map(t => {
+                      const d = new Date(t.date);
+                      return d.getDay() === 0 ? 7 : d.getDay();
+                    })
+                  )];
+
+                  console.log('🧪 WEEKDAYS REALES', weekdays);
 
                   // ======================================================
-                  // 🔥 DELETE VISUAL (gris) → REGLA
+                  // 🔥 DELETE VISUAL (gris)
                   // ======================================================
                   const deleteVisualOp = {
                     type: 'DELETE_PREVIEW',
@@ -1773,8 +1783,6 @@ export default function EmployeeSchedules() {
                     startTime: shiftToDelete.startTime,
                     endTime: shiftToDelete.endTime,
                   };
-
-                  console.log('🧪 DELETE VISUAL OPS', [deleteVisualOp]);
 
                   // ======================================================
                   // 🔴 DELETE REAL
@@ -1795,7 +1803,7 @@ export default function EmployeeSchedules() {
                       type: 'DELETE',
                       mode: 'FROM_THIS_DAY_ON',
                       fromDate: shiftToDelete.date,
-                      weekdays, // 🔥 MISMO FIX AQUÍ
+                      weekdays,
                       startTime: shiftToDelete.startTime,
                       endTime: shiftToDelete.endTime,
                     };
