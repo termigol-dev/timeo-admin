@@ -76,14 +76,14 @@ export default function CalendarGrid({
         return match;
       }
 
-      // 🔴 CASCADA
+      // 🔴 CASCADA (MISMA LÓGICA QUE ADD_SHIFT)
       if (d.mode === 'FROM_THIS_DAY_ON') {
 
-        const matchesWeekday = d.weekdays?.includes(weekday);
+        const matchesWeekday = d.weekday === weekday;
         const matchesDate = date >= d.fromDate;
 
-        console.log('🔴 CASCADE CHECK', {
-          weekdays: d.weekdays,
+        console.log('🔴 CASCADE CHECK (FIX)', {
+          ruleWeekday: d.weekday,
           currentWeekday: weekday,
           matchesWeekday,
           fromDate: d.fromDate,
