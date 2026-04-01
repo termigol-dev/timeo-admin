@@ -1749,21 +1749,9 @@ export default function EmployeeSchedules() {
                   });
 
                   // 🔥 reconstruir patrón real desde savedTurns
-                  const relatedShifts = savedTurns.filter(t =>
-                    t.shiftId === shiftToDelete.shiftId &&
-                    t.startTime === shiftToDelete.startTime &&
-                    t.endTime === shiftToDelete.endTime
-                  );
+                  const weekdays = shiftToDelete.weekdays || [];
 
-                  // 🔥 sacar weekdays únicos
-                  const weekdays = [...new Set(
-                    relatedShifts.map(t => {
-                      const d = new Date(t.date);
-                      return d.getDay() === 0 ? 7 : d.getDay();
-                    })
-                  )];
-
-                  console.log('🧪 WEEKDAYS RECONSTRUIDOS', weekdays);
+                  console.log('🧪 WEEKDAYS DESDE GRID', weekdays);
 
                   // ======================================================
                   // 🔥 DELETE VISUAL (gris) → REGLA

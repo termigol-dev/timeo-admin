@@ -149,7 +149,9 @@ export default function CalendarGrid({
         shiftId: t.shiftId,
         id: t.id,
         edited: false,
-        isDelete: isDeleted, // 👈 SOLO ESTO NUEVO
+        isDelete: isDeleted,
+        weekday: t.weekday,
+        weekdays: [t.weekday], // 👈 consistente con tu modelo actual
       };
     });
 
@@ -277,6 +279,7 @@ export default function CalendarGrid({
                           date: currentDate,
                           startTime: b.startTime,
                           endTime: b.endTime,
+                          weekdays: b.weekdays,
                         };
 
                         console.log('🖱️ CLICK TURNO → MODAL', blockData);
