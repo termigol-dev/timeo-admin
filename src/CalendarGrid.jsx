@@ -20,6 +20,7 @@ export default function CalendarGrid({
   setDeleteShiftMode,
   setShowShiftDeleteConfirm,
   editingShift,
+  vacations,
   setEditingShift,
   setStartTime,
   setEndTime,
@@ -35,7 +36,7 @@ export default function CalendarGrid({
     const dateObj = new Date(date);
     const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
     const backendTurns = savedTurns.filter(t => t.date === date);
-    
+
     // ======================================================
     // 1. SET_DAY → sustituye todo (igual que ahora)
     // ======================================================
@@ -134,7 +135,7 @@ export default function CalendarGrid({
     // ======================================================
     // 4. BACKEND
     // ======================================================
-    
+
 
 
 
@@ -232,20 +233,33 @@ export default function CalendarGrid({
                 })
               )}
 
-              {/* VACACIONES */}
-              {weekVacationBlocks.map(v => (
-                <div
-                  key={v.key}
-                  className={`vacation ${v.source === 'draft' ? 'draft' : ''}`}
-                  style={{
-                    gridColumn: v.col,
-                    gridRow: '1 / 49',
-                  }}
-                  onMouseDown={e => e.stopPropagation()}
-                >
-                  Vacaciones
-                </div>
-              ))}
+              {/* VACACIONES (DIRECTO DESDE STATE) */}
+              {weekDates.map((date, i) => {
+
+                if (!date) return null;
+
+                const dateStr = formatDateLocal(date);
+
+                const hasVacation = vacations?.some(v =>
+                  v?.date === dateStr
+                );
+                console.log('🔥 GRID VACATIONS', vacations);
+                if (!hasVacation) return null;
+
+                return (
+                  <div
+                    key={`vac-${dateStr}`}
+                    className="vacation"
+                    style={{
+                      gridColumn: i,
+                      gridRow: '1 / 49',
+                    }}
+                    onMouseDown={e => e.stopPropagation()}
+                  >
+                    Vacaciones
+                  </div>
+                );
+              })}
 
               {/* TURNOS */}
               {weekDates.slice(1).map((dateObj, i) => {
@@ -253,6 +267,11 @@ export default function CalendarGrid({
                 const col = i + 1;
                 const currentDate = formatDateLocal(dateObj);
                 const day = weekDays[col];
+
+                // 🔥 NUEVO → bloquear si hay vacaciones
+                if (vacations?.some(v => v.date === currentDate)) {
+                  return null;
+                }
 
                 const blocks = getBlocksForDate(currentDate);
 
@@ -266,9 +285,9 @@ export default function CalendarGrid({
                     <div
                       key={`${currentDate}-${idx}`}
                       className={`
-  turn-saved
-  ${b.edited ? 'edited' : ''}
-  ${b.isDelete ? 'deleted' : ''}
+turn-saved
+${b.edited ? 'edited' : ''}
+${b.isDelete ? 'deleted' : ''}
 `}
                       style={{
                         gridColumn: col,

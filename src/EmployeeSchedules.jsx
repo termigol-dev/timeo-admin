@@ -130,14 +130,14 @@ function buildFinalDayBlocks({
   return baseBlocks;
 }
 
-function buildWeekVacationBlocks(days, weekDates, formatDateLocal) {
+function buildWeekVacationBlocks(days, weekDates) {
 
   return days
     .filter(d => d.isVacation)
     .map(d => {
 
-      const col = weekDates.findIndex(dateObj =>
-        formatDateLocal(dateObj) === d.date
+      const col = weekDates.findIndex(date =>
+        date === d.date
       );
 
       if (col === -1) return null;
@@ -179,6 +179,7 @@ export default function EmployeeSchedules() {
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
   const [vacations, setVacations] = useState([]);
+  const [vacationMode, setVacationMode] = useState(false);
   const [draftTurns, setDraftTurns] = useState([]);
   // 🟢 MODO EDICIÓN DE TURNO
   const [editingShift, setEditingShift] = useState(null);
@@ -842,6 +843,7 @@ export default function EmployeeSchedules() {
   }
 
   function addVacation() {
+    console.log('🟠 ADD VACATION', { dateFrom, dateTo });
     if (!dateFrom || !dateTo) return;
 
     const from = new Date(dateFrom);
@@ -856,7 +858,7 @@ export default function EmployeeSchedules() {
       });
     }
 
-    setVacations(prev => [...prev, ...days]);
+    setVacations([...vacations, ...days]);
     setDateFrom('');
     setDateTo('');
   }
@@ -1221,27 +1223,12 @@ export default function EmployeeSchedules() {
   }
 
   const {
-    savedTurns,
-    weekVacationBlocks,
-  } = useCalendarData({
-    shifts: turns,
-    vacations,
-    weekDates,
-  });
-
-  vacations.forEach((v, index) => {
-    const day = new Date(v.date + 'T00:00:00');
-
-    weekDates.forEach((date, colIndex) => {
-      const dayStart = new Date(date);
-      dayStart.setHours(0, 0, 0, 0);
-
-      const dayEnd = new Date(date);
-      dayEnd.setHours(23, 59, 59, 999);
-
-    });
-
-  });
+  savedTurns,
+} = useCalendarData({
+  shifts: turns,
+  vacations,
+  weekDates,
+});
 
   /* ======================================================
      CÁLCULO CORRECTO DE HORAS (FRONTEND)
@@ -1259,7 +1246,7 @@ export default function EmployeeSchedules() {
   const totalHours = Math.floor(totalMinutes / 60);
   const totalRestMinutes = totalMinutes % 60;
 
-  //console.log('EMPLOYEE:', employee);
+  console.log('🔥 VACATIONS STATE', vacations);
   return (
     <div className="container">
 
@@ -1299,7 +1286,16 @@ export default function EmployeeSchedules() {
       <div className="form-buttons-row">
 
         <button
-          onClick={addVacation}
+          onClick={() => {
+            console.log('🟡 OPEN VACATION MODE');
+            setVacationMode(true)
+            setEditingShift(null); // importante
+            setSelectedDays([]);   // limpiar días
+            setStartTime('');      // limpiar horas
+            setEndTime('');
+
+            setShowPanel(true);
+          }}
           className="add-vacation"
         >
           Añadir vacaciones
@@ -1321,12 +1317,16 @@ export default function EmployeeSchedules() {
       </div>
 
 
+
       {/* PANEL MODAL */}
       {showPanel && (
 
         <div
           className="modal-overlay"
-          onClick={() => setShowPanel(false)}
+          onClick={() => {
+            setShowPanel(false);
+            setVacationMode(false); // 🔥 reset
+          }}
         >
           <div
             className="form-card"
@@ -1341,6 +1341,7 @@ export default function EmployeeSchedules() {
                     type="checkbox"
                     checked={selectedDays.includes(d.key)}
                     onChange={() => toggleDay(d.key)}
+                    disabled={vacationMode} // 🔥 bloqueo
                   />
                   {d.key === 'X' ? 'X' : d.label[0]}
                 </label>
@@ -1368,7 +1369,7 @@ export default function EmployeeSchedules() {
                     type="date"
                     value={dateTo}
                     onChange={e => setDateTo(e.target.value)}
-                    disabled={editingShift?.mode === 'FROM_THIS_DAY_ON'} // 🔥 CLAVE
+                    disabled={editingShift?.mode === 'FROM_THIS_DAY_ON'}
                     className="date-input"
                   />
 
@@ -1383,6 +1384,7 @@ export default function EmployeeSchedules() {
                     value={startTime}
                     onChange={e => setStartTime(e.target.value)}
                     className="time-input"
+                    disabled={vacationMode} // 🔥 bloqueo
                   />
 
                   <div className="caption">Salida</div>
@@ -1391,6 +1393,7 @@ export default function EmployeeSchedules() {
                     value={endTime}
                     onChange={e => setEndTime(e.target.value)}
                     className="time-input"
+                    disabled={vacationMode} // 🔥 bloqueo
                   />
 
                   {/* BOTONES */}
@@ -1399,6 +1402,7 @@ export default function EmployeeSchedules() {
                     <button
                       onClick={() => {
                         setShowPanel(false);
+                        setVacationMode(false); // 🔥 reset
                       }}
                     >
                       Cancelar
@@ -1407,6 +1411,18 @@ export default function EmployeeSchedules() {
                     <button
                       onClick={() => {
 
+                        // 🔶 VACACIONES
+                        if (vacationMode) {
+                          console.log('🔥 CLICK ACEPTAR VACATION MODE', vacationMode);
+                          addVacation();
+                          setDateFrom('');
+                          setDateTo('');
+                          setVacationMode(false);
+                          setShowPanel(false);
+                          return;
+                        }
+
+                        // 🔴 TURNO NORMAL
                         console.log('🧪 selectedDays CLICK', selectedDays);
 
                         if (!startTime || !endTime) {
@@ -1419,7 +1435,6 @@ export default function EmployeeSchedules() {
                           return;
                         }
 
-                        // 🔥 UNIFICAMOS TODO
                         addTurn();
 
                         setEditingShift(null);
@@ -1535,7 +1550,6 @@ export default function EmployeeSchedules() {
           setCalendarFocused={setCalendarFocused}
           hoursRef={hoursRef}
           headerXRef={headerXRef}
-          weekVacationBlocks={weekVacationBlocks}
           savedTurns={savedTurns}
           weekDays={weekDays}
           weekDates={weekDates}
@@ -1552,6 +1566,7 @@ export default function EmployeeSchedules() {
           setEndTime={setEndTime}
           setSelectedDays={setSelectedDays}
           setShowPanel={setShowPanel}
+          vacations={vacations}
         />
 
       </div>

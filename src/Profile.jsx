@@ -63,22 +63,6 @@ export default function Profile() {
 
       setPhotoPreview(u.photoUrl || null);
 
-      // 🔥 DEVICES SOLO SUPERADMIN
-      if (isSuperAdmin) {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/devices/user/${userId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
-            },
-          }
-        );
-
-        if (res.ok) {
-          const d = await res.json();
-          setDevices(d || []);
-        }
-      }
 
     } finally {
       setLoading(false);
@@ -296,19 +280,6 @@ export default function Profile() {
           )}
 
         </div>
-
-        {/* DEVICES */}
-        {isSuperAdmin && (
-          <div style={{ marginTop: 32 }}>
-            <h3>Devices</h3>
-
-            {devices.map(d => (
-              <div key={d.id} style={{ fontSize: 12 }}>
-                {d.platform}
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* ACTIONS */}
         <div className="tablet-actions" style={{ marginTop: 32 }}>
