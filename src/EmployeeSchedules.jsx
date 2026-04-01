@@ -52,6 +52,7 @@ function ensureShiftId(turn) {
   }
   return turn;
 }
+
 function buildFinalDayBlocks({
   date,
   savedTurns,
@@ -127,6 +128,28 @@ function buildFinalDayBlocks({
   }
 
   return baseBlocks;
+}
+
+function buildWeekVacationBlocks(days, weekDates, formatDateLocal) {
+
+  return days
+    .filter(d => d.isVacation)
+    .map(d => {
+
+      const col = weekDates.findIndex(dateObj =>
+        formatDateLocal(dateObj) === d.date
+      );
+
+      if (col === -1) return null;
+
+      return {
+        key: `vac-${d.date}`,
+        col,
+        date: d.date,
+        source: 'backend',
+      };
+    })
+    .filter(Boolean);
 }
 
 export default function EmployeeSchedules() {

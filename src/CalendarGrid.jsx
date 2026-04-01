@@ -34,7 +34,8 @@ export default function CalendarGrid({
 
     const dateObj = new Date(date);
     const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
-
+    const backendTurns = savedTurns.filter(t => t.date === date);
+    
     // ======================================================
     // 1. SET_DAY → sustituye todo (igual que ahora)
     // ======================================================
@@ -115,14 +116,25 @@ export default function CalendarGrid({
         edited: true,
       }));
 
-    if (draftShifts && draftShifts.length > 0) {
-      return draftShifts;
-    }
+    // 🔥 overlay (NO sustituir)
+    const combinedBlocks = [
+      ...backendTurns.map(t => ({
+        startTime: t.startTime,
+        endTime: t.endTime,
+        shiftId: t.shiftId,
+        id: t.id,
+        edited: false,
+        isDelete: false,
+      })),
+      ...(draftShifts || [])
+    ];
+
+    return combinedBlocks;
 
     // ======================================================
     // 4. BACKEND
     // ======================================================
-    const backendTurns = savedTurns.filter(t => t.date === date);
+    
 
 
 

@@ -10,7 +10,9 @@ export function useCalendarData({
   const savedTurns = shifts || [];
 
   // 🟠 VACACIONES → convertir a bloques del grid
-  const weekVacationBlocks = (vacations || []).map(v => {
+ const weekVacationBlocks = (vacations || [])
+  .filter(v => v?.date) // 🧠 seguridad
+  .map(v => {
 
     const col = weekDates.findIndex(d =>
       formatDateLocal(d) === v.date
@@ -19,13 +21,14 @@ export function useCalendarData({
     if (col === -1) return null;
 
     return {
-      key: v.date,
+      key: `vac-${v.date}`, // 🔥 clave consistente (como DELETE)
       col,
       date: v.date,
-      source: v.source || 'saved',
+      source: v.source || 'backend', // 🔥 naming consistente
     };
 
-  }).filter(Boolean);
+  })
+  .filter(Boolean);
 
   // 🟡 BORRADOR (de momento vacío)
   const mergedDraftTurns = [];
