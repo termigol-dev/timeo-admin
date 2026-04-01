@@ -1745,12 +1745,22 @@ export default function EmployeeSchedules() {
                     deleteShiftMode
                   });
 
-                  // 🔥 weekday real del turno clicado (MISMA BASE QUE ADD_SHIFT)
-                  const weekday = new Date(shiftToDelete.date).getDay() === 0
-                    ? 7
-                    : new Date(shiftToDelete.date).getDay();
+                  // ======================================================
+                  // 🔥 RECONSTRUIR PATRÓN POR HORAS (NO shiftId)
+                  // ======================================================
+                  const relatedShifts = savedTurns.filter(t =>
+                    t.startTime === shiftToDelete.startTime &&
+                    t.endTime === shiftToDelete.endTime
+                  );
 
-                  console.log('🧪 WEEKDAY DELETE (REGLA)', weekday);
+                  const weekdays = [...new Set(
+                    relatedShifts.map(t => {
+                      const d = new Date(t.date);
+                      return d.getDay() === 0 ? 7 : d.getDay();
+                    })
+                  )];
+
+                  console.log('🧪 WEEKDAYS REALES (FIX FINAL)', weekdays);
 
                   // ======================================================
                   // 🔥 DELETE VISUAL (gris)
@@ -1767,7 +1777,7 @@ export default function EmployeeSchedules() {
                       ? shiftToDelete.date
                       : undefined,
 
-                    weekday, // 🔥 CLAVE (ya no usamos array)
+                    weekdays, // 🔥 patrón real
 
                     startTime: shiftToDelete.startTime,
                     endTime: shiftToDelete.endTime,
@@ -1792,7 +1802,7 @@ export default function EmployeeSchedules() {
                       type: 'DELETE',
                       mode: 'FROM_THIS_DAY_ON',
                       fromDate: shiftToDelete.date,
-                      weekday, // 🔥 MISMO CAMBIO AQUÍ
+                      weekdays, // 🔥 MISMO AQUÍ
                       startTime: shiftToDelete.startTime,
                       endTime: shiftToDelete.endTime,
                     };
