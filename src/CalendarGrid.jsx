@@ -240,18 +240,18 @@ export default function CalendarGrid({
 
                 const dateStr = formatDateLocal(date);
 
-                const hasVacation = vacations?.some(v =>
+                const vacation = vacations?.find(v =>
                   v?.date === dateStr
                 );
-                //console.log('🔥 GRID VACATIONS', vacations);
-                if (!hasVacation) return null;
+
+                if (!vacation) return null;
 
                 return (
                   <div
                     key={`vac-${dateStr}`}
-                    className="vacation"
+                    className={`vacation ${vacation.source === 'backend' ? 'saved' : 'draft'}`} // ✅ SOLO ESTO
                     style={{
-                      gridColumn: i,
+                      gridColumn: i, // 🔒 NO TOCO NADA MÁS
                       gridRow: '1 / 49',
                     }}
                     onMouseDown={e => e.stopPropagation()}
@@ -260,7 +260,6 @@ export default function CalendarGrid({
                   </div>
                 );
               })}
-
               {/* TURNOS */}
               {weekDates.slice(1).map((dateObj, i) => {
 
@@ -284,11 +283,10 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={`${currentDate}-${idx}`}
-                      className={`
-turn-saved
-${b.edited ? 'edited' : ''}
-${b.isDelete ? 'deleted' : ''}
-`}
+                      className={`turn-saved + ${b.source === 'modified' ? 'exception' : ''}
+                       ${b.edited ? 'edited' : ''}
+                       ${b.isDelete ? 'deleted' : ''}
+                      `}
                       style={{
                         gridColumn: col,
                         gridRow: `${start + 1} / ${end + 1}`,

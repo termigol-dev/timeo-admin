@@ -272,6 +272,12 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
   color: #856404;
 }
 
+.turn-saved.exception {
+  background-color: #ff8c00; /* naranja vivo */
+  color: white;
+  border: none;
+}
+
 /*RESTAURANDO LO DEL VIEJO*/
 
 /* ======================================================
@@ -533,4 +539,11 @@ PANEL INTERMEDIO (CONTROLES)
   color: black;          /* 🔥 texto sólido */
   font-weight: 600;
   pointer-events: none;
+}
+
+.vacation.saved {
+  opacity: 1;
+  background: #ff8c00; /* naranja sólido */
+  color: white;
+  font-weight: 600;
 }
