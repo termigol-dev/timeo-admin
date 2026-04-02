@@ -61,19 +61,19 @@ export default function CalendarGrid({
 
       if (d.type !== 'DELETE_PREVIEW') return false;
 
-      console.log('🧪 CHECK DELETE RULE', {
+      /*console.log('🧪 CHECK DELETE RULE', {
         d,
         date,
         weekday
-      });
+      });*/
 
       // 🟡 SOLO ESTE DÍA
       if (d.mode === 'ONLY_THIS_BLOCK') {
         const match = d.date === date;
 
-        console.log('🟡 ONLY_THIS_BLOCK', {
+        /*console.log('🟡 ONLY_THIS_BLOCK', {
           match
-        });
+        });*/
 
         return match;
       }
@@ -84,14 +84,14 @@ export default function CalendarGrid({
         const matchesWeekday = d.weekdays?.includes(weekday);
         const matchesDate = date >= d.fromDate;
 
-        console.log('🔴 CASCADE CHECK (FIX FINAL)', {
+        /*console.log('🔴 CASCADE CHECK (FIX FINAL)', {
           ruleWeekdays: d.weekdays,
           currentWeekday: weekday,
           matchesWeekday,
           fromDate: d.fromDate,
           currentDate: date,
           matchesDate
-        });
+        });*/
 
         return matchesWeekday && matchesDate;
       }
@@ -243,7 +243,7 @@ export default function CalendarGrid({
                 const hasVacation = vacations?.some(v =>
                   v?.date === dateStr
                 );
-                console.log('🔥 GRID VACATIONS', vacations);
+                //console.log('🔥 GRID VACATIONS', vacations);
                 if (!hasVacation) return null;
 
                 return (
@@ -313,7 +313,7 @@ ${b.isDelete ? 'deleted' : ''}
                           weekdays: b.weekdays,
                         };
 
-                        console.log('🖱️ CLICK TURNO → MODAL', blockData);
+                        //console.log('🖱️ CLICK TURNO → MODAL', blockData);
 
                         setShiftToDelete(blockData);
                         setDeleteShiftMode('ONLY_THIS_BLOCK');
