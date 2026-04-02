@@ -528,22 +528,47 @@ PANEL INTERMEDIO (CONTROLES)
   background: var(--brand);
   color: white;
 }
-.vacation {
-  background-color: rgba(255, 165, 0, 0.35); /* 🔥 transparencia SOLO fondo */
-  width: 100%;
-  height: 100%;
-  grid-row: 1 / 49;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: black;          /* 🔥 texto sólido */
+
+.vacation-block {
+  background-color: #ff8c00;
+  color: white;
+  align-items: center;      /* 🔥 centra vertical */
+  justify-content: center;  /* 🔥 centra horizontal */
+  position: relative; /* 🔥 CLAVE */
+  margin: 2px;          /* separación lateral */
+  border-radius: 6px;
+}
+
+/* 🔥 posicionamos el texto en mitad del día */
+.vacation-label {
+  position: absolute;
+  top: 50%;               /* 👈 mitad vertical del bloque */
+  left: 50%;
+  transform: translate(-50%, -50%); /* 👈 centrado perfecto */
+  background-color: #ff8c00;
+  color: white;
   font-weight: 600;
   pointer-events: none;
 }
+
+
+/*.vacation {
+  background-color: rgba(255, 165, 0, 0.35); 
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;          
+  font-weight: 600;
+  pointer-events: none;
+ }*/
+
 
 .vacation.saved {
   opacity: 1;
   background: #ff8c00; /* naranja sólido */
   color: white;
   font-weight: 600;
+  
 }

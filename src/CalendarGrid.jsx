@@ -240,8 +240,8 @@ export default function CalendarGrid({
 
                 const dateStr = formatDateLocal(date);
 
-                const vacation = vacations?.find(v =>
-                  v?.date === dateStr
+                const vacation = vacations?.find(
+                  v => v?.date === dateStr && v.type === 'DAY_OFF'
                 );
 
                 if (!vacation) return null;
@@ -249,17 +249,20 @@ export default function CalendarGrid({
                 return (
                   <div
                     key={`vac-${dateStr}`}
-                    className={`vacation ${vacation.source === 'backend' ? 'saved' : 'draft'}`} // ✅ SOLO ESTO
+                    className="vacation-block"
                     style={{
-                      gridColumn: i, // 🔒 NO TOCO NADA MÁS
+                      gridColumn: i,
                       gridRow: '1 / 49',
                     }}
                     onMouseDown={e => e.stopPropagation()}
                   >
-                    Vacaciones
+                    <div className="vacation-label">
+                      Vacaciones
+                    </div>
                   </div>
                 );
               })}
+
               {/* TURNOS */}
               {weekDates.slice(1).map((dateObj, i) => {
 
@@ -267,10 +270,15 @@ export default function CalendarGrid({
                 const currentDate = formatDateLocal(dateObj);
                 const day = weekDays[col];
 
-                // 🔥 NUEVO → bloquear si hay vacaciones
-                if (vacations?.some(v => v.date === currentDate)) {
+                const dayState = vacations.find(v => v.date === currentDate);
+                console.log('🧪 DAY STATE', currentDate, dayState);
+                // 🔴 DAY_OFF → no hay turnos
+                if (dayState?.type === 'DAY_OFF') {
                   return null;
                 }
+
+                // 🟠 cualquier otro caso con dayState → es excepción
+                const isExceptionDay = !!dayState;
 
                 const blocks = getBlocksForDate(currentDate);
 
@@ -283,10 +291,12 @@ export default function CalendarGrid({
                   return (
                     <div
                       key={`${currentDate}-${idx}`}
-                      className={`turn-saved + ${b.source === 'modified' ? 'exception' : ''}
-                       ${b.edited ? 'edited' : ''}
-                       ${b.isDelete ? 'deleted' : ''}
-                      `}
+                      className={`
+          turn-saved
+          ${isExceptionDay ? 'exception' : ''}
+          ${b.edited ? 'edited' : ''}
+          ${b.isDelete ? 'deleted' : ''}
+        `}
                       style={{
                         gridColumn: col,
                         gridRow: `${start + 1} / ${end + 1}`,
@@ -310,8 +320,6 @@ export default function CalendarGrid({
                           endTime: b.endTime,
                           weekdays: b.weekdays,
                         };
-
-                        //console.log('🖱️ CLICK TURNO → MODAL', blockData);
 
                         setShiftToDelete(blockData);
                         setDeleteShiftMode('ONLY_THIS_BLOCK');

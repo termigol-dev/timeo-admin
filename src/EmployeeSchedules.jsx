@@ -260,121 +260,141 @@ export default function EmployeeSchedules() {
   }, [editingShift]);
 
 
-  async function reloadActiveSchedule() {
+ async function reloadActiveSchedule() {
 
-    // 🛑 BLINDAJE
-    if (!employee || !employee.branchId || !employeeId) {
-      console.log('⏸️ reloadActiveSchedule cancelado: employee no listo aún');
-      return;
-    }
+  // 🛑 BLINDAJE
+  if (!employee || !employee.branchId || !employeeId) {
+    console.log('⏸️ reloadActiveSchedule cancelado: employee no listo aún');
+    return;
+  }
 
-    try {
+  try {
 
-      const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token');
 
-      const weekStartStr = formatDateLocal(weekStart);
+    const weekStartStr = formatDateLocal(weekStart);
 
-      console.log('📅 reloadActiveSchedule → semana:', weekStartStr);
+    console.log('📅 reloadActiveSchedule → semana:', weekStartStr);
 
-      const scheduleRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!scheduleRes.ok) {
-        console.warn('⚠️ Error cargando semana activa');
-        setTurns([]);
-        setVacations([]);
-        setScheduleId(null);
-        return;
+    const scheduleRes = await fetch(
+      `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${employee.branchId}/schedules/user/${employeeId}/active?weekStart=${weekStartStr}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
+    );
 
-      const schedule = await safeJson(scheduleRes);
-
-      console.log('🧪 RAW DAYS FROM BACKEND', schedule?.days);
-
-      // 🔑 limpiar estado
-      const loadedTurns = [];
-      const loadedVacations = [];
-
-      if (schedule && Array.isArray(schedule.days)) {
-
-        schedule.days.forEach(day => {
-
-          console.log('🧪 DAY FROM BACKEND', day);
-
-          const dayKey = weekDays[day.weekday];
-
-          // ======================================================
-          // 🟠 VACACIONES (YA VIENEN DEL BACKEND)
-          // ======================================================
-          if (day.isVacation === true) {
-
-            console.log('🟠 PUSH VACATION', day.date);
-
-            loadedVacations.push({
-              date: day.date,
-              source: 'backend',
-            });
-
-            // 🔥 IMPORTANTE: no meter turnos ese día
-            return;
-          }
-
-          // ======================================================
-          // 🟢 TURNOS
-          // ======================================================
-          if (Array.isArray(day.turns)) {
-
-            day.turns.forEach(t => {
-
-              const uiId = `${day.date}-${t.startTime}-${t.endTime}`;
-
-              const turnBlock = {
-                id: uiId,
-                shiftId: t.id,
-                days: [dayKey],
-                startTime: t.startTime,
-                endTime: t.endTime,
-                type: t.source === 'extra' ? 'extra' : 'regular',
-                source: t.source || 'saved',
-                date: day.date,
-              };
-
-              loadedTurns.push(ensureShiftId(turnBlock));
-
-            });
-
-          }
-
-        });
-
-      }
-
-      console.log('📊 RESULTADO FINAL SEMANA:', {
-        turns: loadedTurns.length,
-        vacations: loadedVacations.length,
-      });
-
-      setScheduleId(schedule?.scheduleId || null);
-      setTurns(loadedTurns);
-      setVacations(loadedVacations);
-
-    } catch (err) {
-
-      console.error('❌ Error en reloadActiveSchedule', err);
-
+    if (!scheduleRes.ok) {
+      console.warn('⚠️ Error cargando semana activa');
       setTurns([]);
       setVacations([]);
       setScheduleId(null);
+      return;
+    }
+
+    const schedule = await safeJson(scheduleRes);
+
+    console.log('🧪 RAW DAYS FROM BACKEND', schedule?.days);
+
+    // 🔑 limpiar estado
+    const loadedTurns = [];
+    const loadedVacations = [];
+
+    if (schedule && Array.isArray(schedule.days)) {
+
+      schedule.days.forEach(day => {
+
+        console.log('🧪 DAY FROM BACKEND', day);
+
+        const dayKey = weekDays[day.weekday];
+
+        // ======================================================
+        // 🔴 DAY_OFF (VACACIONES)
+        // ======================================================
+        if (day.isVacation === true) {
+
+          console.log('🟠 PUSH DAY_OFF', day.date);
+
+          loadedVacations.push({
+            date: day.date,
+            type: 'DAY_OFF',     // 🔥 NUEVO
+            source: 'backend',
+          });
+
+          return;
+        }
+
+        // ======================================================
+        // 🟠 MODIFIED_SHIFT (día con excepción pero con turnos)
+        // ======================================================
+        const isModifiedDay =
+          Array.isArray(day.turns) &&
+          day.turns.some(t => t.source === 'modified');
+
+        if (isModifiedDay) {
+
+          console.log('🟠 PUSH MODIFIED DAY', day.date);
+
+          loadedVacations.push({
+            date: day.date,
+            type: 'MODIFIED',   // 🔥 NUEVO
+            source: 'backend',
+          });
+        }
+
+        // ======================================================
+        // 🟢 TURNOS
+        // ======================================================
+        if (Array.isArray(day.turns)) {
+
+          day.turns.forEach(t => {
+
+            const uiId = `${day.date}-${t.startTime}-${t.endTime}`;
+
+            const turnBlock = {
+              id: uiId,
+              shiftId: t.id,
+              days: [dayKey],
+              startTime: t.startTime,
+              endTime: t.endTime,
+              type: t.source === 'extra' ? 'extra' : 'regular',
+              source: t.source || 'saved',
+              date: day.date,
+            };
+
+            loadedTurns.push(ensureShiftId(turnBlock));
+
+          });
+
+        }
+
+      });
 
     }
 
+    console.log('📊 RESULTADO FINAL SEMANA:', {
+      turns: loadedTurns.length,
+      vacations: loadedVacations.length,
+    });
+
+    console.log('🧪 VACATIONS FINAL', loadedVacations);
+
+    setScheduleId(schedule?.scheduleId || null);
+    setTurns(loadedTurns);
+    setVacations(loadedVacations);
+
+  } catch (err) {
+
+    console.error('❌ Error en reloadActiveSchedule', err);
+
+    setTurns([]);
+    setVacations([]);
+    setScheduleId(null);
+
   }
+
+}
 
   // 🛡️ BLINDAJE: nunca permitir edición activa si abrimos el popup de opciones
   useEffect(() => {
@@ -839,236 +859,236 @@ export default function EmployeeSchedules() {
   }
 
   async function completeSchedule() {
-    const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token');
 
-    console.log('▶️ completeSchedule START', {
-      scheduleId,
-      draftTurns: draftTurns.length,
-    });
+  console.log('▶️ completeSchedule START', {
+    scheduleId,
+    draftTurns: draftTurns.length,
+  });
 
-    let activeScheduleId = scheduleId;
+  let activeScheduleId = scheduleId;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      // ======================================================
-      // 1️⃣ asegurar schedule
-      // ======================================================
-      if (!activeScheduleId) {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+    // ======================================================
+    // 1️⃣ asegurar schedule
+    // ======================================================
+    if (!activeScheduleId) {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-        if (!res.ok) throw new Error('Error creando horario');
+      if (!res.ok) throw new Error('Error creando horario');
 
-        const newSchedule = await res.json();
-        activeScheduleId = newSchedule.id;
-        setScheduleId(newSchedule.id);
-      }
+      const newSchedule = await res.json();
+      activeScheduleId = newSchedule.id;
+      setScheduleId(newSchedule.id);
+    }
 
-      const id = activeScheduleId;
+    const id = activeScheduleId;
 
-      // ======================================================
-      // 🟠 VACATIONS → convertir a operaciones
-      // ======================================================
-      const vacationOps = (vacations || []).map(v => ({
+    // ======================================================
+    // 🟠 VACATIONS → SOLO NUEVAS (draft)
+    // ======================================================
+    const vacationOps = (vacations || [])
+      .filter(v => v.source !== 'backend') // 🔥 CLAVE
+      .map(v => ({
         type: 'DAY_OFF',
         date: v.date,
       }));
 
-      // ======================================================
-      // 2️⃣ ordenar operaciones
-      // ======================================================
-      const ordered = [...draftTurns, ...vacationOps].sort((a, b) => {
-        if (a.type === 'DELETE' && b.type !== 'DELETE') return -1;
-        if (a.type !== 'DELETE' && b.type === 'DELETE') return 1;
-        return 0;
-      });
+    // ======================================================
+    // 2️⃣ ordenar operaciones
+    // ======================================================
+    const ordered = [...draftTurns, ...vacationOps].sort((a, b) => {
+      if (a.type === 'DELETE' && b.type !== 'DELETE') return -1;
+      if (a.type !== 'DELETE' && b.type === 'DELETE') return 1;
+      return 0;
+    });
 
-      console.log('🚀 OPS QUE SE ENVÍAN AL BACKEND:', JSON.stringify(ordered, null, 2));
-      console.log('🧪 ORDERED DEBUG:', ordered);
+    console.log('🚀 OPS QUE SE ENVÍAN AL BACKEND:', JSON.stringify(ordered, null, 2));
 
-      // ======================================================
-      // 3️⃣ ejecutar operaciones
-      // ======================================================
-      for (const op of ordered) {
+    // ======================================================
+    // 3️⃣ ejecutar operaciones
+    // ======================================================
+    for (const op of ordered) {
 
-        // 🟠 DAY_OFF → VACACIONES
-        if (op.type === 'DAY_OFF') {
-          console.log('🟠 DAY_OFF → CREANDO EXCEPCIÓN', op);
+      // 🟠 DAY_OFF → VACACIONES
+      if (op.type === 'DAY_OFF') {
+        console.log('🟠 DAY_OFF → CREANDO EXCEPCIÓN', op);
 
-          const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                exceptions: [
-                  {
-                    type: 'DAY_OFF',
-                    date: op.date,
-                  }
-                ]
-              }),
-            }
-          );
-
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error('Error creando DAY_OFF: ' + text);
-          }
-
-          continue;
-        }
-
-        // 🟡 SET_DAY → EXCEPCIÓN
-        if (op.type === 'SET_DAY') {
-          console.log('🟡 SET_DAY → CREANDO EXCEPCIÓN', op);
-
-          const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                exceptions: [
-                  {
-                    type: 'MODIFIED_SHIFT',
-                    date: op.date,
-                    blocks: op.blocks,
-                    mode: 'ONLY_THIS_BLOCK',
-                  }
-                ]
-              }),
-            }
-          );
-
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error('Error creando excepción: ' + text);
-          }
-
-          continue;
-        }
-
-        // 🔴 DELETE (BLINDADO)
-        if (op.type === 'DELETE') {
-
-          console.log('🟡 FRONT → DELETE BODY', op);
-
-          let body;
-
-          if (op.shiftId) {
-            body = {
-              shiftId: op.shiftId,
-            };
-          } else {
-            if (!op.weekdays || op.weekdays.length === 0) {
-              console.log('💣 DELETE IGNORADO (corrupto):', op);
-              continue;
-            }
-
-            body = {
-              mode: op.mode,
-              fromDate: op.fromDate,
-              weekdays: op.weekdays,
-              startTime: op.startTime,
-              endTime: op.endTime,
-            };
-          }
-
-          const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
-            {
-              method: 'DELETE',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(body),
-            }
-          );
-
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error('Error borrando turno: ' + text);
-          }
-
-          continue;
-        }
-
-        // 🟢 ADD_SHIFT
-        if (op.type === 'ADD_SHIFT') {
-          console.log('🟢 ADD_SHIFT', op);
-
-          const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                weekday: op.weekday,
-                startTime: op.startTime,
-                endTime: op.endTime,
-                validFrom: op.validFrom,
-                validTo: op.validTo,
-              }),
-            }
-          );
-
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error('Error creando turno (ADD_SHIFT): ' + text);
-          }
-
-          continue;
-        }
-      }
-
-      // ======================================================
-      // 4️⃣ confirmar
-      // ======================================================
-      if (ordered.length > 0) {
-        const confirmRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
           {
             method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              exceptions: [
+                {
+                  type: 'DAY_OFF',
+                  date: op.date,
+                }
+              ]
+            }),
           }
         );
 
-        if (!confirmRes.ok) {
-          const text = await confirmRes.text();
-          throw new Error('CONFIRM FAILED: ' + text);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error('Error creando DAY_OFF: ' + text);
         }
+
+        continue;
       }
 
-      console.log('✅ SCHEDULE GUARDADO');
+      // 🟡 SET_DAY → EXCEPCIÓN
+      if (op.type === 'SET_DAY') {
+        console.log('🟡 SET_DAY → CREANDO EXCEPCIÓN', op);
 
-      setDraftTurns([]);
-      window.history.back();
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              exceptions: [
+                {
+                  type: 'MODIFIED_SHIFT',
+                  date: op.date,
+                  blocks: op.blocks,
+                  mode: 'ONLY_THIS_BLOCK',
+                }
+              ]
+            }),
+          }
+        );
 
-    } catch (err) {
-      console.error('❌ ERROR EN completeSchedule', err);
-      alert(err.message || 'Error guardando horario');
-    } finally {
-      setSaving(false);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error('Error creando excepción: ' + text);
+        }
+
+        continue;
+      }
+
+      // 🔴 DELETE
+      if (op.type === 'DELETE') {
+
+        console.log('🟡 FRONT → DELETE BODY', op);
+
+        let body;
+
+        if (op.shiftId) {
+          body = {
+            shiftId: op.shiftId,
+          };
+        } else {
+          if (!op.weekdays || op.weekdays.length === 0) {
+            console.log('💣 DELETE IGNORADO (corrupto):', op);
+            continue;
+          }
+
+          body = {
+            mode: op.mode,
+            fromDate: op.fromDate,
+            weekdays: op.weekdays,
+            startTime: op.startTime,
+            endTime: op.endTime,
+          };
+        }
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          }
+        );
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error('Error borrando turno: ' + text);
+        }
+
+        continue;
+      }
+
+      // 🟢 ADD_SHIFT
+      if (op.type === 'ADD_SHIFT') {
+        console.log('🟢 ADD_SHIFT', op);
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              weekday: op.weekday,
+              startTime: op.startTime,
+              endTime: op.endTime,
+              validFrom: op.validFrom,
+              validTo: op.validTo,
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error('Error creando turno (ADD_SHIFT): ' + text);
+        }
+
+        continue;
+      }
     }
-  }
 
+    // ======================================================
+    // 4️⃣ confirmar
+    // ======================================================
+    if (ordered.length > 0) {
+      const confirmRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!confirmRes.ok) {
+        const text = await confirmRes.text();
+        throw new Error('CONFIRM FAILED: ' + text);
+      }
+    }
+
+    console.log('✅ SCHEDULE GUARDADO');
+
+    setDraftTurns([]);
+    window.history.back();
+
+  } catch (err) {
+    console.error('❌ ERROR EN completeSchedule', err);
+    alert(err.message || 'Error guardando horario');
+  } finally {
+    setSaving(false);
+  }
+}
   async function handleConfirmDeleteVacation() {
     if (!vacationToDelete || !scheduleId) return;
 
