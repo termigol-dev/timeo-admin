@@ -117,7 +117,7 @@ export default function CalendarGrid({
         edited: true,
       }));
 
-    // 🔥 overlay (NO sustituir)
+    /*
     const combinedBlocks = [
       ...backendTurns.map(t => ({
         startTime: t.startTime,
@@ -136,7 +136,7 @@ export default function CalendarGrid({
     // 4. BACKEND
     // ======================================================
 
-
+*/
 
 
     // 🟢 backend normal
@@ -169,7 +169,10 @@ export default function CalendarGrid({
     });
 
     // 🔥 CLAVE: overlay (NO sustituir)
-    return backendBlocks;
+   return [
+  ...backendBlocks,
+  ...(draftShifts || [])
+];
   }
 
   return (
@@ -271,7 +274,7 @@ export default function CalendarGrid({
                 const day = weekDays[col];
 
                 const dayState = vacations.find(v => v.date === currentDate);
-                console.log('🧪 DAY STATE', currentDate, dayState);
+                //console.log('🧪 DAY STATE', currentDate, dayState);
                 // 🔴 DAY_OFF → no hay turnos
                 if (dayState?.type === 'DAY_OFF') {
                   return null;
