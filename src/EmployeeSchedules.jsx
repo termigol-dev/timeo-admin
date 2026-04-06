@@ -1412,7 +1412,6 @@ export default function EmployeeSchedules() {
                           return;
                         }
 
-                        // 🔴 TURNO NORMAL
                         console.log('🧪 selectedDays CLICK', selectedDays);
 
                         if (!startTime || !endTime) {
@@ -1425,7 +1424,35 @@ export default function EmployeeSchedules() {
                           return;
                         }
 
-                        addTurn();
+                        console.log('🧪 draftTurns FINAL', draftTurns);
+
+                        // 🔴 CLAVE: diferenciar EDIT vs ADD
+                        if (editingShift) {
+
+                          console.log('✏️ EDIT → GENERANDO SET_DAY');
+
+                          const newOp = {
+                            type: 'SET_DAY',
+                            date: editingShift.date,
+                            blocks: [
+                              {
+                                startTime,
+                                endTime,
+                              }
+                            ]
+                          };
+
+                          setDraftTurns(prev => [
+                            // 🔥 limpiamos cualquier cosa previa de ese día
+                            ...prev.filter(d => d.date !== editingShift.date),
+                            newOp
+                          ]);
+
+                        } else {
+
+                          // 🟢 comportamiento actual (no tocar)
+                          addTurn();
+                        }
 
                         setEditingShift(null);
                         setDateTo('');
@@ -1740,6 +1767,12 @@ export default function EmployeeSchedules() {
 
                   console.log('🧪 EDIT SHIFT CLICK', shiftToDelete);
 
+                  // 🚫 BLOQUEAR CASCADA AQUÍ (ANTES DE TODO)
+                  if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
+                    alert('No se puede editar en cascada. Solo puedes modificar un día.');
+                    return;
+                  }
+
                   const editingObject = {
                     ...shiftToDelete,
                     shiftId: shiftToDelete.shiftId || shiftToDelete.id,
@@ -1752,7 +1785,6 @@ export default function EmployeeSchedules() {
 
                   setEditingShift(editingObject);
 
-
                   // 🔥 SINCRONIZACIÓN FORM
                   setStartTime(editingObject.startTime);
                   setEndTime(editingObject.endTime);
@@ -1760,12 +1792,8 @@ export default function EmployeeSchedules() {
 
                   setDateFrom(shiftToDelete.date);
 
-                  // 🔥 FIX CLAVE
-                  if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
-                    setDateTo(''); // ← infinito
-                  } else {
-                    setDateTo(shiftToDelete.date); // ← solo ese día
-                  }
+                  // 🔥 AQUÍ YA NO NECESITAS CONDICIÓN, SIEMPRE ES UN DÍA
+                  setDateTo(shiftToDelete.date);
 
                   setShowShiftDeleteConfirm(false);
                   setShowPanel(true);
