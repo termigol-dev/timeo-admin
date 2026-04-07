@@ -59,8 +59,8 @@ export default function Profile() {
         secondSurname: u.secondSurname || '',
         dni: u.dni || '',
         email: u.email || '',
+        password: '', // 🔥 NUEVO
       });
-
       setPhotoPreview(u.photoUrl || null);
 
 
@@ -83,10 +83,17 @@ export default function Profile() {
     setMessage('');
 
     try {
-      await updateUser(userId, {
+      const payload = {
         ...form,
         branchId: selectedBranch,
-      });
+      };
+
+      // 🔥 eliminar password si está vacío
+      if (!payload.password) {
+        delete payload.password;
+      }
+
+      await updateUser(userId, payload);
 
       if (photoFile) {
         const res = await fetch(
@@ -259,6 +266,17 @@ export default function Profile() {
 
           <Field label="Email">
             <input name="email" value={form.email} onChange={change} style={inputStyle} />
+          </Field>
+
+          <Field label="Contraseña">
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={change}
+              placeholder="Nueva contraseña"
+              style={inputStyle}
+            />
           </Field>
 
           {/* 🔥 SOLO ADMIN EMPRESA */}

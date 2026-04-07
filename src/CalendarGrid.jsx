@@ -33,110 +33,127 @@ export default function CalendarGrid({
   // 🧠 ÚNICA FUENTE DE VERDAD POR DÍA
   function getBlocksForDate(date) {
 
-  const dateObj = new Date(date);
-  const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
-  const backendTurns = savedTurns.filter(t => t.date === date);
+    const dateObj = new Date(date);
+    const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
 
-  // 🔒 NUEVO → detectar si hay edición de día
-  const hasSetDay = draftTurns?.some(d => d.type === 'SET_DAY');
+    // ======================================================
+    // 🟢 BACKEND TURNS (modelo híbrido)
+    // ======================================================
+    const backendTurns = savedTurns.filter(t => {
 
-  // ======================================================
-  // 1. SET_DAY → sustituye todo (igual que ahora)
-  // ======================================================
-  const draft = draftTurns?.find(d =>
-    d.type === 'SET_DAY' && d.date === date
-  );
+      const isNewModel = Array.isArray(t.weekdays) && t.weekdays.length > 0;
 
-  if (draft) {
-    return draft.blocks.map((b, idx) => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      id: `${date}-${b.startTime}-${b.endTime}-${idx}`,
-      shiftId: null,
-      edited: true,
-      source: 'modified', // 🔥 NUEVO → para pintar naranja
-    }));
-  }
+      if (isNewModel) {
+        const matchesWeekday = t.weekdays.includes(weekday);
+        const matchesDate =
+          date >= t.validFrom &&
+          (!t.validTo || date <= t.validTo);
 
-  // ======================================================
-  // 🔴 2. DELETE_PREVIEW → REGLA (gris)
-  // ======================================================
-  const deleteDrafts = draftTurns?.filter(d => {
-
-    if (d.type !== 'DELETE_PREVIEW') return false;
-
-    // 🔒 NUEVO → bloquear cascada si estamos editando un día
-    if (hasSetDay && d.mode === 'FROM_THIS_DAY_ON') return false;
-
-    // 🟡 SOLO ESTE DÍA
-    if (d.mode === 'ONLY_THIS_BLOCK') {
-      return d.date === date;
-    }
-
-    // 🔴 CASCADA
-    if (d.mode === 'FROM_THIS_DAY_ON') {
-      const matchesWeekday = d.weekdays?.includes(weekday);
-      const matchesDate = date >= d.fromDate;
-      return matchesWeekday && matchesDate;
-    }
-
-    return false;
-  });
-
-  // ======================================================
-  // 3. ADD_SHIFT
-  // ======================================================
-  const draftShifts = draftTurns
-    ?.filter(d =>
-      d.type === 'ADD_SHIFT' &&
-      !hasSetDay && // 🔒 NUEVO → NO cascada en edición de día
-      d.weekday === weekday &&
-      date >= d.validFrom &&
-      (!d.validTo || date <= d.validTo)
-    )
-    .map((d, idx) => ({
-      startTime: d.startTime,
-      endTime: d.endTime,
-      id: `draft-${weekday}-${idx}`,
-      shiftId: null,
-      edited: true,
-    }));
-
-  // ======================================================
-  // 🟢 backend normal
-  // ======================================================
-  const backendBlocks = backendTurns.map(t => {
-
-    const isDeleted = (deleteDrafts || []).some(d => {
-
-      if (d.startTime === t.startTime && d.endTime === t.endTime) {
-        return true;
+        return matchesWeekday && matchesDate;
       }
 
-      return (
-        d.startTime <= t.startTime &&
-        d.endTime >= t.endTime
-      );
+      // 🔵 modelo antiguo
+      return t.date === date;
     });
 
-    return {
-      startTime: t.startTime,
-      endTime: t.endTime,
-      shiftId: t.shiftId,
-      id: t.id,
-      edited: false,
-      isDelete: isDeleted,
-      weekday: t.weekday,
-      weekdays: [t.weekday],
-    };
-  });
+    // ======================================================
+    // 🔒 detectar SET_DAY
+    // ======================================================
+    const hasSetDay = draftTurns?.some(d => d.type === 'SET_DAY');
 
-  // 🔥 overlay final
-  return [
-    ...backendBlocks,
-    ...(draftShifts || [])
-  ];
-}
+    // ======================================================
+    // 1. SET_DAY → sustituye todo
+    // ======================================================
+    const draft = draftTurns?.find(d =>
+      d.type === 'SET_DAY' && d.date === date
+    );
+
+    if (draft) {
+      return draft.blocks.map((b, idx) => ({
+        startTime: b.startTime,
+        endTime: b.endTime,
+        id: `${date}-${b.startTime}-${b.endTime}-${idx}`,
+        shiftId: null,
+        edited: true,
+        source: 'modified',
+      }));
+    }
+
+    // ======================================================
+    // 🔴 DELETE_PREVIEW
+    // ======================================================
+    const deleteDrafts = draftTurns?.filter(d => {
+
+      if (d.type !== 'DELETE_PREVIEW') return false;
+
+      if (hasSetDay && d.mode === 'FROM_THIS_DAY_ON') return false;
+
+      if (d.mode === 'ONLY_THIS_BLOCK') {
+        return d.date === date;
+      }
+
+      if (d.mode === 'FROM_THIS_DAY_ON') {
+        const matchesWeekday = d.weekdays?.includes(weekday);
+        const matchesDate = date >= d.fromDate;
+        return matchesWeekday && matchesDate;
+      }
+
+      return false;
+    });
+
+    // ======================================================
+    // 🟢 ADD_SHIFT (draft → modelo nuevo)
+    // ======================================================
+    const draftShifts = draftTurns
+      ?.filter(d =>
+        d.type === 'ADD_SHIFT' &&
+        !hasSetDay &&
+        d.weekdays?.includes(weekday) && // 🔥 FIX CLAVE
+        date >= d.validFrom &&
+        (!d.validTo || date <= d.validTo)
+      )
+      .map((d, idx) => ({
+        startTime: d.startTime,
+        endTime: d.endTime,
+        id: `draft-${weekday}-${idx}`,
+        shiftId: null,
+        edited: true,
+      }));
+
+    // ======================================================
+    // 🟢 backend normal
+    // ======================================================
+    const backendBlocks = backendTurns.map(t => {
+
+      const isDeleted = (deleteDrafts || []).some(d => {
+
+        if (d.startTime === t.startTime && d.endTime === t.endTime) {
+          return true;
+        }
+
+        return (
+          d.startTime <= t.startTime &&
+          d.endTime >= t.endTime
+        );
+      });
+
+      return {
+        startTime: t.startTime,
+        endTime: t.endTime,
+        shiftId: t.shiftId,
+        id: t.id,
+        edited: false,
+        isDelete: isDeleted,
+        weekday: t.weekday,
+        weekdays: t.weekdays || [t.weekday],
+      };
+    });
+
+    return [
+      ...backendBlocks,
+      ...(draftShifts || [])
+    ];
+  }
 
   return (
     <div className="calendar-scale-wrapper">
