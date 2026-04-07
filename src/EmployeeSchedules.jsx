@@ -683,111 +683,111 @@ export default function EmployeeSchedules() {
     });
   }
 
- async function addTurn() {
-  if (!startTime || !endTime || selectedDays.length === 0) return;
+  async function addTurn() {
+    if (!startTime || !endTime || selectedDays.length === 0) return;
 
-  if (!dateFrom) {
-    alert('Debes indicar una fecha de inicio');
-    return;
-  }
+    if (!dateFrom) {
+      alert('Debes indicar una fecha de inicio');
+      return;
+    }
 
-  const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
-  const weekdays = selectedDays.map(d => map[d]);
+    const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
+    const weekdays = selectedDays.map(d => map[d]);
 
-  if (weekdays.length === 0) {
-    alert('Debes seleccionar al menos un día');
-    return;
-  }
+    if (weekdays.length === 0) {
+      alert('Debes seleccionar al menos un día');
+      return;
+    }
 
-  // ======================================================
-  // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
-  // ======================================================
-  if (editingShift) {
+    // ======================================================
+    // 🔵 CASO EDICIÓN DE TURNO EXISTENTE
+    // ======================================================
+    if (editingShift) {
 
-    console.log('✏️ EDIT SHIFT', {
-      from: editingShift,
-      to: { weekdays, startTime, endTime, dateFrom }
+      console.log('✏️ EDIT SHIFT', {
+        from: editingShift,
+        to: { weekdays, startTime, endTime, dateFrom }
+      });
+
+      // 🔴 DELETE backend
+      const deleteOps = [{
+        type: 'DELETE',
+        mode: 'FROM_THIS_DAY_ON',
+        fromDate: dateFrom,
+        weekdays,
+        startTime: editingShift.startTime,
+        endTime: editingShift.endTime
+      }];
+
+      // 🔴 DELETE visual (preview gris)
+      const deleteVisualOp = {
+        type: 'DELETE_PREVIEW',
+        mode: deleteShiftMode,
+        date: deleteShiftMode === 'ONLY_THIS_BLOCK' ? dateFrom : undefined,
+        fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON' ? dateFrom : undefined,
+        weekdays,
+        startTime: editingShift.startTime,
+        endTime: editingShift.endTime
+      };
+
+      // 🟢 ADD_SHIFT (nuevo modelo → 1 solo)
+      const addOp = {
+        type: 'ADD_SHIFT',
+        weekdays,
+        startTime,
+        endTime,
+        validFrom: dateFrom,
+        validTo: null
+      };
+
+      setDraftTurns(prev => [
+        ...prev,
+        deleteVisualOp,
+        ...deleteOps,
+        addOp
+      ]);
+
+      // 🧹 LIMPIAR
+      setEditingShift(null);
+      setSelectedDays([]);
+      setStartTime('');
+      setEndTime('');
+      setDateFrom('');
+      setDateTo('');
+
+      return;
+    }
+
+    // ======================================================
+    // 🟢 ALTA NORMAL (MODELO NUEVO)
+    // ======================================================
+
+    console.log('➕ ADD SHIFT', {
+      weekdays,
+      startTime,
+      endTime,
+      dateFrom,
+      dateTo
     });
 
-    // 🔴 DELETE backend
-    const deleteOps = [{
-      type: 'DELETE',
-      mode: 'FROM_THIS_DAY_ON',
-      fromDate: dateFrom,
-      weekdays,
-      startTime: editingShift.startTime,
-      endTime: editingShift.endTime
-    }];
-
-    // 🔴 DELETE visual (preview gris)
-    const deleteVisualOp = {
-      type: 'DELETE_PREVIEW',
-      mode: deleteShiftMode,
-      date: deleteShiftMode === 'ONLY_THIS_BLOCK' ? dateFrom : undefined,
-      fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON' ? dateFrom : undefined,
-      weekdays,
-      startTime: editingShift.startTime,
-      endTime: editingShift.endTime
-    };
-
-    // 🟢 ADD_SHIFT (nuevo modelo → 1 solo)
-    const addOp = {
+    const newTurn = {
       type: 'ADD_SHIFT',
       weekdays,
       startTime,
       endTime,
       validFrom: dateFrom,
-      validTo: null
+      validTo: dateTo && dateTo !== '' ? dateTo : null,
     };
 
-    setDraftTurns(prev => [
-      ...prev,
-      deleteVisualOp,
-      ...deleteOps,
-      addOp
-    ]);
+    setDraftTurns(prev => [...prev, newTurn]);
 
-    // 🧹 LIMPIAR
-    setEditingShift(null);
+    // 🧹 LIMPIAR FORM
     setSelectedDays([]);
     setStartTime('');
     setEndTime('');
     setDateFrom('');
     setDateTo('');
-
-    return;
   }
-
-  // ======================================================
-  // 🟢 ALTA NORMAL (MODELO NUEVO)
-  // ======================================================
-
-  console.log('➕ ADD SHIFT', {
-    weekdays,
-    startTime,
-    endTime,
-    dateFrom,
-    dateTo
-  });
-
-  const newTurn = {
-    type: 'ADD_SHIFT',
-    weekdays,
-    startTime,
-    endTime,
-    validFrom: dateFrom,
-    validTo: dateTo && dateTo !== '' ? dateTo : null,
-  };
-
-  setDraftTurns(prev => [...prev, newTurn]);
-
-  // 🧹 LIMPIAR FORM
-  setSelectedDays([]);
-  setStartTime('');
-  setEndTime('');
-  setDateFrom('');
-  setDateTo('');
-}
 
   function handleDeleteBlock() {
     // CASO A3: solo horas, sin fechas
@@ -896,7 +896,11 @@ export default function EmployeeSchedules() {
           };
         }
 
-        groupedShifts[key].weekdays.push(op.weekday);
+        if (op.weekdays && op.weekdays.length > 0) {
+          groupedShifts[key].weekdays.push(...op.weekdays);
+        } else if (op.weekday) {
+          groupedShifts[key].weekdays.push(op.weekday);
+        }
       }
 
       // 🔥 normalizar weekdays (sin duplicados y ordenados)
