@@ -937,6 +937,29 @@ export default function EmployeeSchedules() {
       // ================================
       for (const op of ordered) {
 
+        // ======================================================
+        // 🟠 DELETE EXCEPTION
+        // ======================================================
+        if (op.type === 'DELETE_EXCEPTION') {
+          console.log('🟠 DELETE EXCEPTION → ENVIANDO', op);
+
+          await fetch(
+            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+            {
+              method: 'DELETE',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                date: op.date,
+              }),
+            }
+          );
+
+          continue;
+        }
+
         // 🟠 DAY_OFF
         if (op.type === 'DAY_OFF') {
           console.log('🟠 DAY_OFF', op);
@@ -1798,6 +1821,30 @@ export default function EmployeeSchedules() {
                     shiftToDelete,
                     deleteShiftMode
                   });
+
+                  // ======================================================
+                  // 🟠 CASO: BORRAR EXCEPCIÓN (MODIFIED_SHIFT)
+                  // ======================================================
+                  if (shiftToDelete?.source === 'modified') {
+
+                    console.log('🟠 DELETE EXCEPTION DETECTADO');
+
+                    const deleteExceptionOp = {
+                      type: 'DELETE_EXCEPTION',
+                      date: shiftToDelete.date,
+                    };
+
+                    setDraftTurns(prev => [
+                      ...prev,
+                      deleteExceptionOp
+                    ]);
+
+                    setShowShiftDeleteConfirm(false);
+                    setShiftToDelete(null);
+                    setHasChanges(true);
+
+                    return; // 🔥 IMPORTANTÍSIMO
+                  }
 
                   // ======================================================
                   // 🔥 RECONSTRUIR PATRÓN POR HORAS (NO shiftId)
