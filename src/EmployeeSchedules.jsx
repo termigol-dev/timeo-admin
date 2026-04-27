@@ -59,7 +59,7 @@ function buildFinalDayBlocks({
   draftTurns,
   action,
 }) {
-
+  console.log('🧪 ACTION', action);
   console.log('🧠 buildFinalDayBlocks INPUT', { date, action });
 
   // ======================================================
@@ -87,6 +87,7 @@ function buildFinalDayBlocks({
       startTime: b.startTime,
       endTime: b.endTime,
       edited: b.edited ?? false,
+      isBase: !(b.edited === true) // 👈 🔥 clave
     }));
 
   } else if (hasException) {
@@ -96,6 +97,7 @@ function buildFinalDayBlocks({
       startTime: t.startTime,
       endTime: t.endTime,
       edited: false,
+      isBase: true // 👈 🔥 clave
     }));
 
   } else {
@@ -105,13 +107,15 @@ function buildFinalDayBlocks({
       startTime: t.startTime,
       endTime: t.endTime,
       edited: false,
+      isBase: true,
+
     }));
   }
 
   console.log('🧱 BASE BLOCKS', baseBlocks);
 
   // ======================================================
-  // 3️⃣ APLICAR EDIT (B3 o A2)
+  // 3️⃣ APLICAR EDIT
   // ======================================================
   if (action?.type === 'edit') {
 
@@ -130,6 +134,7 @@ function buildFinalDayBlocks({
         startTime,
         endTime,
         edited: true,
+        isBase: false // 👈 🔥 edit = no base
       }
     ];
 
@@ -138,6 +143,32 @@ function buildFinalDayBlocks({
     return next;
   }
 
+  // ======================================================
+  // 4️⃣ APLICAR ADD
+  // ======================================================
+  if (action?.type === 'add') {
+
+    console.log('➕ APLICANDO ADD', action);
+
+    const next = [
+      ...baseBlocks,
+      {
+        startTime: action.startTime,
+        endTime: action.endTime,
+        edited: true,
+        isBase: false, // 👈 🔥 clave
+        isNew: true
+      }
+    ];
+
+    console.log('🧱 AFTER ADD', next);
+
+    return next;
+  }
+
+  // ======================================================
+  // DEFAULT
+  // ======================================================
   return baseBlocks;
 }
 
@@ -186,6 +217,7 @@ export default function EmployeeSchedules() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const today = new Date().toISOString().slice(0, 10);
+  const [dateMode, setDateMode] = useState('RANGE'); // por defecto rango 
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
@@ -967,16 +999,22 @@ export default function EmployeeSchedules() {
           console.log('♻️ DELETE_EXCEPTION ENVIANDO', op);
 
           await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions/${op.date}`,
+            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
             {
               method: 'DELETE',
               headers: {
                 Authorization: `Bearer ${token}`,
-              }
+                'Content-Type': 'application/json', // 👈 AÑADIR
+              },
+              body: JSON.stringify({
+                date: op.date, // 👈 ENVIAR DATE
+              }),
             }
           );
+
           continue;
         }
+
         // ======================================================
         // 🟡 SET_DAY (EDIT / EXCEPCIÓN)
         // ======================================================
@@ -984,25 +1022,106 @@ export default function EmployeeSchedules() {
 
           console.log('🟡 SET_DAY DETECTADO', op);
 
-          await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                exceptions: [
-                  {
-                    type: 'MODIFIED_SHIFT',
-                    date: op.date,
-                    blocks: op.blocks || [],
-                  }
-                ]
-              }),
-            }
+          // 🔥 BUSCAR DELETE_PREVIEW para este día
+          const deleteDrafts = draftTurns.filter(d =>
+            d.type === 'DELETE_PREVIEW' &&
+            d.date === op.date
           );
+
+          // 🔥 FILTRAR BLOQUES USANDO ESA INFO
+          const cleanBlocks = (op.blocks || []).filter(b => {
+
+            const isDeleted = deleteDrafts.some(d =>
+              d.startTime === b.startTime &&
+              d.endTime === b.endTime
+            );
+
+            return !isDeleted;
+          });
+
+          // ======================================================
+          // 🧠 COMPARAR CON PATRÓN (FIX REAL)
+          // ======================================================
+
+          // 🔥 usar backendDays (fuente real)
+          const dayData = backendDays.find(d => d.date === op.date);
+          const patternTurns = dayData?.patternTurns || [];
+
+          // 🔥 normalizar patrón
+          const patternBlocks = patternTurns.map(t => ({
+            startTime: t.startTime,
+            endTime: t.endTime
+          }));
+
+          // 🔥 normalizar snapshot limpio
+          const normalizedClean = cleanBlocks.map(b => ({
+            startTime: b.startTime,
+            endTime: b.endTime
+          }));
+
+          // 🔥 comparar
+          const isSameAsPattern =
+            patternBlocks.length === normalizedClean.length &&
+            patternBlocks.every(p =>
+              normalizedClean.some(c =>
+                c.startTime === p.startTime &&
+                c.endTime === p.endTime
+              )
+            );
+
+          console.log('🧠 COMPARACIÓN PATRÓN', {
+            patternBlocks,
+            normalizedClean,
+            isSameAsPattern
+          });
+
+          console.log('🧹 CLEAN BLOCKS', cleanBlocks);
+
+          // ======================================================
+          // ♻️ SI ES IGUAL AL PATRÓN → BORRAR EXCEPCIÓN
+          // ======================================================
+          if (isSameAsPattern) {
+
+            console.log('♻️ SNAPSHOT = PATRÓN → DELETE_EXCEPTION');
+
+            await fetch(
+              `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+              {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  date: op.date,
+                }),
+              }
+            );
+
+          } else {
+
+            console.log('🟡 GUARDAR SET_DAY NORMAL');
+
+            await fetch(
+              `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  exceptions: [
+                    {
+                      type: 'MODIFIED_SHIFT',
+                      date: op.date,
+                      blocks: cleanBlocks,
+                    }
+                  ]
+                }),
+              }
+            );
+          }
 
           continue;
         }
@@ -1050,6 +1169,7 @@ export default function EmployeeSchedules() {
                 startTime: t.startTime,
                 endTime: t.endTime,
                 deleted: isDeleted
+
               };
             });
 
@@ -1413,146 +1533,384 @@ export default function EmployeeSchedules() {
             </div>
 
             {/* PANEL */}
-            <div className="controls-panel">
+            <div className="controls-panel" style={{ padding: 20 }}>
 
-              <div className="form-row">
+              {/* ========================= */}
+              {/* 📅 BLOQUE FECHAS */}
+              {/* ========================= */}
+              <div
+                style={{
+                  background: '#f9fafb',
+                  padding: 20,
+                  borderRadius: 12,
+                  marginBottom: 20,
+                  border: '1px solid #e5e7eb'
+                }}
+              >
 
-                {/* FECHAS */}
-                <div className="form-dates">
+                <div style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 15 }}>
+                  Añadir turno
+                </div>
 
-                  <div className="caption">Fecha inicio</div>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={e => setDateFrom(e.target.value)}
-                    className="date-input"
-                  />
+                {/* 🔘 BOTONES */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
 
-                  <div className="caption">Fecha fin</div>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={e => setDateTo(e.target.value)}
-                    disabled={editingShift?.mode === 'FROM_THIS_DAY_ON'}
-                    className="date-input"
-                  />
+                  <button
+                    onClick={() => {
+                      if (dateMode !== 'RANGE') setDateMode('RANGE');
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      borderRadius: 10,
+                      border: '1px solid #ccc',
+                      background: dateMode === 'RANGE' ? '#e0f2fe' : '#fff',
+                      fontWeight: 'bold',
+                      cursor: dateMode === 'RANGE' ? 'default' : 'pointer'
+                    }}
+                  >
+                    En rango
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (dateMode !== 'SINGLE_DAY') setDateMode('SINGLE_DAY');
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      borderRadius: 10,
+                      border: '1px solid #ccc',
+                      background: dateMode === 'SINGLE_DAY' ? '#dcfce7' : '#fff',
+                      fontWeight: 'bold',
+                      cursor: dateMode === 'SINGLE_DAY' ? 'default' : 'pointer'
+                    }}
+                  >
+                    En un día
+                  </button>
 
                 </div>
 
-                {/* HORAS */}
-                <div className="form-times">
+                {/* 📦 CONTROLES */}
+                <div style={{ display: 'flex', gap: 20 }}>
 
-                  <div className="caption">Entrada</div>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                    className="time-input"
-                    disabled={vacationMode} // 🔥 bloqueo
-                  />
+                  {/* RANGO */}
+                  <div style={{ flex: 1, opacity: dateMode === 'RANGE' ? 1 : 0.4 }}>
+                    <div className="caption">Fecha inicio</div>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={e => setDateFrom(e.target.value)}
+                      disabled={dateMode !== 'RANGE'}
+                      className="date-input"
+                      style={{ width: '100%', marginBottom: 10 }}
+                    />
 
-                  <div className="caption">Salida</div>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    className="time-input"
-                    disabled={vacationMode} // 🔥 bloqueo
-                  />
+                    <div className="caption">Fecha fin</div>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={e => setDateTo(e.target.value)}
+                      disabled={dateMode !== 'RANGE'}
+                      className="date-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
 
-                  {/* BOTONES */}
-                  <div className="form-inline-buttons">
-
-                    <button
-                      onClick={() => {
-                        setShowPanel(false);
-                        setVacationMode(false); // 🔥 reset
-                      }}
-                    >
-                      Cancelar
-                    </button>
-
-                    <button
-                      onClick={() => {
-
-                        // 🔶 VACACIONES
-                        if (vacationMode) {
-                          console.log('🔥 CLICK ACEPTAR VACATION MODE', vacationMode);
-
-                          addVacation();
-                          setHasUnsavedChanges(true); // 🔥
-
-                          setDateFrom('');
-                          setDateTo('');
-                          setVacationMode(false);
-                          setShowPanel(false);
-                          return;
-                        }
-
-                        console.log('🧪 selectedDays CLICK', selectedDays);
-
-                        if (!startTime || !endTime) {
-                          alert('Debes indicar hora de entrada y salida');
-                          return;
-                        }
-
-                        if (endTime <= startTime) {
-                          alert('La hora de salida debe ser mayor que la de entrada');
-                          return;
-                        }
-
-                        console.log('🧪 draftTurns FINAL', draftTurns);
-
-                        // 🔴 EDIT
-                        if (editingShift) {
-
-                          console.log('✏️ EDIT → GENERANDO SET_DAY');
-
-                          const blocks = buildFinalDayBlocks({
-                            date: editingShift.date,
-                            backendDays,
-                            draftTurns,
-                            action: {
-                              type: 'edit',
-                              startTime,
-                              endTime,
-                              originalStartTime: editingShift.startTime,
-                              originalEndTime: editingShift.endTime,
-                            }
-                          });
-
-                          const newOp = {
-                            type: 'SET_DAY',
-                            date: editingShift.date,
-                            blocks
-                          };
-
-                          setDraftTurns(prev => [
-                            ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === editingShift.date)),
-                            newOp
-                          ]);
-
-                          setHasUnsavedChanges(true); // 🔥
-
-                        } else {
-
-                          // 🟢 ADD normal
-                          addTurn();
-                          setHasUnsavedChanges(true); // 🔥
-                        }
-
-                        setEditingShift(null);
-                        setDateTo('');
-                        setShowPanel(false);
-
-                      }}
-                    >
-                      Aceptar
-                    </button>
+                  {/* UN DÍA */}
+                  <div style={{ flex: 1, opacity: dateMode === 'SINGLE_DAY' ? 1 : 0.4 }}>
+                    <div className="caption">Fecha</div>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={e => setDateFrom(e.target.value)}
+                      disabled={dateMode !== 'SINGLE_DAY'}
+                      className="date-input"
+                      style={{ width: '100%' }}
+                    />
                   </div>
 
                 </div>
 
+              </div>
+
+              {/* ========================= */}
+              {/* ⏰ BLOQUE HORAS */}
+              {/* ========================= */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  padding: 20,
+                  borderRadius: 12,
+                  border: '1px solid #e5e7eb',
+                  marginBottom: 20
+                }}
+              >
+
+                <div style={{ display: 'flex', gap: 20 }}>
+
+                  <div style={{ flex: 1 }}>
+                    <div className="caption">Entrada</div>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={e => setStartTime(e.target.value)}
+                      disabled={vacationMode}
+                      className="time-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div className="caption">Salida</div>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={e => setEndTime(e.target.value)}
+                      disabled={vacationMode}
+                      className="time-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* ========================= */}
+              {/* 🔘 BOTONES */}
+              {/* ========================= */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 20,
+                  marginTop: 10
+                }}
+              >
+
+                <button
+                  onClick={() => {
+                    setShowPanel(false);
+                    setVacationMode(false);
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: 10,
+                    border: '1px solid #ccc',
+                    background: '#f3f4f6',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Cancelar
+                </button>
+
+                <button onClick={() => {
+
+                  const isSingleDay = !dateTo || dateFrom === dateTo;
+
+                  console.log('🧪 MODE CHECK', {
+                    dateMode,
+                    dateFrom,
+                    dateTo,
+                    isSingleDay
+                  });
+
+                  if (vacationMode) {
+                    addVacation();
+                    setHasUnsavedChanges(true);
+                    setDateFrom('');
+                    setDateTo('');
+                    setVacationMode(false);
+                    setShowPanel(false);
+                    return;
+                  }
+
+                  if (!startTime || !endTime) {
+                    alert('Debes indicar hora de entrada y salida');
+                    return;
+                  }
+
+                  if (endTime <= startTime) {
+                    alert('La hora de salida debe ser mayor que la de entrada');
+                    return;
+                  }
+
+                  // ======================================================
+                  // 🔒 VALIDACIÓN (REUTILIZABLE)
+                  // ======================================================
+                  const checkOverlapForDate = (date) => {
+
+                    const dayData = backendDays?.find(d => d.date === date);
+                    if (!dayData) return false;
+
+                    const baseTurns =
+                      dayData.hasException
+                        ? [...(dayData.turns || [])]
+                        : [...(dayData.patternTurns || [])];
+
+                    (draftTurns || [])
+                      .filter(d => d.type === 'ADD_SHIFT')
+                      .forEach(d => {
+
+                        const inRange =
+                          (!d.validFrom || date >= d.validFrom) &&
+                          (!d.validTo || date <= d.validTo);
+
+                        const weekday = new Date(date).getDay() === 0 ? 7 : new Date(date).getDay();
+
+                        if (!d.weekdays?.includes(weekday)) return;
+                        if (!inRange) return;
+
+                        baseTurns.push({
+                          startTime: d.startTime,
+                          endTime: d.endTime
+                        });
+                      });
+
+                    const toMinutes = t => {
+                      const [h, m] = t.split(':').map(Number);
+                      return h * 60 + m;
+                    };
+
+                    const newStart = toMinutes(startTime);
+                    const newEnd =
+                      toMinutes(endTime) <= newStart
+                        ? toMinutes(endTime) + 1440
+                        : toMinutes(endTime);
+
+                    return baseTurns.some(t => {
+
+                      const existingStart = toMinutes(t.startTime);
+                      const existingEnd =
+                        toMinutes(t.endTime) <= existingStart
+                          ? toMinutes(t.endTime) + 1440
+                          : toMinutes(t.endTime);
+
+                      return existingStart < newEnd && existingEnd > newStart;
+                    });
+                  };
+
+                  // ======================================================
+                  // 🔒 VALIDACIÓN SINGLE DAY
+                  // ======================================================
+                  if (isSingleDay) {
+
+                    const hasOverlap = checkOverlapForDate(dateFrom);
+
+                    if (hasOverlap) {
+                      alert('Este turno se solapa con uno existente. Debes editar el turno.');
+                      return;
+                    }
+                  }
+
+                  // ======================================================
+                  // 🔒 VALIDACIÓN RANGE
+                  // ======================================================
+                  if (!isSingleDay) {
+
+                    if (!dateFrom) {
+                      alert('Debes indicar fecha de inicio');
+                      return;
+                    }
+
+                    let current = new Date(dateFrom);
+                    const end = dateTo ? new Date(dateTo) : new Date(dateFrom);
+
+                    while (current <= end) {
+
+                      const dateStr = current.toISOString().slice(0, 10);
+
+                      const hasOverlap = checkOverlapForDate(dateStr);
+
+                      if (hasOverlap) {
+                        alert(`Hay un solape el día ${dateStr}. Debes editar el turno.`);
+                        return;
+                      }
+
+                      current.setDate(current.getDate() + 1);
+                    }
+                  }
+
+                  // ======================================================
+                  // 🔁 RESTO IGUAL
+                  // ======================================================
+                  if (editingShift) {
+
+                    const blocks = buildFinalDayBlocks({
+                      date: editingShift.date,
+                      backendDays,
+                      draftTurns,
+                      action: {
+                        type: 'edit',
+                        startTime,
+                        endTime,
+                        originalStartTime: editingShift.startTime,
+                        originalEndTime: editingShift.endTime,
+                      }
+                    });
+
+                    const newOp = {
+                      type: 'SET_DAY',
+                      date: editingShift.date,
+                      blocks
+                    };
+
+                    setDraftTurns(prev => [
+                      ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === editingShift.date)),
+                      newOp
+                    ]);
+
+                    setHasUnsavedChanges(true);
+
+                  } else {
+
+                    // ======================================================
+                    // 🟢 SINGLE DAY → SET_DAY
+                    // ======================================================
+                    if (isSingleDay) {
+
+                      const blocks = buildFinalDayBlocks({
+                        date: dateFrom,
+                        backendDays,
+                        draftTurns,
+                        action: {
+                          type: 'add',
+                          startTime,
+                          endTime
+                        }
+                      });
+
+                      const newOp = {
+                        type: 'SET_DAY',
+                        date: dateFrom,
+                        blocks
+                      };
+
+                      setDraftTurns(prev => [
+                        ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === dateFrom)),
+                        newOp
+                      ]);
+
+                      setHasUnsavedChanges(true);
+
+                    } else {
+
+                      // ======================================================
+                      // 🟢 RANGE → ADD_SHIFT
+                      // ======================================================
+                      addTurn();
+                      setHasUnsavedChanges(true);
+                    }
+                  }
+
+                  setEditingShift(null);
+                  setDateTo('');
+                  setShowPanel(false);
+
+                }}>
+                  Aceptar
+                </button>
               </div>
 
             </div>
@@ -1899,6 +2257,62 @@ export default function EmployeeSchedules() {
                     <button
                       className="delete-block"
                       onClick={() => {
+
+                        // 🔥 DETECTAR EXCEPCIÓN
+                        const backendDay = backendDays?.find(
+                          d => d.date === shiftToDelete?.date
+                        );
+
+                        const isException = backendDay?.hasException === true;
+
+                        // ======================================================
+                        // 🟠 DELETE DENTRO DE EXCEPCIÓN → SET_DAY
+                        // ======================================================
+                        if (isException && deleteShiftMode === 'ONLY_THIS_BLOCK') {
+
+                          console.log('🟠 DELETE dentro de excepción → SET_DAY');
+
+                          const blocks = buildFinalDayBlocks({
+                            date: shiftToDelete.date,
+                            backendDays,
+                            draftTurns,
+                            action: {
+                              type: 'delete',
+                              startTime: shiftToDelete.startTime,
+                              endTime: shiftToDelete.endTime
+                            }
+                          });
+
+                          const newOp = {
+                            type: 'SET_DAY',
+                            date: shiftToDelete.date,
+                            blocks
+                          };
+
+                          const deleteVisualOp = {
+                            type: 'DELETE_PREVIEW',
+                            mode: 'ONLY_THIS_BLOCK',
+                            date: shiftToDelete.date,
+                            startTime: shiftToDelete.startTime,
+                            endTime: shiftToDelete.endTime,
+                          };
+
+                          setDraftTurns(prev => [
+                            ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === shiftToDelete.date)),
+                            deleteVisualOp,   // 👈 pinta gris
+                            newOp             // 👈 snapshot sin el bloque
+                          ]);
+
+                          setShowShiftDeleteConfirm(false);
+                          setShiftToDelete(null);
+                          setHasChanges(true);
+
+                          return; // 🔥 MUY IMPORTANTE
+                        }
+
+                        // ======================================================
+                        // 🔵 LÓGICA ORIGINAL (NO TOCAR)
+                        // ======================================================
 
                         const weekdays = [...new Set(
                           savedTurns

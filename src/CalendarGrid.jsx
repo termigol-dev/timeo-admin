@@ -48,6 +48,11 @@ export default function CalendarGrid({
       d.type === 'SET_DAY' && d.date === date
     );
 
+    // 🔥 2.5 RESTORE EXCEPTION (nuevo)
+    const deleteExceptionDraft = draftTurns?.some(d =>
+      d.type === 'DELETE_EXCEPTION' && d.date === date
+    );
+
     // 🔥 3. DRAFT ADD (preview amarillo)
     const addDrafts = draftTurns?.filter(d => {
       if (d.type !== 'ADD_SHIFT') return false;
@@ -61,39 +66,94 @@ export default function CalendarGrid({
       return matchesWeekday && inRange;
     }) || [];
 
-    // 🔑 CLAVE: excepción = backend OR draft
+    // 🔑 CLAVE: excepción = backend OR draft (pero NO si restauras)
     const hasException =
-      dayData.hasException === true || !!draftException;
+      !deleteExceptionDraft &&
+      (dayData.hasException === true || !!draftException);
 
-    console.log('🧪 GRID DAY DATA', {
+    /*console.log('🧪 GRID DAY DATA', {
       date,
       patternTurns,
       finalTurns,
       draftException,
       addDrafts,
-      hasException
-    });
+      hasException,
+      deleteExceptionDraft
+    });*/
+
+    // ======================================================
+    // 🟢 RESTORE EXCEPTION → usar patrón (verde pálido)
+    // ======================================================
+    if (deleteExceptionDraft) {
+
+      const blocks = patternTurns.map((t, idx) => ({
+        startTime: t.startTime,
+        endTime: t.endTime,
+        id: `restored-${date}-${idx}`,
+        shiftId: t.shiftId || t.id,
+        isException: false,
+        deleted: false,
+        restored: true // 🔥 clave visual
+      }));
+
+
+
+      // 🟡 ADD encima del restaurado
+      addDrafts.forEach((d, idx) => {
+        blocks.push({
+          startTime: d.startTime,
+          endTime: d.endTime,
+          id: `draft-${date}-${idx}`,
+          shiftId: null,
+          isException: false,
+          deleted: false,
+          edited: true
+        });
+      });
+
+      return blocks;
+    }
 
     // ======================================================
     // 🟠 DÍA CON EXCEPCIÓN → SNAPSHOT (draft > backend)
     // ======================================================
     if (hasException) {
 
-      // 🔥 PRIORIDAD: draft (preview)
       const snapshot = draftException?.blocks || finalTurns;
 
       const blocks = [];
+      console.log('🧪 SNAPSHOT SOURCE', {
+        hasDraft: !!draftException,
+        snapshot: draftException?.blocks
+      });
 
       // 🟡 1. BLOQUES ACTUALES
+      const deleteDrafts = draftTurns?.filter(d =>
+        d.type === 'DELETE_PREVIEW' &&
+        d.date === date
+      );
+
       snapshot.forEach((t, idx) => {
+
+        const isDeleted = deleteDrafts?.some(d =>
+          d.startTime === t.startTime &&
+          d.endTime === t.endTime
+        );
+
+        console.log('🧪 BLOCK', {
+          start: t.startTime,
+          end: t.endTime,
+          isDeleted
+        });
+
         blocks.push({
           startTime: t.startTime,
           endTime: t.endTime,
           id: `${date}-${t.startTime}-${t.endTime}-${idx}`,
           shiftId: t.id || null,
           isException: true,
-          deleted: false,
-          edited: !!draftException || t.edited
+          isPreviewDeleted: isDeleted,
+          edited: t.edited === true
         });
       });
 
@@ -116,7 +176,7 @@ export default function CalendarGrid({
         }
       });
 
-      // 🟡 3. ADD DRAFT (overlay)
+      // 🟡 3. ADD DRAFT
       addDrafts.forEach((d, idx) => {
         blocks.push({
           startTime: d.startTime,
@@ -125,9 +185,11 @@ export default function CalendarGrid({
           shiftId: null,
           isException: false,
           deleted: false,
-          edited: true // 🔥 amarillo
+          edited: true
         });
       });
+
+
 
       return blocks;
     }
@@ -173,7 +235,7 @@ export default function CalendarGrid({
         shiftId: null,
         isException: false,
         deleted: false,
-        edited: true // 🔥 amarillo
+        edited: true
       });
     });
 
@@ -287,11 +349,17 @@ export default function CalendarGrid({
                 }
 
                 // 🟠 EXCEPCIÓN REAL (no por vacations)
-                const isExceptionDay = backendDay?.hasException === true;
+                const hasRestoreDraft = draftTurns?.some(d =>
+                  d.type === 'DELETE_EXCEPTION' && d.date === currentDate
+                );
+
+                const isExceptionDay =
+                  !hasRestoreDraft &&
+                  backendDay?.hasException === true;
                 const blocks = getBlocksForDate(currentDate);
 
                 return blocks.map((b, idx) => {
-
+                  console.log('🧪 BLOCK', b);
                   const start = timeToRow(b.startTime);
                   let end = timeToRow(b.endTime);
                   if (end <= start) end += 48;
@@ -299,9 +367,15 @@ export default function CalendarGrid({
                   // 🔥 CLASES CORRECTAS (mutuamente excluyentes)
                   let className = 'turn-saved';
 
-                  if (b.deleted) {
-                    className += ' deleted-exception';
-                  } else if (b.edited) {
+                  if (b.isPreviewDeleted) {
+                    className += ' deleted'; // ⚪ gris
+                  } else if (b.deleted) {
+                    className += ' deleted-exception'; // 🟠 naranja pálido
+                  } else if (b.restored) {
+                    className += ' restored'; // 👈 🔥 SUBE ESTO ARRIBA
+                  } else if (b.isNew) {
+                    className += ' new-block';
+                  } else if (b.edited && !b.isBase) {
                     className += ' edited';
                   } else if (isExceptionDay) {
                     className += ' exception';
