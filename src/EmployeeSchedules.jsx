@@ -960,6 +960,24 @@ export default function EmployeeSchedules() {
       // ================================
       for (const op of ordered) {
         // ======================================================
+        // ♻️ DELETE_EXCEPTION (RESTAURAR DÍA)
+        // ======================================================
+        if (op.type === 'DELETE_EXCEPTION') {
+
+          console.log('♻️ DELETE_EXCEPTION ENVIANDO', op);
+
+          await fetch(
+            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions/${op.date}`,
+            {
+              method: 'DELETE',
+              headers: {
+                Authorization: `Bearer ${token}`,
+              }
+            }
+          );
+          continue;
+        }
+        // ======================================================
         // 🟡 SET_DAY (EDIT / EXCEPCIÓN)
         // ======================================================
         if (op.type === 'SET_DAY') {
@@ -1783,205 +1801,215 @@ export default function EmployeeSchedules() {
       {showShiftDeleteConfirm && shiftToDelete && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Turno</h3>
 
-            <p>
-              Turno del día <strong>{shiftToDelete.day}</strong>{' '}
-              de{' '}
-              <strong>
-                {shiftToDelete.startTime} – {shiftToDelete.endTime}
-              </strong>
-            </p>
+            {/* 🔥 DETECTAR SI ES EXCEPCIÓN */}
+            {(() => {
+              const backendDay = backendDays?.find(
+                d => d.date === shiftToDelete?.date
+              );
 
-            {/* 🔽 SELECTOR DE MODO */}
-            <div className="delete-modes">
+              const isException = backendDay?.hasException === true;
 
-              <label>
-                <input
-                  type="radio"
-                  name="shiftMode"
-                  value="ONLY_THIS_BLOCK"
-                  checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
-                  onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
-                />
-                <strong>Solo este día</strong>
-                <div className="hint">
-                  Solo afecta a este día.
-                </div>
-              </label>
+              return (
+                <>
+                  <h3>Turno</h3>
 
-              <label>
-                <input
-                  type="radio"
-                  name="shiftMode"
-                  value="FROM_THIS_DAY_ON"
-                  checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
-                  onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
-                />
-                <strong>Desde este día en adelante</strong>
-                <div className="hint">
-                  Afecta a este turno y todos los futuros.
-                </div>
-              </label>
+                  <p>
+                    Turno del día <strong>{shiftToDelete.day}</strong>{' '}
+                    de{' '}
+                    <strong>
+                      {shiftToDelete.startTime} – {shiftToDelete.endTime}
+                    </strong>
+                  </p>
 
-            </div>
+                  {/* 🔽 SELECTOR DE MODO */}
+                  <div className="delete-modes">
 
-            {/* 🔘 BOTONES */}
-            <div
-              className="modal-buttons"
-              style={{ justifyContent: 'space-between' }}
-            >
+                    <label>
+                      <input
+                        type="radio"
+                        name="shiftMode"
+                        value="ONLY_THIS_BLOCK"
+                        checked={deleteShiftMode === 'ONLY_THIS_BLOCK'}
+                        onChange={() => setDeleteShiftMode('ONLY_THIS_BLOCK')}
+                      />
+                      <strong>Solo este día</strong>
+                      <div className="hint">
+                        Solo afecta a este día.
+                      </div>
+                    </label>
 
-              {/* ✏️ EDITAR */}
-              <button
-                onClick={() => {
+                    <label>
+                      <input
+                        type="radio"
+                        name="shiftMode"
+                        value="FROM_THIS_DAY_ON"
+                        checked={deleteShiftMode === 'FROM_THIS_DAY_ON'}
+                        onChange={() => setDeleteShiftMode('FROM_THIS_DAY_ON')}
+                      />
+                      <strong>Desde este día en adelante</strong>
+                      <div className="hint">
+                        Afecta a este turno y todos los futuros.
+                      </div>
+                    </label>
 
-                  console.log('🧪 EDIT SHIFT CLICK', shiftToDelete);
+                  </div>
 
-                  if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
-                    alert('No se puede editar en cascada. Solo puedes modificar un día.');
-                    return;
-                  }
+                  {/* 🔘 BOTONES */}
+                  <div
+                    className="modal-buttons"
+                    style={{ display: 'flex', gap: 10 }}
+                  >
 
-                  const editingObject = {
-                    ...shiftToDelete,
-                    shiftId: shiftToDelete.shiftId || shiftToDelete.id,
-                    mode: deleteShiftMode,
-                    startTime: normalizeTime(shiftToDelete.startTime),
-                    endTime: normalizeTime(shiftToDelete.endTime),
-                  };
+                    {/* ✏️ EDITAR */}
+                    <button
+                      onClick={() => {
 
-                  setEditingShift(editingObject);
+                        if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
+                          alert('No se puede editar en cascada. Solo puedes modificar un día.');
+                          return;
+                        }
 
-                  setStartTime(editingObject.startTime);
-                  setEndTime(editingObject.endTime);
-                  setSelectedDays([]);
+                        const editingObject = {
+                          ...shiftToDelete,
+                          shiftId: shiftToDelete.shiftId || shiftToDelete.id,
+                          mode: deleteShiftMode,
+                          startTime: normalizeTime(shiftToDelete.startTime),
+                          endTime: normalizeTime(shiftToDelete.endTime),
+                        };
 
-                  setDateFrom(shiftToDelete.date);
-                  setDateTo(shiftToDelete.date);
+                        setEditingShift(editingObject);
 
-                  setShowShiftDeleteConfirm(false);
-                  setShowPanel(true);
+                        setStartTime(editingObject.startTime);
+                        setEndTime(editingObject.endTime);
+                        setSelectedDays([]);
 
-                }}
-              >
-                ✏️ Editar turno
-              </button>
+                        setDateFrom(shiftToDelete.date);
+                        setDateTo(shiftToDelete.date);
 
-              {/* 🗑️ BORRAR */}
-              <button
-                className="delete-block"
-                onClick={() => {
+                        setShowShiftDeleteConfirm(false);
+                        setShowPanel(true);
 
-                  console.log('🧪 DELETE CLICK INPUT', {
-                    shiftToDelete,
-                    deleteShiftMode
-                  });
+                      }}
+                    >
+                      ✏️ Editar turno
+                    </button>
 
-                  // 🟠 BORRAR EXCEPCIÓN
-                  if (shiftToDelete?.isException) {
+                    {/* 🗑️ BORRAR TURNO */}
+                    <button
+                      className="delete-block"
+                      onClick={() => {
 
-                    const deleteExceptionOp = {
-                      type: 'DELETE_EXCEPTION',
-                      date: shiftToDelete.date,
-                    };
+                        const weekdays = [...new Set(
+                          savedTurns
+                            .filter(t => t.shiftId === shiftToDelete.shiftId)
+                            .map(t => {
+                              const d = new Date(t.date);
+                              return d.getDay() === 0 ? 7 : d.getDay();
+                            })
+                        )];
 
-                    setDraftTurns(prev => [
-                      ...prev,
-                      deleteExceptionOp
-                    ]);
+                        const deleteVisualOp = {
+                          type: 'DELETE_PREVIEW',
+                          mode: deleteShiftMode,
+                          date: deleteShiftMode === 'ONLY_THIS_BLOCK'
+                            ? shiftToDelete.date
+                            : undefined,
+                          fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON'
+                            ? shiftToDelete.date
+                            : undefined,
+                          weekdays,
+                          startTime: shiftToDelete.startTime,
+                          endTime: shiftToDelete.endTime,
+                        };
 
-                    setShowShiftDeleteConfirm(false);
-                    setShiftToDelete(null);
-                    setHasChanges(true);
+                        let deleteOp;
 
-                    return;
-                  }
+                        if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
+                          deleteOp = {
+                            type: 'DELETE',
+                            shiftId: shiftToDelete.shiftId,
+                            date: shiftToDelete.date,
+                            startTime: shiftToDelete.startTime,
+                            endTime: shiftToDelete.endTime,
+                            mode: deleteShiftMode,
+                          };
+                        } else {
+                          deleteOp = {
+                            type: 'DELETE',
+                            mode: 'FROM_THIS_DAY_ON',
+                            fromDate: shiftToDelete.date,
+                            weekdays,
+                            startTime: shiftToDelete.startTime,
+                            endTime: shiftToDelete.endTime,
+                          };
+                        }
 
-                  const weekdays = [...new Set(
-                    savedTurns
-                      .filter(t => t.shiftId === shiftToDelete.shiftId)
-                      .map(t => {
-                        const d = new Date(t.date);
-                        return d.getDay() === 0 ? 7 : d.getDay();
-                      })
-                  )];
+                        setDraftTurns(prev => [
+                          ...prev,
+                          deleteVisualOp,
+                          deleteOp
+                        ]);
 
-                  const deleteVisualOp = {
-                    type: 'DELETE_PREVIEW',
-                    mode: deleteShiftMode,
-                    date: deleteShiftMode === 'ONLY_THIS_BLOCK'
-                      ? shiftToDelete.date
-                      : undefined,
-                    fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON'
-                      ? shiftToDelete.date
-                      : undefined,
-                    weekdays,
-                    startTime: shiftToDelete.startTime,
-                    endTime: shiftToDelete.endTime,
-                  };
+                        setShowShiftDeleteConfirm(false);
+                        setShiftToDelete(null);
+                        setHasChanges(true);
+                      }}
+                    >
+                      🗑️ Borrar turno
+                    </button>
 
-                  let deleteOp;
+                    {/* CANCELAR */}
+                    <button
+                      onClick={() => {
+                        setShowShiftDeleteConfirm(false);
+                        setShiftToDelete(null);
+                        setDeleteShiftMode('ONLY_THIS_BLOCK');
+                      }}
+                    >
+                      Cancelar
+                    </button>
 
-                  if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
-                    deleteOp = {
-                      type: 'DELETE',
-                      shiftId: shiftToDelete.shiftId,
-                      date: shiftToDelete.date,
-                      startTime: shiftToDelete.startTime,
-                      endTime: shiftToDelete.endTime,
-                      mode: deleteShiftMode,
-                    };
-                  } else {
-                    deleteOp = {
-                      type: 'DELETE',
-                      mode: 'FROM_THIS_DAY_ON',
-                      fromDate: shiftToDelete.date,
-                      weekdays,
-                      startTime: shiftToDelete.startTime,
-                      endTime: shiftToDelete.endTime,
-                    };
-                  }
+                    {/* ♻️ RESTAURAR DÍA */}
+                    {isException && (
+                      <button
+                        style={{
+                          marginLeft: 'auto',
+                          background: '#f97316',
+                          color: 'white'
+                        }}
+                        onClick={() => {
 
-                  setDraftTurns(prev => [
-                    ...prev,
-                    deleteVisualOp,
-                    deleteOp
-                  ]);
+                          const confirmRestore = window.confirm(
+                            '¿Quieres eliminar todas las modificaciones de este día y volver al horario habitual?'
+                          );
 
-                  setShowShiftDeleteConfirm(false);
-                  setShiftToDelete(null);
-                  setHasChanges(true);
-                }}
-              >
-                🗑️ Borrar turno
-              </button>
+                          if (!confirmRestore) return;
 
-              {/* 🟠 MODIFICAR EXCEPCIÓN (NUEVO) */}
-              {shiftToDelete?.isException && (
-                <button
-                  onClick={() => {
-                    setShowShiftDeleteConfirm(false);
-                    setSelectedExceptionDay(shiftToDelete.date);
-                    setShowExceptionEditor(true);
-                  }}
-                >
-                  ⚙️ Modificar excepción
-                </button>
-              )}
+                          const deleteExceptionOp = {
+                            type: 'DELETE_EXCEPTION',
+                            date: shiftToDelete.date,
+                          };
 
-              {/* CANCELAR */}
-              <button
-                onClick={() => {
-                  setShowShiftDeleteConfirm(false);
-                  setShiftToDelete(null);
-                  setDeleteShiftMode('ONLY_THIS_BLOCK');
-                }}
-              >
-                Cancelar
-              </button>
+                          setDraftTurns(prev => [
+                            ...prev,
+                            deleteExceptionOp
+                          ]);
 
-            </div>
+                          setShowShiftDeleteConfirm(false);
+                          setShiftToDelete(null);
+                          setHasChanges(true);
+                        }}
+                      >
+                        ♻️ Restaurar día
+                      </button>
+                    )}
+
+                  </div>
+                </>
+              );
+            })()}
+
           </div>
         </div>
       )}
