@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getMyReports } from './api';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReportText from "./ReportText";
 import ReportGraph from "./ReportGraph";
 import Logo from "./components/Logo";
@@ -158,6 +158,7 @@ export default function Reports() {
   const [simpleMode, setSimpleMode] = useState(false);
 
   const { userId } = useParams();
+  const navigate = useNavigate();
 
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const to = new Date(year, month + 1, 0).toISOString().slice(0, 10);
@@ -255,6 +256,8 @@ export default function Reports() {
         paddingBottom: 60 // 👈 AIRE FINAL
       }}
     >
+
+
       <div className="report-main-header">
 
         <Logo size={120} />
@@ -330,7 +333,19 @@ export default function Reports() {
           </div>
 
         </div>
-
+        <div className="employee-back no-print">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/admin');
+              }
+            }}
+          >
+            ← Volver
+          </button>
+        </div>
         <button
           className="report-print-button"
           onClick={() => window.print()}

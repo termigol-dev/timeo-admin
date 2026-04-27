@@ -10,7 +10,7 @@ export default function Login({ dark, setDark, onLogin }) {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (loading) return; // 🔥 evita doble click
+    if (loading) return;
 
     setLoading(true);
     setError('');
@@ -29,13 +29,13 @@ export default function Login({ dark, setDark, onLogin }) {
         throw new Error('Email o contraseña incorrectos');
       }
 
-      const data = await res.json(); // 🔥 más rápido y limpio
+      const data = await res.json();
 
       // 🔐 guardar sesión
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('user', JSON.stringify(data.user));
 
-      onLogin(); // 🔥 dispara render inmediato
+      onLogin();
 
     } catch (err) {
       console.error('❌ LOGIN ERROR', err);
@@ -54,7 +54,7 @@ export default function Login({ dark, setDark, onLogin }) {
           justifyContent: "center",
           marginBottom: 32
         }}>
-          <Logo dark={dark} size={120} /> {/* 🔥 un poco más pequeño */}
+          <Logo dark={dark} size={120} />
         </div>
 
         <div className="subtitle">Panel de administración</div>

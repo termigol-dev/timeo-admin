@@ -636,21 +636,88 @@ body > div {
   max-width: 100%;
 }
 
-/*calendarGrid*/
+
+/* ======================================================
+   BLOQUES
+====================================================== */
+
+/* ======================================================
+   BLOQUES BASE
+====================================================== */
+
+.turn-saved {
+  background: #22c55e;
+  color: white;
+  border-radius: 10px;
+  padding: 6px;
+  font-size: 13px;
+  margin: 2px;
+  z-index: 1;
+}
+
+/* ======================================================
+   DELETE PREVIEW (gris temporal)
+====================================================== */
+
 .turn-saved.deleted {
   background-color: #999;
-  opacity: 0.6;
+  opacity: 0.6; /* aquí sí vale */
 }
 
 .delete-preview {
   background-color: gray;
   opacity: 0.5;
 }
+
+/* ======================================================
+   EDITADO (amarillo)
+====================================================== */
+
 .turn-saved.edited {
   background-color: #fff3cd;
   border: 1px solid #ffc107;
   color: #856404;
 }
+
+/* ======================================================
+   EXCEPCIÓN NORMAL (naranja fuerte)
+====================================================== */
+
+.turn-saved.exception {
+  background-color: #ff8c00;
+  color: white;
+}
+
+/* ======================================================
+   EXCEPCIÓN BORRADA (🔥 IMPORTANTE)
+====================================================== */
+
+.deleted-exception {
+  background-color: rgba(255, 140, 0, 0.15); /* 👈 suave de verdad */
+  color: black; /* 👈 texto visible */
+  position: relative;
+}
+
+/* TEXTO "Turno borrado" */
+
+.deleted-exception::after {
+  content: "TURNO BORRADO";
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  font-size: 12px;
+  font-weight: bold;
+  color: black;
+  pointer-events: none;
+}
+
+/* ======================================================
+   
+====================================================== */
+
 
 .calendar-scale-wrapper {
   width: 100%;
@@ -659,7 +726,37 @@ body > div {
 @media (max-width: 768px) {
  
 }
-/*🔥 FORCE FULL WIDTH APP 
+
+/* BOTÓN VOLVER A LA DERECHA */
+.employee-back {
+margin-left: auto; /* 🔥 esto lo empuja a la derecha */
+}
+
+.employee-back button {
+  background: linear-gradient(135deg, #22c1c3, #0ea5e9);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 8px 14px;
+
+  font-size: 18px;
+  font-weight: 500;
+  margin-left: auto; /* 🔥 esto lo empuja a la derecha */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* HOVER */
+.employee-back button:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+/* ACTIVE (click) */
+.employee-back button:active {
+  transform: translateY(0);
+  filter: brightness(0.9);
+}
 #root,
 .app,
 .app-container,
@@ -669,4 +766,10 @@ body > div {
   max-width: 100% !important;
   margin: 0 !important;
    align-items: stretch !important;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }

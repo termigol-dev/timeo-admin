@@ -55,7 +55,7 @@ function ensureShiftId(turn) {
 
 function buildFinalDayBlocks({
   date,
-  savedTurns,
+  backendDays,
   draftTurns,
   action,
 }) {
@@ -63,16 +63,25 @@ function buildFinalDayBlocks({
   console.log('🧠 buildFinalDayBlocks INPUT', { date, action });
 
   // ======================================================
-  // 1️⃣ BASE DEL DÍA (draft > saved)
+  // 1️⃣ SACAR DÍA DEL BACKEND
   // ======================================================
+  const dayData = backendDays.find(d => d.date === date);
+
+  const patternTurns = dayData?.patternTurns || [];
+  const finalTurns = dayData?.turns || [];
+  const hasException = dayData?.hasException === true;
+
+  // ======================================================
+  // 2️⃣ BASE DEL DÍA
+  // ======================================================
+  let baseBlocks;
+
   const existingDraft = draftTurns.find(d =>
     d.type === 'SET_DAY' && d.date === date
   );
 
-  let baseBlocks;
-
   if (existingDraft) {
-    console.log('🟡 USANDO BASE DESDE DRAFT');
+    console.log('🟡 BASE DESDE DRAFT');
 
     baseBlocks = existingDraft.blocks.map(b => ({
       startTime: b.startTime,
@@ -80,22 +89,29 @@ function buildFinalDayBlocks({
       edited: b.edited ?? false,
     }));
 
-  } else {
-    console.log('🟢 USANDO BASE DESDE SAVED');
+  } else if (hasException) {
+    console.log('🟠 BASE DESDE SNAPSHOT (backend)');
 
-    baseBlocks = savedTurns
-      .filter(t => t.date === date)
-      .map(t => ({
-        startTime: t.startTime,
-        endTime: t.endTime,
-        edited: false,
-      }));
+    baseBlocks = finalTurns.map(t => ({
+      startTime: t.startTime,
+      endTime: t.endTime,
+      edited: false,
+    }));
+
+  } else {
+    console.log('🟢 BASE DESDE PATRÓN');
+
+    baseBlocks = patternTurns.map(t => ({
+      startTime: t.startTime,
+      endTime: t.endTime,
+      edited: false,
+    }));
   }
 
   console.log('🧱 BASE BLOCKS', baseBlocks);
 
   // ======================================================
-  // 2️⃣ APLICAR ACCIÓN (EDIT)
+  // 3️⃣ APLICAR EDIT (B3 o A2)
   // ======================================================
   if (action?.type === 'edit') {
 
@@ -103,26 +119,21 @@ function buildFinalDayBlocks({
 
     console.log('✏️ APLICANDO EDIT', { startTime, endTime });
 
-    // ❌ eliminar el bloque original (el que coincide con el panel antes)
-    // usamos start/end actuales del editingShift (los antiguos)
     const cleaned = baseBlocks.filter(b =>
       !(b.startTime === action.originalStartTime &&
         b.endTime === action.originalEndTime)
     );
 
-    console.log('🧹 AFTER REMOVE', cleaned);
-
-    // ➕ añadir nuevo bloque editado
     const next = [
       ...cleaned,
       {
         startTime,
         endTime,
-        edited: true, // 🔥 CLAVE
+        edited: true,
       }
     ];
 
-    console.log('🧱 AFTER ADD', next);
+    console.log('🧱 AFTER EDIT', next);
 
     return next;
   }
@@ -170,7 +181,7 @@ export default function EmployeeSchedules() {
 
   const [company, setCompany] = useState(null);
   const [employee, setEmployee] = useState(null);
-
+  const [backendDays, setBackendDays] = useState([]);
   const [selectedDays, setSelectedDays] = useState([]);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -178,6 +189,7 @@ export default function EmployeeSchedules() {
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState('');
   const [turns, setTurns] = useState([]);
+  const [patternShifts, setPatternShifts] = useState([]);
   const [vacations, setVacations] = useState([]);
   const [vacationMode, setVacationMode] = useState(false);
   const [draftTurns, setDraftTurns] = useState([]);
@@ -212,8 +224,22 @@ export default function EmployeeSchedules() {
 
   // 🟠 CAMBIOS DEL USUARIO
   const [hasChanges, setHasChanges] = useState(false);
-
   const navigate = useNavigate();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!hasUnsavedChanges) return;
+
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
 
   // 📅 Semana actual (lunes)
   const [weekStart, setWeekStart] = useState(() => normalizeToWeekStart(new Date()));
@@ -271,7 +297,6 @@ export default function EmployeeSchedules() {
     try {
 
       const token = localStorage.getItem('token');
-
       const weekStartStr = formatDateLocal(weekStart);
 
       console.log('📅 reloadActiveSchedule → semana:', weekStartStr);
@@ -290,6 +315,7 @@ export default function EmployeeSchedules() {
         setTurns([]);
         setVacations([]);
         setScheduleId(null);
+        setBackendDays([]); // 🔥 importante
         return;
       }
 
@@ -297,7 +323,14 @@ export default function EmployeeSchedules() {
 
       console.log('🧪 RAW DAYS FROM BACKEND', schedule?.days);
 
+      // ======================================================
+      // 🔥 CLAVE: guardar días completos del backend
+      // ======================================================
+      setBackendDays(schedule?.days || []);
+
+      // ======================================================
       // 🔑 limpiar estado
+      // ======================================================
       const loadedTurns = [];
       const loadedVacations = [];
 
@@ -305,7 +338,7 @@ export default function EmployeeSchedules() {
 
         schedule.days.forEach(day => {
 
-          console.log('🧪 DAY FROM BACKEND', day);
+          console.log('🧪 DAY COMPLETO BACKEND', day);
 
           const dayKey = weekDays[day.weekday];
 
@@ -314,11 +347,9 @@ export default function EmployeeSchedules() {
           // ======================================================
           if (day.isVacation === true) {
 
-            //console.log('🟠 PUSH DAY_OFF', day.date);
-
             loadedVacations.push({
               date: day.date,
-              type: 'DAY_OFF',     // 🔥 NUEVO
+              type: 'DAY_OFF',
               source: 'backend',
             });
 
@@ -326,25 +357,19 @@ export default function EmployeeSchedules() {
           }
 
           // ======================================================
-          // 🟠 MODIFIED_SHIFT (día con excepción pero con turnos)
+          // 🟠 MODIFIED_SHIFT (día con excepción)
           // ======================================================
-          const isModifiedDay =
-            Array.isArray(day.turns) &&
-            day.turns.some(t => t.source === 'modified');
-
-          if (isModifiedDay) {
-
-            //console.log('🟠 PUSH MODIFIED DAY', day.date);
+          if (day.hasException === true) {
 
             loadedVacations.push({
               date: day.date,
-              type: 'MODIFIED',   // 🔥 NUEVO
+              type: 'MODIFIED',
               source: 'backend',
             });
           }
 
           // ======================================================
-          // 🟢 TURNOS
+          // 🟢 TURNOS (solo los finales del backend)
           // ======================================================
           if (Array.isArray(day.turns)) {
 
@@ -361,16 +386,14 @@ export default function EmployeeSchedules() {
                 type: t.source === 'extra' ? 'extra' : 'regular',
                 source: t.source || 'saved',
                 date: day.date,
+                deleted: t.deleted || false,
               };
 
               loadedTurns.push(ensureShiftId(turnBlock));
-
             });
-
           }
 
         });
-
       }
 
       console.log('📊 RESULTADO FINAL SEMANA:', {
@@ -379,6 +402,7 @@ export default function EmployeeSchedules() {
       });
 
       console.log('🧪 VACATIONS FINAL', loadedVacations);
+      console.log('🧪 TURNS QUE GUARDO EN STATE', loadedTurns);
 
       setScheduleId(schedule?.scheduleId || null);
       setTurns(loadedTurns);
@@ -391,9 +415,9 @@ export default function EmployeeSchedules() {
       setTurns([]);
       setVacations([]);
       setScheduleId(null);
+      setBackendDays([]); // 🔥 importante
 
     }
-
   }
 
   // 🛡️ BLINDAJE: nunca permitir edición activa si abrimos el popup de opciones
@@ -876,7 +900,7 @@ export default function EmployeeSchedules() {
       const id = activeScheduleId;
 
       // ================================
-      // 🧠 AGRUPAR ADD_SHIFT (MODELO NUEVO LIMPIO)
+      // 🧠 AGRUPAR ADD_SHIFT
       // ================================
       const groupedShifts = {};
 
@@ -903,7 +927,6 @@ export default function EmployeeSchedules() {
         }
       }
 
-      // 🔥 normalizar weekdays (sin duplicados y ordenados)
       const normalizedAddShifts = Object.values(groupedShifts).map(s => ({
         ...s,
         weekdays: [...new Set(s.weekdays)].sort((a, b) => a - b),
@@ -936,56 +959,12 @@ export default function EmployeeSchedules() {
       // 3️⃣ ejecutar operaciones
       // ================================
       for (const op of ordered) {
-
         // ======================================================
-        // 🟠 DELETE EXCEPTION
+        // 🟡 SET_DAY (EDIT / EXCEPCIÓN)
         // ======================================================
-        if (op.type === 'DELETE_EXCEPTION') {
-          console.log('🟠 DELETE EXCEPTION → ENVIANDO', op);
-
-          await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
-            {
-              method: 'DELETE',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                date: op.date,
-              }),
-            }
-          );
-
-          continue;
-        }
-
-        // 🟠 DAY_OFF
-        if (op.type === 'DAY_OFF') {
-          console.log('🟠 DAY_OFF', op);
-
-          await fetch(
-            `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                exceptions: [
-                  { type: 'DAY_OFF', date: op.date }
-                ]
-              }),
-            }
-          );
-
-          continue;
-        }
-
-        // 🟡 SET_DAY
         if (op.type === 'SET_DAY') {
-          console.log('🟡 SET_DAY', op);
+
+          console.log('🟡 SET_DAY DETECTADO', op);
 
           await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
@@ -1000,8 +979,7 @@ export default function EmployeeSchedules() {
                   {
                     type: 'MODIFIED_SHIFT',
                     date: op.date,
-                    blocks: op.blocks,
-                    mode: 'ONLY_THIS_BLOCK',
+                    blocks: op.blocks || [],
                   }
                 ]
               }),
@@ -1010,10 +988,83 @@ export default function EmployeeSchedules() {
 
           continue;
         }
-
+        // ======================================================
         // 🔴 DELETE
+        // ======================================================
         if (op.type === 'DELETE') {
-          console.log('🔴 DELETE', op);
+
+          console.log('🔴 DELETE (INTERCEPTADO)', op);
+
+          // ======================================================
+          // 🟠 SOLO ESTE DÍA → EXCEPCIÓN
+          // ======================================================
+          if (op.mode === 'ONLY_THIS_BLOCK') {
+
+            console.log('🟠 CONVERTIR DELETE → SET_DAY');
+
+            const dateObj = new Date(op.date);
+            const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+
+            // 🔥 CLAVE: respetar rango de fechas
+            const patternTurns = savedTurns.filter(t => {
+
+              let parsedWeekdays = [];
+
+              if (Array.isArray(t.weekdays)) {
+                parsedWeekdays = t.weekdays;
+              } else if (typeof t.weekdays === 'string') {
+                parsedWeekdays = t.weekdays.split(',').map(Number);
+              }
+
+              return (
+                parsedWeekdays.includes(weekday) &&
+                op.date >= t.validFrom &&
+                (!t.validTo || op.date <= t.validTo)
+              );
+            });
+
+            const blocks = patternTurns.map(t => {
+              const isDeleted =
+                t.startTime === op.startTime &&
+                t.endTime === op.endTime;
+
+              return {
+                startTime: t.startTime,
+                endTime: t.endTime,
+                deleted: isDeleted
+              };
+            });
+
+            console.log('🔥 BLOCKS QUE ENVÍO:', blocks);
+
+            await fetch(
+              `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/exceptions`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  exceptions: [
+                    {
+                      type: 'MODIFIED_SHIFT',
+                      date: op.date,
+                      blocks,
+                      mode: 'ONLY_THIS_BLOCK',
+                    }
+                  ]
+                }),
+              }
+            );
+
+            continue;
+          }
+
+          // ======================================================
+          // 🔴 CASCADA
+          // ======================================================
+          console.log('🔴 DELETE CASCADA → ENVIANDO', op);
 
           await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
@@ -1029,23 +1080,14 @@ export default function EmployeeSchedules() {
 
           continue;
         }
-
-        // 🟢 ADD_SHIFT (MODELO NUEVO)
+        // ======================================================
+        // 🟢 ADD_SHIFT (PATRÓN)
+        // ======================================================
         if (op.type === 'ADD_SHIFT') {
 
-          if (!op.weekdays || op.weekdays.length === 0) {
-            console.log('⚠️ ADD_SHIFT IGNORADO (sin weekdays):', op);
-            continue;
-          }
+          console.log('🟢 ADD_SHIFT ENVIANDO', op);
 
-          console.log('🟢 ADD_SHIFT → ENVIANDO', {
-            weekdays: op.weekdays,
-            startTime: op.startTime,
-            endTime: op.endTime,
-            validFrom: op.validFrom,
-          });
-
-          const res = await fetch(
+          await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
             {
               method: 'POST',
@@ -1053,23 +1095,13 @@ export default function EmployeeSchedules() {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
-                weekdays: op.weekdays,
-                startTime: op.startTime,
-                endTime: op.endTime,
-                validFrom: op.validFrom,
-                validTo: op.validTo,
-              }),
+              body: JSON.stringify(op),
             }
           );
 
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error('Error creando turno: ' + text);
-          }
-
           continue;
         }
+        // (resto igual...)
       }
 
       // ================================
@@ -1088,6 +1120,8 @@ export default function EmployeeSchedules() {
       console.log('✅ SCHEDULE GUARDADO OK');
 
       setDraftTurns([]);
+      setHasUnsavedChanges(false); // 🔥 RESET REAL
+
       window.history.back();
 
     } catch (err) {
@@ -1273,7 +1307,20 @@ export default function EmployeeSchedules() {
         </div>
 
         <div className="employee-back">
-          <button onClick={() => navigate(-1)}>
+          <button
+            onClick={() => {
+
+              if (hasUnsavedChanges) {
+                const confirmLeave = window.confirm(
+                  'Tienes cambios sin guardar. ¿Seguro que quieres salir?'
+                );
+
+                if (!confirmLeave) return;
+              }
+
+              navigate(-1);
+            }}
+          >
             ← Volver
           </button>
         </div>
@@ -1413,7 +1460,10 @@ export default function EmployeeSchedules() {
                         // 🔶 VACACIONES
                         if (vacationMode) {
                           console.log('🔥 CLICK ACEPTAR VACATION MODE', vacationMode);
+
                           addVacation();
+                          setHasUnsavedChanges(true); // 🔥
+
                           setDateFrom('');
                           setDateTo('');
                           setVacationMode(false);
@@ -1435,32 +1485,42 @@ export default function EmployeeSchedules() {
 
                         console.log('🧪 draftTurns FINAL', draftTurns);
 
-                        // 🔴 CLAVE: diferenciar EDIT vs ADD
+                        // 🔴 EDIT
                         if (editingShift) {
 
                           console.log('✏️ EDIT → GENERANDO SET_DAY');
 
+                          const blocks = buildFinalDayBlocks({
+                            date: editingShift.date,
+                            backendDays,
+                            draftTurns,
+                            action: {
+                              type: 'edit',
+                              startTime,
+                              endTime,
+                              originalStartTime: editingShift.startTime,
+                              originalEndTime: editingShift.endTime,
+                            }
+                          });
+
                           const newOp = {
                             type: 'SET_DAY',
                             date: editingShift.date,
-                            blocks: [
-                              {
-                                startTime,
-                                endTime,
-                              }
-                            ]
+                            blocks
                           };
 
                           setDraftTurns(prev => [
-                            // 🔥 limpiamos cualquier cosa previa de ese día
-                            ...prev.filter(d => d.date !== editingShift.date),
+                            ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === editingShift.date)),
                             newOp
                           ]);
 
+                          setHasUnsavedChanges(true); // 🔥
+
                         } else {
 
-                          // 🟢 comportamiento actual (no tocar)
+                          // 🟢 ADD normal
                           addTurn();
+                          setHasUnsavedChanges(true); // 🔥
                         }
 
                         setEditingShift(null);
@@ -1576,7 +1636,7 @@ export default function EmployeeSchedules() {
           setCalendarFocused={setCalendarFocused}
           hoursRef={hoursRef}
           headerXRef={headerXRef}
-          savedTurns={savedTurns}
+          savedTurns={turns}
           weekDays={weekDays}
           weekDates={weekDates}
           weekStart={weekStart}
@@ -1593,6 +1653,8 @@ export default function EmployeeSchedules() {
           setSelectedDays={setSelectedDays}
           setShowPanel={setShowPanel}
           vacations={vacations}
+          patternShifts={patternShifts}
+          backendDays={backendDays}
         />
 
         <div className="calendar-legend">
@@ -1776,7 +1838,6 @@ export default function EmployeeSchedules() {
 
                   console.log('🧪 EDIT SHIFT CLICK', shiftToDelete);
 
-                  // 🚫 BLOQUEAR CASCADA AQUÍ (ANTES DE TODO)
                   if (deleteShiftMode === 'FROM_THIS_DAY_ON') {
                     alert('No se puede editar en cascada. Solo puedes modificar un día.');
                     return;
@@ -1790,18 +1851,13 @@ export default function EmployeeSchedules() {
                     endTime: normalizeTime(shiftToDelete.endTime),
                   };
 
-                  console.log('🧪 EDIT → EDITING SHIFT OBJECT', editingObject);
-
                   setEditingShift(editingObject);
 
-                  // 🔥 SINCRONIZACIÓN FORM
                   setStartTime(editingObject.startTime);
                   setEndTime(editingObject.endTime);
                   setSelectedDays([]);
 
                   setDateFrom(shiftToDelete.date);
-
-                  // 🔥 AQUÍ YA NO NECESITAS CONDICIÓN, SIEMPRE ES UN DÍA
                   setDateTo(shiftToDelete.date);
 
                   setShowShiftDeleteConfirm(false);
@@ -1822,12 +1878,8 @@ export default function EmployeeSchedules() {
                     deleteShiftMode
                   });
 
-                  // ======================================================
-                  // 🟠 CASO: BORRAR EXCEPCIÓN (MODIFIED_SHIFT)
-                  // ======================================================
-                  if (shiftToDelete?.source === 'modified') {
-
-                    console.log('🟠 DELETE EXCEPTION DETECTADO');
+                  // 🟠 BORRAR EXCEPCIÓN
+                  if (shiftToDelete?.isException) {
 
                     const deleteExceptionOp = {
                       type: 'DELETE_EXCEPTION',
@@ -1843,20 +1895,8 @@ export default function EmployeeSchedules() {
                     setShiftToDelete(null);
                     setHasChanges(true);
 
-                    return; // 🔥 IMPORTANTÍSIMO
+                    return;
                   }
-
-                  // ======================================================
-                  // 🔥 RECONSTRUIR PATRÓN POR HORAS (NO shiftId)
-                  // ======================================================
-                  const relatedShifts = savedTurns.filter(t =>
-                    t.startTime === shiftToDelete.startTime &&
-                    t.endTime === shiftToDelete.endTime
-                  );
-
-                  console.log('🧪 SHIFT TO DELETE RAW', shiftToDelete);
-                  console.log('🧪 SHIFT weekday', shiftToDelete.weekday);
-                  console.log('🧪 SHIFT weekdays', shiftToDelete.weekdays);
 
                   const weekdays = [...new Set(
                     savedTurns
@@ -1867,34 +1907,20 @@ export default function EmployeeSchedules() {
                       })
                   )];
 
-                  console.log('🧪 WEEKDAYS RECONSTRUIDOS DESDE SHIFT', weekdays);
-
-
-
-                  // ======================================================
-                  // 🔥 DELETE VISUAL (gris)
-                  // ======================================================
                   const deleteVisualOp = {
                     type: 'DELETE_PREVIEW',
                     mode: deleteShiftMode,
-
                     date: deleteShiftMode === 'ONLY_THIS_BLOCK'
                       ? shiftToDelete.date
                       : undefined,
-
                     fromDate: deleteShiftMode === 'FROM_THIS_DAY_ON'
                       ? shiftToDelete.date
                       : undefined,
-
-                    weekdays, // 🔥 patrón real
-
+                    weekdays,
                     startTime: shiftToDelete.startTime,
                     endTime: shiftToDelete.endTime,
                   };
 
-                  // ======================================================
-                  // 🔴 DELETE REAL
-                  // ======================================================
                   let deleteOp;
 
                   if (deleteShiftMode === 'ONLY_THIS_BLOCK') {
@@ -1911,7 +1937,7 @@ export default function EmployeeSchedules() {
                       type: 'DELETE',
                       mode: 'FROM_THIS_DAY_ON',
                       fromDate: shiftToDelete.date,
-                      weekdays, // 🔥 MISMO AQUÍ
+                      weekdays,
                       startTime: shiftToDelete.startTime,
                       endTime: shiftToDelete.endTime,
                     };
@@ -1930,6 +1956,19 @@ export default function EmployeeSchedules() {
               >
                 🗑️ Borrar turno
               </button>
+
+              {/* 🟠 MODIFICAR EXCEPCIÓN (NUEVO) */}
+              {shiftToDelete?.isException && (
+                <button
+                  onClick={() => {
+                    setShowShiftDeleteConfirm(false);
+                    setSelectedExceptionDay(shiftToDelete.date);
+                    setShowExceptionEditor(true);
+                  }}
+                >
+                  ⚙️ Modificar excepción
+                </button>
+              )}
 
               {/* CANCELAR */}
               <button

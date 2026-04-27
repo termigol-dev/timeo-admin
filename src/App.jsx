@@ -28,13 +28,13 @@ export default function App() {
     localStorage.getItem('dark_mode') === 'true'
   );
 
-  const [logged, setLogged] = useState(
-    !!localStorage.getItem('token')
-  );
+  // 🔐 NUEVO: estado controlado de auth
+  const [logged, setLogged] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const user = (() => {
     try {
-      return JSON.parse(localStorage.getItem('user'));
+      return JSON.parse(sessionStorage.getItem('user'));
     } catch {
       return null;
     }
@@ -46,10 +46,17 @@ export default function App() {
     localStorage.setItem('dark_mode', dark);
   }, [dark]);
 
+  /* 🔐 CHECK INICIAL DE AUTH (CLAVE) */
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    setLogged(!!token);
+    setAuthChecked(true);
+  }, []);
+
   /* 🔁 SINCRONIZAR LOGIN ENTRE PESTAÑAS */
   useEffect(() => {
     const checkToken = () => {
-      setLogged(!!localStorage.getItem('token'));
+      setLogged(!!sessionStorage.getItem('token'));
     };
 
     window.addEventListener('storage', checkToken);
@@ -70,7 +77,7 @@ export default function App() {
           </p>
           <button
             onClick={() => {
-              localStorage.clear();
+              sessionStorage.clear();
               setLogged(false);
             }}
           >
@@ -80,6 +87,9 @@ export default function App() {
       </div>
     );
   }
+
+  // 🔴 CLAVE: NO renderizar nada hasta saber auth
+  if (!authChecked) return null;
 
   return (
     <>
@@ -112,8 +122,8 @@ export default function App() {
                     dark={dark}
                     setDark={setDark}
                     onLogout={() => {
-                      localStorage.removeItem('token');
-                      localStorage.removeItem('user');
+                      sessionStorage.removeItem('token');
+                      sessionStorage.removeItem('user');
                       setLogged(false);
                     }}
                   />

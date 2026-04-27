@@ -26,174 +26,159 @@ export default function CalendarGrid({
   setEndTime,
   setSelectedDays,
   setShowPanel,
+  patternShifts,
+  backendDays
 }) {
 
   //console.log('🧪 DRAFT TURNS:', draftTurns);
 
   // 🧠 ÚNICA FUENTE DE VERDAD POR DÍA
- function getBlocksForDate(date) {
+  function getBlocksForDate(date) {
 
-  const dateObj = new Date(date);
-  const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
+    // 🔥 1. BACKEND (estado persistido)
+    const dayData = backendDays?.find(d => d.date === date);
+    if (!dayData) return [];
 
-  console.log('📅 DATE', date, '→ weekday', weekday);
+    const patternTurns = dayData.patternTurns || [];
+    const finalTurns = dayData.turns || [];
+    const weekday = dayData.weekday;
 
-  // ======================================================
-  // 🟢 BACKEND TURNS (modelo híbrido + debug)
-  // ======================================================
-  const backendTurns = savedTurns.filter(t => {
+    // 🔥 2. DRAFT EXCEPCIÓN (preview)
+    const draftException = draftTurns?.find(d =>
+      d.type === 'SET_DAY' && d.date === date
+    );
 
-    // 🔍 DEBUG RAW
-    console.log('🔍 TURN RAW', t);
+    // 🔥 3. DRAFT ADD (preview amarillo)
+    const addDrafts = draftTurns?.filter(d => {
+      if (d.type !== 'ADD_SHIFT') return false;
 
-    let parsedWeekdays = [];
+      const matchesWeekday = d.weekdays?.includes(weekday);
 
-    // 🧠 normalizar weekdays
-    if (Array.isArray(t.weekdays)) {
-      parsedWeekdays = t.weekdays;
-    } else if (typeof t.weekdays === 'string') {
-      parsedWeekdays = t.weekdays.split(',').map(Number);
-    }
+      const inRange =
+        (!d.validFrom || date >= d.validFrom) &&
+        (!d.validTo || date <= d.validTo);
 
-    console.log('🧠 PARSED WEEKDAYS', parsedWeekdays);
+      return matchesWeekday && inRange;
+    }) || [];
 
-    const isNewModel = parsedWeekdays.length > 0;
+    // 🔑 CLAVE: excepción = backend OR draft
+    const hasException =
+      dayData.hasException === true || !!draftException;
 
-    if (isNewModel) {
-      const matchesWeekday = parsedWeekdays.includes(weekday);
-      const matchesDate =
-        date >= t.validFrom &&
-        (!t.validTo || date <= t.validTo);
+    console.log('🧪 GRID DAY DATA', {
+      date,
+      patternTurns,
+      finalTurns,
+      draftException,
+      addDrafts,
+      hasException
+    });
 
-      console.log('🟢 CHECK NEW MODEL', {
-        parsedWeekdays,
-        matchesWeekday,
-        matchesDate
+    // ======================================================
+    // 🟠 DÍA CON EXCEPCIÓN → SNAPSHOT (draft > backend)
+    // ======================================================
+    if (hasException) {
+
+      // 🔥 PRIORIDAD: draft (preview)
+      const snapshot = draftException?.blocks || finalTurns;
+
+      const blocks = [];
+
+      // 🟡 1. BLOQUES ACTUALES
+      snapshot.forEach((t, idx) => {
+        blocks.push({
+          startTime: t.startTime,
+          endTime: t.endTime,
+          id: `${date}-${t.startTime}-${t.endTime}-${idx}`,
+          shiftId: t.id || null,
+          isException: true,
+          deleted: false,
+          edited: !!draftException || t.edited
+        });
       });
 
-      return matchesWeekday && matchesDate;
+      // 🔴 2. BLOQUES ELIMINADOS
+      patternTurns.forEach((p, idx) => {
+
+        const stillExists = snapshot.some(t =>
+          !(t.endTime <= p.startTime || t.startTime >= p.endTime)
+        );
+
+        if (!stillExists) {
+          blocks.push({
+            startTime: p.startTime,
+            endTime: p.endTime,
+            id: `deleted-${date}-${idx}`,
+            shiftId: null,
+            isException: true,
+            deleted: true
+          });
+        }
+      });
+
+      // 🟡 3. ADD DRAFT (overlay)
+      addDrafts.forEach((d, idx) => {
+        blocks.push({
+          startTime: d.startTime,
+          endTime: d.endTime,
+          id: `draft-${date}-${idx}`,
+          shiftId: null,
+          isException: false,
+          deleted: false,
+          edited: true // 🔥 amarillo
+        });
+      });
+
+      return blocks;
     }
 
-    // 🔵 modelo antiguo
-    const matchOld = t.date === date;
+    // ======================================================
+    // 🔴 DELETE PREVIEW (solo si NO hay excepción)
+    // ======================================================
+    const deleteDrafts = draftTurns?.filter(d =>
+      d.type === 'DELETE_PREVIEW' &&
+      (
+        (d.mode === 'ONLY_THIS_BLOCK' && d.date === date) ||
+        (d.mode === 'FROM_THIS_DAY_ON' && date >= d.fromDate)
+      )
+    );
 
-    console.log('🔵 CHECK OLD MODEL', {
-      tDate: t.date,
-      matchOld
-    });
+    // ======================================================
+    // 🟢 DÍA NORMAL → PATRÓN + ADD
+    // ======================================================
+    const blocks = patternTurns.map((t, idx) => {
 
-    return matchOld;
-  });
-
-  console.log('🟢 BACKEND TURNS RESULT', backendTurns);
-
-  // ======================================================
-  // 🔒 detectar SET_DAY
-  // ======================================================
-  const hasSetDay = draftTurns?.some(d => d.type === 'SET_DAY');
-
-  // ======================================================
-  // 1. SET_DAY → sustituye todo
-  // ======================================================
-  const draft = draftTurns?.find(d =>
-    d.type === 'SET_DAY' && d.date === date
-  );
-
-  if (draft) {
-    console.log('🟠 SET_DAY aplicado', draft);
-
-    return draft.blocks.map((b, idx) => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      id: `${date}-${b.startTime}-${b.endTime}-${idx}`,
-      shiftId: null,
-      edited: true,
-      source: 'modified',
-    }));
-  }
-
-  // ======================================================
-  // 🔴 DELETE_PREVIEW
-  // ======================================================
-  const deleteDrafts = draftTurns?.filter(d => {
-
-    if (d.type !== 'DELETE_PREVIEW') return false;
-
-    if (hasSetDay && d.mode === 'FROM_THIS_DAY_ON') return false;
-
-    if (d.mode === 'ONLY_THIS_BLOCK') {
-      return d.date === date;
-    }
-
-    if (d.mode === 'FROM_THIS_DAY_ON') {
-      const matchesWeekday = d.weekdays?.includes(weekday);
-      const matchesDate = date >= d.fromDate;
-
-      return matchesWeekday && matchesDate;
-    }
-
-    return false;
-  });
-
-  // ======================================================
-  // 🟢 ADD_SHIFT (draft → modelo nuevo)
-  // ======================================================
-  const draftShifts = draftTurns
-    ?.filter(d =>
-      d.type === 'ADD_SHIFT' &&
-      !hasSetDay &&
-      d.weekdays?.includes(weekday) &&
-      date >= d.validFrom &&
-      (!d.validTo || date <= d.validTo)
-    )
-    .map((d, idx) => ({
-      startTime: d.startTime,
-      endTime: d.endTime,
-      id: `draft-${weekday}-${idx}`,
-      shiftId: null,
-      edited: true,
-    }));
-
-  console.log('🟢 DRAFT SHIFTS', draftShifts);
-
-  // ======================================================
-  // 🟢 backend normal
-  // ======================================================
-  const backendBlocks = backendTurns.map(t => {
-
-    const isDeleted = (deleteDrafts || []).some(d => {
-
-      if (d.startTime === t.startTime && d.endTime === t.endTime) {
-        return true;
-      }
-
-      return (
-        d.startTime <= t.startTime &&
-        d.endTime >= t.endTime
+      const isDeleted = deleteDrafts?.some(d =>
+        d.startTime === t.startTime &&
+        d.endTime === t.endTime
       );
+
+      return {
+        startTime: t.startTime,
+        endTime: t.endTime,
+        id: t.id || `${date}-${idx}`,
+        shiftId: t.shiftId || t.id,
+        isDelete: isDeleted,
+        isException: false,
+        deleted: false
+      };
     });
 
-    return {
-      startTime: t.startTime,
-      endTime: t.endTime,
-      shiftId: t.shiftId,
-      id: t.id,
-      edited: false,
-      isDelete: isDeleted,
-      weekday: t.weekday,
-      weekdays: t.weekdays || [t.weekday],
-    };
-  });
+    // 🟡 ADD aunque backend esté vacío
+    addDrafts.forEach((d, idx) => {
+      blocks.push({
+        startTime: d.startTime,
+        endTime: d.endTime,
+        id: `draft-${date}-${idx}`,
+        shiftId: null,
+        isException: false,
+        deleted: false,
+        edited: true // 🔥 amarillo
+      });
+    });
 
-  const finalBlocks = [
-    ...backendBlocks,
-    ...(draftShifts || [])
-  ];
-
-  console.log('🎨 FINAL BLOCKS', finalBlocks);
-
-  return finalBlocks;
-}
+    return blocks;
+  }
 
   return (
     <div className="calendar-scale-wrapper">
@@ -293,16 +278,16 @@ export default function CalendarGrid({
                 const currentDate = formatDateLocal(dateObj);
                 const day = weekDays[col];
 
-                const dayState = vacations.find(v => v.date === currentDate);
-                //console.log('🧪 DAY STATE', currentDate, dayState);
-                // 🔴 DAY_OFF → no hay turnos
-                if (dayState?.type === 'DAY_OFF') {
+                // 🔑 sacar día del backend
+                const backendDay = backendDays.find(d => d.date === currentDate);
+
+                // 🔴 DAY_OFF
+                if (backendDay?.isVacation) {
                   return null;
                 }
 
-                // 🟠 cualquier otro caso con dayState → es excepción
-                const isExceptionDay = !!dayState;
-
+                // 🟠 EXCEPCIÓN REAL (no por vacations)
+                const isExceptionDay = backendDay?.hasException === true;
                 const blocks = getBlocksForDate(currentDate);
 
                 return blocks.map((b, idx) => {
@@ -311,15 +296,23 @@ export default function CalendarGrid({
                   let end = timeToRow(b.endTime);
                   if (end <= start) end += 48;
 
+                  // 🔥 CLASES CORRECTAS (mutuamente excluyentes)
+                  let className = 'turn-saved';
+
+                  if (b.deleted) {
+                    className += ' deleted-exception';
+                  } else if (b.edited) {
+                    className += ' edited';
+                  } else if (isExceptionDay) {
+                    className += ' exception';
+                  } else if (b.isDelete) {
+                    className += ' deleted';
+                  }
+
                   return (
                     <div
                       key={`${currentDate}-${idx}`}
-                      className={`
-          turn-saved
-          ${isExceptionDay ? 'exception' : ''}
-          ${b.edited ? 'edited' : ''}
-          ${b.isDelete ? 'deleted' : ''}
-        `}
+                      className={className}
                       style={{
                         gridColumn: col,
                         gridRow: `${start + 1} / ${end + 1}`,

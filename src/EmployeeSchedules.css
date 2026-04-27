@@ -216,67 +216,7 @@
   justify-content: left;
 }
 
-/* BOTÓN VOLVER A LA DERECHA */
-.employee-back {
-margin-left: auto; /* 🔥 esto lo empuja a la derecha */
-}
 
-.employee-back button {
-  background: linear-gradient(135deg, #22c1c3, #0ea5e9);
-  color: white;
-  border: none;
-  border-radius: 14px;
-  padding: 8px 14px;
-
-  font-size: 18px;
-  font-weight: 500;
-  margin-left: auto; /* 🔥 esto lo empuja a la derecha */
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-/* HOVER */
-.employee-back button:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-}
-
-/* ACTIVE (click) */
-.employee-back button:active {
-  transform: translateY(0);
-  filter: brightness(0.9);
-}
-
-/* ======================================================
-   BLOQUES
-====================================================== */
-
-.turn-saved {
-  background: #22c55e;
-  color: white;
-  border-radius: 10px;
-  padding: 6px;
-  font-size: 13px;
-  margin: 2px;
-  z-index: 1;
-}
-
-.turn-saved.deleted {
-  background-color: #999;
-  opacity: 0.6;
-}
-
-.turn-saved.edited {
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
-  color: #856404;
-}
-
-.turn-saved.exception {
-  background-color: #ff8c00; /* naranja vivo */
-  color: white;
-  border: none;
-}
 
 /*RESTAURANDO LO DEL VIEJO*/
 
