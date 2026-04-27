@@ -16,7 +16,8 @@ import Profile from './Profile';
 import NewCompany from './NewCompany';  
 import NewBranch from './NewBranch';  
 import CreateUser from './CreateUser';  
-import EmployeeSchedules from './EmployeeSchedules';  
+import EmployeeSchedules from './EmployeeSchedules'; 
+import Register from './Register'; 
 import SimulateRecord from './SimulateRecord';  
 import SendPushTest from './SendPushTest.jsx';  
 import ScrollToTop from './ScrollToTop';  
@@ -96,7 +97,7 @@ export default function App() {
       <ScrollToTop />  
   
       <Routes>  
-  
+        <Route path="/register" element={<Register />} />
         {/* ───────── NO LOGUEADO ───────── */}  
         {!logged && (  
           <Route  
@@ -108,7 +109,8 @@ export default function App() {
                 onLogin={() => setLogged(true)}  
               />  
             }  
-          />  
+          />
+            
         )}  
   
         {/* ───────── LOGUEADO ───────── */}  
@@ -152,7 +154,7 @@ export default function App() {
               <Route path="employees/:employeeId/schedules" element={<EmployeeSchedules />} />  
   
               <Route path="users/:userId/profile" element={<Profile />} />  
-  
+              
               <Route  
                 path="profile"  
                 element={  
