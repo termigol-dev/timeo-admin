@@ -20,7 +20,7 @@ export default function Dashboard() {
 
   let options = [];
 
-  if (user?.role === 'SUPERADMIN') {
+  if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_EMPRESA') {
     console.log("🟣 RENDER: SUPERADMIN");
 
     options = [
@@ -41,51 +41,6 @@ export default function Dashboard() {
       },
     ];
   }
-
-  if (user?.role === 'SUPERADMIN') {
-    console.log("🟣 RENDER: SUPERADMIN");
-
-    options = [
-      {
-        label: 'Empresas',
-        icon: <Building2 size={34} />,
-        onClick: () => navigate('/admin/companies'),
-      },
-      {
-        label: 'Sucursales',
-        icon: <Building2 size={34} />,
-        onClick: () => navigate('/admin/branches'),
-      },
-      {
-        label: 'Empleados',
-        icon: <Users size={34} />,
-        onClick: () => navigate('/admin/employees'),
-      },
-    ];
-  }
-
- else if (user?.role === 'ADMIN_EMPRESA') {
-  console.log("🔵 RENDER: ADMIN_EMPRESA");
-
-  options = [
-    {
-      label: 'Sucursales',
-      icon: <Building2 size={34} />,
-      onClick: () => {
-        if (!companyId) {
-          console.error('❌ No companyId');
-          return;
-        }
-        navigate(`/admin/companies/${companyId}/branches`);
-      },
-    },
-    {
-      label: 'Empleados',
-      icon: <Users size={34} />,
-      onClick: () => navigate('/admin/employees'),
-    },
-  ];
-}
 
   
   else if (user?.role === 'ADMIN_SUCURSAL') {

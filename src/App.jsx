@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Login from './Login';
 import AdminLayout from './AdminLayout';
 import './style.css';
@@ -29,10 +29,12 @@ export default function App() {
     localStorage.getItem('dark_mode') === 'true'
   );
 
-  // 🔐 NUEVO: estado controlado de auth  
   const [logged, setLogged] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation(); // 👈 NUEVO
+
   const user = (() => {
     try {
       return JSON.parse(localStorage.getItem('user'));
@@ -40,21 +42,20 @@ export default function App() {
       return null;
     }
   })();
+
   console.log('🧪 USER EN APP:', user);
-  /* 🌙 MODO OSCURO */
+
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
     localStorage.setItem('dark_mode', dark);
   }, [dark]);
 
-  /* 🔐 CHECK INICIAL DE AUTH (CLAVE) */
   useEffect(() => {
     const token = localStorage.getItem('token');
     setLogged(!!token);
     setAuthChecked(true);
   }, []);
 
-  /* 🔁 SINCRONIZAR LOGIN ENTRE PESTAÑAS */
   useEffect(() => {
     const checkToken = () => {
       setLogged(!!localStorage.getItem('token'));
@@ -65,19 +66,26 @@ export default function App() {
       window.removeEventListener('storage', checkToken);
   }, []);
 
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    const step = localStorage.getItem('onboarding_step');
+
+    if (step === 'company_created' && user?.companyId) {
+      setShowWelcome(true);
+      localStorage.removeItem('onboarding_step');
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!logged) return;
 
-    // 👉 SIEMPRE entrar por inicio
     if (window.location.pathname !== '/admin') {
       navigate('/admin', { replace: true });
     }
   }, [logged]);
 
-
-  /* 🚫 BLOQUEO EXPLÍCITO DE EMPLEADOS EN ADMIN */
   if (logged && user?.role === 'EMPLEADO') {
-
     return (
       <div className="centered">
         <div className="card">
@@ -100,7 +108,6 @@ export default function App() {
     );
   }
 
-  // 🔴 CLAVE: NO renderizar nada hasta saber auth  
   if (!authChecked) return null;
 
   return (
@@ -110,7 +117,6 @@ export default function App() {
       <Routes>
         <Route path="/register" element={<Register />} />
 
-        {/* ───────── NO LOGUEADO ───────── */}
         {!logged && (
           <Route
             path="*"
@@ -124,7 +130,6 @@ export default function App() {
           />
         )}
 
-        {/* ───────── LOGUEADO ───────── */}
         {logged && (
           <>
             <Route
@@ -150,6 +155,7 @@ export default function App() {
               <Route path="dashboard" element={<Dashboard />} />
 
               <Route path="employees" element={<EmployeesList />} />
+              
 
               <Route path="companies" element={<Companies />} />
               <Route path="companies/new" element={<NewCompany />} />
@@ -176,7 +182,6 @@ export default function App() {
               />
             </Route>
 
-            {/* 🔥 PROTEGIDO TAMBIÉN */}
             <Route
               path="/admin/employees/:userId/reports"
               element={
@@ -194,8 +199,8 @@ export default function App() {
         )}
       </Routes>
 
-      {/* 🔥 OVERLAY (ESTO ES LO ÚNICO NUEVO) */}
-      {logged && !user?.companyId && (
+      {/* 🔥 OVERLAY CORREGIDO */}
+      {logged && !user?.companyId && !location.pathname.includes('/companies/new') && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
             <h2 style={{ marginBottom: 12 }}>
@@ -225,6 +230,40 @@ export default function App() {
           </div>
         </div>
       )}
+      {showWelcome && user?.companyId && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <h2 style={{ marginBottom: 12 }}>
+              🎉 ¡Enhorabuena!
+            </h2>
+
+            <p style={{ marginBottom: 12 }}>
+              Has dado de alta tu empresa y comienza tu periodo de prueba.
+            </p>
+
+            <p style={{ marginBottom: 24 }}>
+              ¿Quieres crear tu primer empleado y empezar a probar Timeo?
+            </p>
+
+            <div className="tablet-actions" style={{ justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  setShowWelcome(false);
+                  navigate(`/admin/companies/${user.companyId}/employees/new`);
+                }}
+              >
+                Sí
+              </button>
+
+              <button
+                onClick={() => setShowWelcome(false)}
+              >
+                No, ir al inicio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -232,7 +271,6 @@ export default function App() {
 /* ======================================================
          MODALES CREAR EMPRESA USUARIO NUEVO   
 ====================================================== */
-
 
 const overlayStyle = {
   position: 'fixed',

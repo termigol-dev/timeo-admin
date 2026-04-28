@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createCompany } from './api';
-
+import { getMe } from './api';
 export default function NewCompany() {
   const navigate = useNavigate();
 
@@ -10,16 +10,19 @@ export default function NewCompany() {
     commercialName: '',
     nif: '',
     address: '',
-    plan: 'BASIC',
+    plan: 'FREE',
   });
+
+  // 🔥 NUEVO
+  const [branchName, setBranchName] = useState('Principal');
+  const [sameAddress, setSameAddress] = useState(true);
+  const [branchAddress, setBranchAddress] = useState('');
 
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  /* ───────── HANDLERS ───────── */
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -52,10 +55,13 @@ export default function NewCompany() {
 
       const data = await createCompany({
         ...form,
-        logoUrl: logoFile || null, // 👈 opcional
+        logoUrl: logoFile || null,
+
+        // 🔥 NUEVO
+        branchName,
+        branchAddress: sameAddress ? form.address : branchAddress,
       });
 
-      // 🔥 ACTUALIZAR USER → esto quita el overlay
       const currentUser = JSON.parse(localStorage.getItem('user'));
 
       localStorage.setItem('user', JSON.stringify({
@@ -64,8 +70,16 @@ export default function NewCompany() {
         companyName: form.commercialName || form.legalName,
       }));
 
-      // 🔥 reload limpio → desaparece modal
-      window.location.href = '/admin';
+      localStorage.setItem('onboarding_step', 'company_created');
+      // 🔥 REFRESCAR USER DESDE BACKEND
+      const freshUser = await getMe();
+
+      localStorage.setItem('user', JSON.stringify(freshUser));
+
+      // 🔥 marcar onboarding
+      localStorage.setItem('onboarding_step', 'company_created');
+
+      navigate('/admin');
 
     } catch (err) {
       setError(err.message || 'Error al crear la empresa');
@@ -74,20 +88,16 @@ export default function NewCompany() {
     }
   }
 
-  /* ───────── RENDER ───────── */
-
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
 
       {/* HEADER */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 24,
-        }}
-      >
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+      }}>
         <h2 style={{ margin: 0 }}>Nueva empresa</h2>
 
         <div className="tablet-actions">
@@ -97,39 +107,33 @@ export default function NewCompany() {
         </div>
       </div>
 
-      <div
-        style={{
-          background: '#f8fafc',
-          borderRadius: 20,
-          padding: 24,
-          border: '1px solid #e2e8f0',
-        }}
-      >
+      <div style={{
+        background: '#f8fafc',
+        borderRadius: 20,
+        padding: 24,
+        border: '1px solid #e2e8f0',
+      }}>
 
         {/* LOGO */}
-        <div
-          style={{
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: 24,
+          gap: 16,
+        }}>
+          <div style={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            background: '#e5e7eb',
             display: 'flex',
             alignItems: 'center',
-            marginBottom: 24,
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              background: '#e5e7eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: 20,
-              color: '#475569',
-            }}
-          >
+            justifyContent: 'center',
+            fontWeight: 600,
+            fontSize: 20,
+            color: '#475569',
+          }}>
             {logoPreview ? (
               <img
                 src={logoPreview}
@@ -161,15 +165,12 @@ export default function NewCompany() {
           </div>
         </div>
 
-        {/* GRID */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 20,
-          }}
-        >
-
+        {/* EMPRESA */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 20,
+        }}>
           <Field label="Razón social *">
             <input name="legalName" value={form.legalName} onChange={handleChange} style={inputStyle} />
           </Field>
@@ -185,15 +186,45 @@ export default function NewCompany() {
           <Field label="Dirección *">
             <input name="address" value={form.address} onChange={handleChange} style={inputStyle} />
           </Field>
+        </div>
 
-          <Field label="Plan">
-            <select name="plan" value={form.plan} onChange={handleChange} style={inputStyle}>
-              <option value="BASIC">Basic</option>
-              <option value="PRO">Pro</option>
-              <option value="ENTERPRISE">Enterprise</option>
-            </select>
-          </Field>
+        {/* 🔥 SUCURSAL */}
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ marginBottom: 16 }}>Sucursal inicial</h3>
 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 20,
+          }}>
+            <Field label="Nombre de la sucursal">
+              <input
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="Dirección">
+              <input
+                value={sameAddress ? form.address : branchAddress}
+                onChange={(e) => setBranchAddress(e.target.value)}
+                style={inputStyle}
+                disabled={sameAddress}
+              />
+            </Field>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <label>
+              <input
+                type="checkbox"
+                checked={sameAddress}
+                onChange={() => setSameAddress(!sameAddress)}
+              />
+              {' '}Misma dirección que la empresa
+            </label>
+          </div>
         </div>
 
         {/* ACTIONS */}

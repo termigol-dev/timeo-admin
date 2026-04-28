@@ -244,6 +244,10 @@ export function getMyProfile() {
   return api('/users/me');
 }
 
+export function getMe() {
+  return api('/auth/me');
+}
+
 export function updateMyPassword(password) {
   return api('/users/me/password', 'PATCH', { password });
 }
