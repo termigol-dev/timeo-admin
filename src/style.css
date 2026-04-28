@@ -764,6 +764,7 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
   transform: translateY(0);
   filter: brightness(0.9);
 }
+
 #root,
 .app,
 .app-container,
@@ -780,3 +781,4 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
     display: none !important;
   }
 }
+

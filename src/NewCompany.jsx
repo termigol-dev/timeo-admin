@@ -13,16 +13,29 @@ export default function NewCompany() {
     plan: 'BASIC',
   });
 
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   /* ───────── HANDLERS ───────── */
 
   function handleChange(e) {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+  }
+
+  function onSelectLogo(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoPreview(reader.result);
+      setLogoFile(reader.result);
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSubmit(e) {
@@ -37,15 +50,23 @@ export default function NewCompany() {
     try {
       setLoading(true);
 
-      await createCompany({
-        legalName: form.legalName,
-        commercialName: form.commercialName,
-        nif: form.nif,
-        address: form.address,
-        plan: form.plan,
+      const data = await createCompany({
+        ...form,
+        logoUrl: logoFile || null, // 👈 opcional
       });
 
-      navigate('/admin/companies');
+      // 🔥 ACTUALIZAR USER → esto quita el overlay
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+
+      localStorage.setItem('user', JSON.stringify({
+        ...currentUser,
+        companyId: data.id,
+        companyName: form.commercialName || form.legalName,
+      }));
+
+      // 🔥 reload limpio → desaparece modal
+      window.location.href = '/admin';
+
     } catch (err) {
       setError(err.message || 'Error al crear la empresa');
     } finally {
@@ -56,77 +77,172 @@ export default function NewCompany() {
   /* ───────── RENDER ───────── */
 
   return (
-    <div className="container" style={{ maxWidth: 600, margin: '0 auto' }}>
-      <div className="page-header">
-        <h2>Nueva empresa</h2>
-      </div>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label>Razón social *</label>
-          <input
-            name="legalName"
-            value={form.legalName}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label>Nombre comercial</label>
-          <input
-            name="commercialName"
-            value={form.commercialName}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label>NIF *</label>
-          <input
-            name="nif"
-            value={form.nif}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label>Dirección *</label>
-          <input
-            name="address"
-            value={form.address}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <label>Plan</label>
-          <select
-            name="plan"
-            value={form.plan}
-            onChange={handleChange}
-          >
-            <option value="BASIC">Basic</option>
-            <option value="PRO">Pro</option>
-            <option value="ENTERPRISE">Enterprise</option>
-          </select>
-        </div>
-
-        {error && (
-          <div style={{ color: 'red', marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
+      {/* HEADER */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Nueva empresa</h2>
 
         <div className="tablet-actions">
-          <button type="button" onClick={() => navigate(-1)}>
+          <button onClick={() => navigate(-1)}>
+            ← Volver
+          </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: '#f8fafc',
+          borderRadius: 20,
+          padding: 24,
+          border: '1px solid #e2e8f0',
+        }}
+      >
+
+        {/* LOGO */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: 24,
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              background: '#e5e7eb',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 600,
+              fontSize: 20,
+              color: '#475569',
+            }}
+          >
+            {logoPreview ? (
+              <img
+                src={logoPreview}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              form.commercialName?.[0] || form.legalName?.[0] || '🏢'
+            )}
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 600 }}>
+              {form.commercialName || form.legalName || 'Nueva empresa'}
+            </div>
+
+            <label style={labelStyle}>Logo</label>
+            <div style={{ marginTop: 6 }}>
+              <label style={photoButtonStyle}>
+                Cambiar
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onSelectLogo}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* GRID */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 20,
+          }}
+        >
+
+          <Field label="Razón social *">
+            <input name="legalName" value={form.legalName} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Nombre comercial">
+            <input name="commercialName" value={form.commercialName} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="NIF *">
+            <input name="nif" value={form.nif} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Dirección *">
+            <input name="address" value={form.address} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Plan">
+            <select name="plan" value={form.plan} onChange={handleChange} style={inputStyle}>
+              <option value="BASIC">Basic</option>
+              <option value="PRO">Pro</option>
+              <option value="ENTERPRISE">Enterprise</option>
+            </select>
+          </Field>
+
+        </div>
+
+        {/* ACTIONS */}
+        <div className="tablet-actions" style={{ marginTop: 32 }}>
+          <button onClick={() => navigate(-1)}>
             Cancelar
           </button>
 
-          <button type="submit" disabled={loading}>
+          <button onClick={handleSubmit} disabled={loading}>
             {loading ? 'Creando…' : 'Crear empresa'}
           </button>
         </div>
-      </form>
+
+        {error && (
+          <p style={{ marginTop: 12, fontSize: 13, color: 'red' }}>
+            {error}
+          </p>
+        )}
+
+      </div>
     </div>
   );
 }
+
+/* COMPONENTE FIELD */
+function Field({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const labelStyle = {
+  fontSize: 12,
+  fontWeight: 600,
+};
+
+const inputStyle = {
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: '1px solid #cbd5e1',
+};
+
+const photoButtonStyle = {
+  padding: '6px 10px',
+  borderRadius: 8,
+  border: '1px solid #cbd5e1',
+  fontSize: 12,
+  cursor: 'pointer',
+};
