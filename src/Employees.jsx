@@ -7,6 +7,7 @@ import {
   getBranches,
 } from './api';
 import { useAuth } from './auth/AuthContext';
+import { FileText, Calendar, Trash2 } from 'lucide-react';
 
 export default function Employees() {
 
@@ -104,13 +105,11 @@ export default function Employees() {
         <div className="tablet-actions">
           <button onClick={() => navigate(-1)}>← Volver</button>
 
-          {!isLimitedView && (
-            <button onClick={() =>
-              navigate(`/admin/companies/${companyId}/employees/new`)
-            }>
-              + Nuevo empleado
-            </button>
-          )}
+          <button onClick={() =>
+            navigate(`/admin/companies/${companyId}/employees/new`)
+          }>
+            + Nuevo empleado
+          </button>
         </div>
       </div>
 
@@ -122,122 +121,79 @@ export default function Employees() {
         style={{ marginBottom: 24 }}
       />
 
-      <table className="table" style={{ width: '100%' }}>
-        <thead>
-          <tr>
-            <th>Empleado</th>
-            <th>DNI</th>
-            <th>Sucursal</th>
-            <th>Activo</th>
-            {!isLimitedView && <th className="right">Acciones</th>}
-          </tr>
-        </thead>
+      <div className="employees-grid">
 
-        <tbody>
-          {filtered.map(e => {
+        {filtered.map(e => {
 
-            const initials =
-              `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
+          const initials =
+            `${e.name?.[0] || ''}${e.firstSurname?.[0] || ''}`.toUpperCase();
 
-            console.log('🎨 RENDER EMPLOYEE ROW:', {
-              id: e.id,
-              isLimitedView
-            });
-            return (
-              <tr key={e.id} style={{ opacity: isSuperAdmin && !e.active ? 0.5 : 1 }}>
+          const isIn = e.isIn ?? false;
 
-                {/* ───── EMPLEADO ───── */}
-                <td
-                  onClick={() => navigate(`/admin/users/${e.id}/profile`)}
-                  style={{ cursor: 'pointer', fontWeight: 500 }}
-                >
+          return (
+            <div key={e.id} className="employee-card">
 
-                  {isLimitedView ? (
-                    // 👇 ADMIN: SOLO TEXTO
-                    formatName(e)
+              {/* ZONA CLICK PERFIL */}
+              <div
+                style={{ display: 'flex', gap: 16, flex: 1, cursor: 'pointer' }}
+                onClick={() => navigate(`/admin/users/${e.id}/profile`)}
+              >
+
+                {/* AVATAR */}
+                <div className="employee-avatar">
+                  {e.photoUrl ? (
+                    <img src={e.photoUrl} alt="" />
                   ) : (
-                    // 👇 SUPERADMIN: FOTO + NOMBRE
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: '50%',
-                          overflow: 'hidden',
-                          background: '#e5e7eb',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 600,
-                          fontSize: 13,
-                        }}
-                      >
-                        {e.photoUrl ? (
-                          <img src={e.photoUrl} alt="" style={{ width: '100%', height: '100%' }} />
-                        ) : (
-                          initials
-                        )}
-                      </div>
-
-                      <span>{formatName(e)}</span>
-                    </div>
+                    initials
                   )}
+                </div>
 
-                </td>
+                {/* INFO */}
+                <div className="employee-main">
 
-                <td>{e.dni}</td>
-                <td>{e.branch?.name || '—'}</td>
-                <td>{e.active ? 'Sí' : 'No'}</td>
+                  <div className="employee-line">
 
-                {/* ───── ACCIONES ───── */}
-                {!isLimitedView && (
-                  <td className="right">
-                    <div className="tablet-actions">
+                    <span className="employee-name">
+                      {e.name} {e.firstSurname || ''}
+                    </span>
 
-                      <button onClick={() => navigate(`/admin/employees/${e.id}/reports`)}>
-                        Informes
-                      </button>
+                    {e.dni && (
+                      <span className="employee-dni">
+                        {e.dni}
+                      </span>
+                    )}
 
-                      <button onClick={() =>
-                        navigate(`/admin/companies/${companyId}/employees/${e.id}/schedules`)
-                      }>
-                        Horarios
-                      </button>
+                    <span className={`employee-status ${e.active ? 'active' : 'inactive'}`}>
+                      {e.active ? 'Activo' : 'Inactivo'}
+                    </span>
 
-                      <button
-                        onClick={() => remove(e)}
-                        style={{ backgroundColor: '#ef4444' }}
-                      >
-                        Eliminar
-                      </button>
+                  </div>
 
-                      {isSuperAdmin && (
-                        <button
-                          onClick={() => hardDelete(e)}
-                          style={{ backgroundColor: '#991b1b', color: 'white' }}
-                        >
-                          ✕
-                        </button>
-                      )}
+                  {/* SUCURSAL */}
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>
+                    {e.branch?.name || 'Sin sucursal'}
+                  </div>
 
-                    </div>
-                  </td>
-                )}
+                </div>
+              </div>
 
-              </tr>
-            );
-          })}
+              {/* IN / OUT */}
+              <div className={`employee-check ${isIn ? 'in' : 'out'}`}>
+                {isIn ? 'IN' : 'OUT'}
+              </div>
 
-          {filtered.length === 0 && (
-            <tr>
-              <td colSpan={isLimitedView ? 4 : 5} className="center muted">
-                No hay empleados registrados
-              </td>
-            </tr>
-          )}
+              
+            </div>
+          );
+        })}
 
-        </tbody>
-      </table>
+        {filtered.length === 0 && (
+          <div className="center muted">
+            No hay empleados registrados
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

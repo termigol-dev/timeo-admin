@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createEmployee, getBranches } from './api';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
   const { companyId } = useParams();
@@ -22,20 +23,57 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
   });
 
   const [password, setPassword] = useState('');
-
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
-
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showSchedulePrompt, setShowSchedulePrompt] = useState(false);
+  const [createdEmployee, setCreatedEmployee] = useState(null);
+  const [isFirstEmployee, setIsFirstEmployee] = useState(false);
+
+  // reutilizamos tu lógica de tablet
+  const [tabletInfo, setTabletInfo] = useState(null);
+  const btnStyle = {
+    marginTop: 10,
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#00a0a8',
+    color: 'white',
+    cursor: 'pointer',
+    fontWeight: 600
+  };
   /* ───────── CARGA SUCURSALES ───────── */
   useEffect(() => {
-    if (companyId) {
-      getBranches(companyId).then(setBranches);
-    }
+    if (!companyId) return;
+
+    loadBranches();
   }, [companyId]);
+
+  async function loadBranches(retries = 3) {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/public/companies/${companyId}/branches`
+      );
+
+      if (!res.ok) {
+        throw new Error('Error cargando sucursales');
+      }
+
+      const b = await res.json();
+      setBranches(b || []);
+
+    } catch (err) {
+      if (retries > 0) {
+        setTimeout(() => loadBranches(retries - 1), 300);
+      } else {
+        console.error('❌ No se pudieron cargar sucursales', err);
+      }
+    }
+  }
 
   /* ───────── ROLES PERMITIDOS ───────── */
   const allowedRoles = useMemo(() => {
@@ -94,13 +132,70 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
 
       if (!payload.branchId) delete payload.branchId;
 
-      const created = await createEmployee(companyId, payload);
+      console.log('🚀 PAYLOAD:', payload);
 
-      // 🔑 esperar a que backend termine de crear relaciones
+      const res = await createEmployee(companyId, payload);
+
+      const created = res.employee || res;
+
+      console.log('✅ CREATED:', created);
+
+      // 🔥 FIX IMPORTANTE
+      const branchId = created?.branchId || form.branchId;
+
+      console.log('🏢 BRANCH ID FINAL:', branchId);
+
+      // 🔥 GENERAR TOKEN TABLET (USANDO TU FORMATO REAL)
+      let tablet = null;
+
+      if (branchId) {
+        try {
+          const tokenRes = await fetch(
+            `${import.meta.env.VITE_API_URL}/companies/${companyId}/branches/${branchId}/tablet-token`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+              },
+            }
+          );
+
+          if (!tokenRes.ok) {
+            throw new Error('Error generando token tablet');
+          }
+
+          const data = await tokenRes.json();
+
+          console.log('🔑 TOKEN RESPONSE:', data);
+
+          tablet = {
+            branchName:
+              branches.find(b => b.id === branchId)?.name || '',
+            token: data.tabletToken, // 🔥 IGUAL QUE EN BRANCHES
+          };
+
+          console.log('📲 TABLET INFO:', tablet);
+
+          setTabletInfo(tablet);
+
+        } catch (err) {
+          console.error('❌ Error generando QR tablet', err);
+        }
+      } else {
+        console.warn('⚠️ NO HAY BRANCH ID → no se genera QR tablet');
+      }
+
+      setCreatedEmployee(created);
+      setIsFirstEmployee(res.isFirstEmployee || false);
+
+      // 👉 ABRIMOS MODAL
+      setShowSuccessModal(true);
+
+      // 🔑 esperar backend
       await new Promise(r => setTimeout(r, 300));
 
       if (photoFile && created?.id) {
-        const res = await fetch(
+        const resPhoto = await fetch(
           `${import.meta.env.VITE_API_URL}/users/${created.id}/photo`,
           {
             method: 'POST',
@@ -114,9 +209,8 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
           }
         );
 
-        if (!res.ok) throw new Error('Error subiendo foto');
+        if (!resPhoto.ok) throw new Error('Error subiendo foto');
       }
-      setMessage('Usuario creado correctamente');
 
       setForm({
         name: '',
@@ -132,19 +226,287 @@ export default function CreateUser({ onCreated, defaultRole = 'EMPLEADO' }) {
       setPhotoFile(null);
       setPhotoPreview(null);
 
-      onCreated?.();
     } catch (err) {
+      console.error('❌ ERROR SUBMIT:', err);
       setError(err.message || 'Error creando usuario');
     } finally {
       setSaving(false);
     }
   }
 
+  {
+    {
+      showSuccessModal && createdEmployee && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+
+          <div style={{
+            background: 'white',
+            padding: 28,
+            borderRadius: 14,
+            width: 560,
+            maxWidth: '90%',
+            boxShadow: '0 15px 40px rgba(0,0,0,0.25)'
+          }}>
+
+            {/* 🎉 SOLO PRIMER EMPLEADO */}
+            {isFirstEmployee && (
+              <h3 style={{ marginBottom: 10 }}>
+                🎉 ¡Ya tienes tu primer empleado!
+              </h3>
+            )}
+
+            <p style={{
+              pading: 12,
+              whiteSpace: 'pre-line',
+              lineHeight: 1.5,
+              fontSize: 14,
+              color: '#334155'
+            }}>
+              {`Tu empleado ya está listo para empezar a utilizar Timeo.
+
+Para fichar desde su móvil, escanea este QR o envíaselo por email. Podrá iniciar sesión con su email y la contraseña que hayas definido.
+
+También puede fichar desde una tablet en tu local o desde un ordenador utilizando el segundo QR.`}
+            </p>
+
+            {/* QRs */}
+            <div style={{
+              display: 'flex',
+              gap: 80,
+              marginTop: 24,
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+
+              {/* 📱 EMPLEADO */}
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                  Acceso móvil
+                </p>
+
+                <QRCodeSVG
+                  value="https://timeo-mobile.onrender.com/"
+                  size={140}
+                />
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await fetch(
+                        `${import.meta.env.VITE_API_URL}/users/${createdEmployee.id}/send-invite`,
+                        {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            password: password, // 👈 ESTA ES LA CLAVE
+                          }),
+                        }
+                      );
+
+                      alert('📩 Email enviado');
+                    } catch (err) {
+                      console.error(err);
+                      alert('❌ Error enviando email');
+                    }
+                  }}
+                >
+                  📩 Enviar email
+                </button>
+              </div>
+
+              {/* 🖥️ TABLET */}
+              {tabletInfo && (
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                    Tablet / ordenador
+                  </p>
+
+                  <QRCodeSVG
+                    value={`https://timeo-tablet.onrender.com?token=${tabletInfo.token}`}
+                    size={140}
+                  />
+
+                  <button
+                    style={btnStyle}
+                    onClick={() => alert('Enviar email tablet')}
+                  >
+                    Enviar email
+                  </button>
+                </div>
+              )}
+
+            </div>
+
+            {/* CONTINUAR */}
+            <button
+              style={{
+                marginTop: 28,
+                width: '100%',
+                padding: '12px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#00a0a8',
+                color: 'white',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontSize: 15
+              }}
+              onClick={() => {
+                setShowSuccessModal(false);
+                setShowSchedulePrompt(true);
+              }}
+            >
+              Continuar
+            </button>
+
+          </div>
+        </div>
+      )
+    }
+  }
+
+  {
+
+  }
+
   return (
-    <div
-      className="container"
-      style={{ maxWidth: 720, margin: '0 auto' }}
-    >
+    <div className="container" style={{ maxWidth: 720, margin: '0 auto' }}>
+
+      {/* ✅ MODAL 1 */}
+      {showSuccessModal && createdEmployee && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div className="card center" style={{ maxWidth: 520 }}>
+            <div>
+
+              {/* 🎉 SOLO PRIMER EMPLEADO */}
+              {isFirstEmployee && (
+                <h3 style={{ marginBottom: 12 }}>
+                  🎉 ¡Ya tienes tu primer empleado!
+                </h3>
+              )}
+
+              <p style={{ whiteSpace: 'pre-line' }}>
+                {`Tu empleado ya está listo para empezar a utilizar Timeo.
+
+Para que pueda fichar desde su móvil, enséñale este QR o pulsa sobre él para enviárselo por email. Podrá acceder desde su dispositivo, iniciar sesión con su email y la contraseña que hayas definido.
+
+También puede fichar desde una tablet en tu local o desde un ordenador.`}
+              </p>
+
+              {/* QRs */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 40,
+                  marginTop: 24,
+                  flexWrap: 'wrap',
+                }}
+              >
+
+                {/* 📱 QR EMPLEADO */}
+                <div style={{ textAlign: 'center' }}>
+                  <button onClick={() => alert('Enviar email empleado')}>
+                    📩 Enviar email
+                  </button>
+
+                  <div style={{ marginTop: 10 }}>
+                    <QRCodeSVG
+                      value="https://timeo-frontend.onrender.com/mobile"
+                      size={160}
+                    />
+                  </div>
+
+                  <div style={{ fontSize: 12, marginTop: 6 }}>
+                    Acceso móvil
+                  </div>
+                </div>
+
+                {/* 🖥️ QR TABLET */}
+                {tabletInfo && (
+                  <div style={{ textAlign: 'center' }}>
+                    <button onClick={() => alert('Enviar email tablet')}>
+                      📩 Enviar email
+                    </button>
+
+                    <div style={{ marginTop: 10 }}>
+                      <QRCodeSVG
+                        value={`https://timeo-tablet.onrender.com?token=${tabletInfo.token}`}
+                        size={160}
+                      />
+                    </div>
+
+                    <div style={{ fontSize: 12, marginTop: 6 }}>
+                      Tablet / ordenador
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+            </div>
+            <button onClick={() => {
+              setShowSuccessModal(false);
+              setShowSchedulePrompt(true);
+            }}>
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL 2 */}
+      {showSchedulePrompt && createdEmployee && (
+        <div className="modal">
+          <div className="card center" style={{ maxWidth: 420 }}>
+
+            <p>
+              Tu empleado ya está listo para utilizar Timeo.
+              <br /><br />
+              ¿Quieres crear un horario ahora?
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+              <button onClick={() => navigate('/admin')}>
+                No
+              </button>
+
+              <button
+                onClick={() =>
+                  navigate(`/admin/employees/${createdEmployee.id}/schedules`)
+                }
+              >
+                Sí (recomendado)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
       {/* HEADER */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <h2>Nuevo usuario</h2>

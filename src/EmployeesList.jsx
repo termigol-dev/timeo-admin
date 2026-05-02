@@ -17,12 +17,12 @@ export default function EmployeesList() {
   useEffect(() => {
     load();
   }, []);
-
+   console.log('EMPLOYEES LIST');
   async function load() {
     setLoading(true);
     try {
       const e = await getAllEmployees();
-      console.log('📦 EMPLOYEES RAW:', e);
+     
       setEmployees(e || []);
     } finally {
       setLoading(false);

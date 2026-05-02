@@ -53,32 +53,26 @@ export default function NewCompany() {
     try {
       setLoading(true);
 
-      const data = await createCompany({
+      // 🔥 CAMBIO CLAVE
+      const res = await createCompany({
         ...form,
         logoUrl: logoFile || null,
-
-        // 🔥 NUEVO
         branchName,
         branchAddress: sameAddress ? form.address : branchAddress,
       });
 
-      const currentUser = JSON.parse(localStorage.getItem('user'));
-
-      localStorage.setItem('user', JSON.stringify({
-        ...currentUser,
-        companyId: data.id,
-        companyName: form.commercialName || form.legalName,
-      }));
-
-      localStorage.setItem('onboarding_step', 'company_created');
-      // 🔥 REFRESCAR USER DESDE BACKEND
+      // 🔥 REFRESCAR USER DESDE BACKEND (flujo estable)
       const freshUser = await getMe();
 
       localStorage.setItem('user', JSON.stringify(freshUser));
 
-      // 🔥 marcar onboarding
+      // 🔥 ONBOARDING
       localStorage.setItem('onboarding_step', 'company_created');
 
+      console.log(
+        '🧪 USER LOCAL DESPUÉS DE CREAR EMPRESA:',
+        freshUser
+      );
       navigate('/admin');
 
     } catch (err) {
@@ -87,7 +81,6 @@ export default function NewCompany() {
       setLoading(false);
     }
   }
-
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
 

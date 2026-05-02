@@ -61,10 +61,10 @@ export default function Register() {
 
             const data = await res.json();
 
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
+            // 🔥 NO GUARDAR TOKEN NI USER
+            // 🔥 NO AUTOLOGIN
 
-            window.location.href = '/';
+            navigate('/login');
 
         } catch (e) {
             console.error(e);

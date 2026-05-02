@@ -352,6 +352,24 @@ export function confirmSchedule(
   );
 }
 
+export async function sendUserInvite(userId, password) {
+  const res = await fetch(
+    `${import.meta.env.VITE_API_URL}/users/${userId}/send-invite`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ password }),
+    }
+  );
+
+  if (!res.ok) throw new Error('Error enviando email');
+
+  return res.json();
+}
+
 // 4️⃣ Ver horario activo
 export function getActiveSchedule(
   companyId,
