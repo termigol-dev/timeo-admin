@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createCompany } from './api';
-import { getMe } from './api';
+import { createCompany, getMe } from './api';
+import { Check, X } from 'lucide-react';
+
 export default function NewCompany() {
   const navigate = useNavigate();
 
@@ -10,13 +11,14 @@ export default function NewCompany() {
     commercialName: '',
     nif: '',
     address: '',
-    plan: 'FREE',
   });
 
-  // 🔥 NUEVO
-  const [branchName, setBranchName] = useState('Principal');
-  const [sameAddress, setSameAddress] = useState(true);
-  const [branchAddress, setBranchAddress] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('BASIC');
+  const [withManagement, setWithManagement] = useState({
+    BASIC: false,
+    PRO: false,
+    BUSINESS: false
+  });
 
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
@@ -53,51 +55,86 @@ export default function NewCompany() {
     try {
       setLoading(true);
 
-      // 🔥 CAMBIO CLAVE
-      const res = await createCompany({
+      await createCompany({
         ...form,
+        plan: selectedPlan,
+        withManagement,
         logoUrl: logoFile || null,
-        branchName,
-        branchAddress: sameAddress ? form.address : branchAddress,
       });
 
-      // 🔥 REFRESCAR USER DESDE BACKEND (flujo estable)
       const freshUser = await getMe();
-
       localStorage.setItem('user', JSON.stringify(freshUser));
 
-      // 🔥 ONBOARDING
-      localStorage.setItem('onboarding_step', 'company_created');
-
-      console.log(
-        '🧪 USER LOCAL DESPUÉS DE CREAR EMPRESA:',
-        freshUser
-      );
       navigate('/admin');
-
     } catch (err) {
       setError(err.message || 'Error al crear la empresa');
     } finally {
       setLoading(false);
     }
   }
+
+  const plans = [
+    {
+      key: 'BASIC',
+      name: 'Básico',
+      price: '5,99€',
+      employees: 'Hasta 3 empleados',
+      branches: '1 sucursal',
+      extraPrice: '2,99',
+    },
+    {
+      key: 'PRO',
+      name: 'Pro',
+      price: '10,99€',
+      employees: 'Hasta 10 empleados',
+      branches: 'Hasta 3 sucursales',
+      extraPrice: '4,99',
+    },
+    {
+      key: 'BUSINESS',
+      name: 'Business',
+      price: '24,99€',
+      employees: 'Hasta 20 empleados',
+      branches: 'Sucursales ilimitadas',
+      extraPrice: '9,99',
+    },
+  ];
+
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: 20 }}>
 
       {/* HEADER */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
         alignItems: 'center',
         marginBottom: 24,
+        paddingLeft: 50,
+        paddingRight: 50
       }}>
-        <h2 style={{ margin: 0 }}>Nueva empresa</h2>
 
-        <div className="tablet-actions">
+        {/* IZQUIERDA */}
+        <h2 style={{
+          fontSize: 28,
+          fontWeight: 700,
+          margin: 0
+        }}>
+          Nueva empresa
+        </h2>
+
+        {/* DERECHA */}
+        <div
+          className="dashboard-grid"
+          style={{
+            flexDirection: 'row',  // 🔥 override SOLO aquí
+            gap: 0                 // 👈 para que no meta espacio raro
+          }}
+        >
           <button onClick={() => navigate(-1)}>
-            ← Volver
+            <span>← Volver</span>
           </button>
         </div>
+
       </div>
 
       <div style={{
@@ -110,59 +147,50 @@ export default function NewCompany() {
         {/* LOGO */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          marginBottom: 24,
           gap: 16,
+          marginBottom: 32,
+          alignItems: 'center'
         }}>
           <div style={{
             width: 80,
             height: 80,
             borderRadius: '50%',
-            overflow: 'hidden',
             background: '#e5e7eb',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 600,
-            fontSize: 20,
-            color: '#475569',
           }}>
             {logoPreview ? (
-              <img
-                src={logoPreview}
-                alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
+              <img src={logoPreview} style={{ width: '100%', height: '100%' }} />
             ) : (
-              form.commercialName?.[0] || form.legalName?.[0] || '🏢'
+              form.commercialName?.[0] || '🏢'
             )}
           </div>
 
-          <div>
-            <div style={{ fontWeight: 600 }}>
-              {form.commercialName || form.legalName || 'Nueva empresa'}
-            </div>
+          <div style={{ marginTop: 12 }}>
+            {/* 👇 convertido a button */}
+            <button
+              type="button"
+              onClick={() => document.getElementById('logoInput').click()}
+            >
+              <span>Seleccionar archivo</span>
+            </button>
 
-            <label style={labelStyle}>Logo</label>
-            <div style={{ marginTop: 6 }}>
-              <label style={photoButtonStyle}>
-                Cambiar
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={onSelectLogo}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
+            <input
+              id="logoInput"
+              type="file"
+              onChange={onSelectLogo}
+              style={{ display: 'none' }}
+            />
           </div>
         </div>
 
-        {/* EMPRESA */}
+        {/* FORM */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: 20,
+          columnGap: 48,
+          rowGap: 28,
         }}>
           <Field label="Razón social *">
             <input name="legalName" value={form.legalName} onChange={handleChange} style={inputStyle} />
@@ -181,71 +209,172 @@ export default function NewCompany() {
           </Field>
         </div>
 
-        {/* 🔥 SUCURSAL */}
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ marginBottom: 16 }}>Sucursal inicial</h3>
+        {/* PLANES */}
+        <div style={{ marginTop: 40 }}>
+          <h3 style={{ paddingLeft: 8 }}>
+            Elige tu plan
+          </h3>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 20,
-          }}>
-            <Field label="Nombre de la sucursal">
-              <input
-                value={branchName}
-                onChange={(e) => setBranchName(e.target.value)}
-                style={inputStyle}
-              />
-            </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+            {plans.map(plan => {
+              const active = selectedPlan === plan.key;
 
-            <Field label="Dirección">
-              <input
-                value={sameAddress ? form.address : branchAddress}
-                onChange={(e) => setBranchAddress(e.target.value)}
-                style={inputStyle}
-                disabled={sameAddress}
-              />
-            </Field>
-          </div>
+              const colors = {
+                BASIC: {
+                  bg: '#f0fdfa',
+                  border: '#99f6e4',
+                  activeBorder: '#14b8a6'
+                },
+                PRO: {
+                  bg: '#fff7ed',
+                  border: '#fed7aa',
+                  activeBorder: '#f97316'
+                },
+                BUSINESS: {
+                  bg: '#f0f9ff',
+                  border: '#bae6fd',
+                  activeBorder: '#0284c7'
+                }
+              };
 
-          <div style={{ marginTop: 12 }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={sameAddress}
-                onChange={() => setSameAddress(!sameAddress)}
-              />
-              {' '}Misma dirección que la empresa
-            </label>
+              const c = colors[plan.key];
+
+              return (
+                <div
+                  key={plan.key}
+                  onClick={() => setSelectedPlan(plan.key)}
+                  style={{
+                    cursor: 'pointer',
+                    border: active
+                      ? `3px solid ${c.activeBorder}`
+                      : `1px solid ${c.border}`,
+                    borderRadius: 16,
+                    padding: 16,
+                    background: active ? '#ffffff' : c.bg,
+                    transition: 'all 0.2s ease',
+
+                    // 🔥 EFECTO FUERTE
+                    boxShadow: active
+                      ? '0 18px 40px rgba(0,0,0,0.18)'
+                      : '0 2px 6px rgba(0,0,0,0.04)',
+
+                    transform: active
+                      ? 'translateY(-8px)'
+                      : 'translateY(0)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.boxShadow = '0 12px 26px rgba(0,0,0,0.14)';
+                      e.currentTarget.style.transform = 'translateY(-5px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.04)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  {/* 🔥 INDICADOR CLARO */}
+                  {active && (
+                    <div style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: c.activeBorder,
+                      marginBottom: 8,
+                      letterSpacing: 0.5
+                    }}>
+                      ✓ SELECCIONADO
+                    </div>
+                  )}
+
+                  <div style={{
+                    fontWeight: 600,
+                    color: active ? c.activeBorder : '#0f172a'
+                  }}>
+                    {plan.name}
+                  </div>
+
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>0€</div>
+
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    30 días gratis · Después {plan.price}/mes
+                  </div>
+
+                  <ul style={{ paddingLeft: 16, fontSize: 13 }}>
+                    <li>{plan.employees}</li>
+                    <li>{plan.branches}</li>
+                    <li>Fichaje y control horario</li>
+                    <li>Impresión y exportación de informes</li>
+                  </ul>
+
+                  <div style={{ fontSize: 12 }}>
+                    <strong>Timeo configura empleados y horarios por ti</strong> (gratis 30 días)
+                  </div>
+
+                  <div style={{
+                    marginTop: 12,
+                    marginLeft: 12,
+                    paddingLeft: 12,
+                    borderLeft: '2px solid #e2e8f0',
+                  }}>
+                    <label style={{ fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={withManagement[plan.key]}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setWithManagement(prev => ({
+                            ...prev,
+                            [plan.key]: e.target.checked
+                          }));
+                        }}
+                      />
+                      {' '}Dejar que Timeo gestione tus horarios y empleados por ti
+                    </label>
+
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      +{plan.extraPrice}€/mes
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* ACTIONS */}
-        <div className="tablet-actions" style={{ marginTop: 32 }}>
+        <div className="dashboard-grid"
+          style={{
+            marginTop: 32,
+            flexDirection: 'row',   // 🔥 CLAVE
+
+          }}>
           <button onClick={() => navigate(-1)}>
-            Cancelar
+            <X size={26} />
+            <span>Cancelar</span>
           </button>
 
-          <button onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Creando…' : 'Crear empresa'}
+          <button onClick={handleSubmit}>
+            <Check size={26} />
+            <span>{loading ? 'Creando…' : 'Crear empresa'}</span>
           </button>
         </div>
 
-        {error && (
-          <p style={{ marginTop: 12, fontSize: 13, color: 'red' }}>
-            {error}
-          </p>
-        )}
-
+        {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
     </div>
   );
 }
 
-/* COMPONENTE FIELD */
 function Field({ label, children }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      alignItems: 'flex-start'
+    }}>
       <label style={labelStyle}>{label}</label>
       {children}
     </div>
@@ -253,20 +382,15 @@ function Field({ label, children }) {
 }
 
 const labelStyle = {
-  fontSize: 12,
+  fontSize: 15,
   fontWeight: 600,
+  paddingLeft: 8,
+  color: '#334155'
 };
 
 const inputStyle = {
-  padding: '10px 12px',
+  width: '85%',
+  padding: 10,
   borderRadius: 10,
   border: '1px solid #cbd5e1',
-};
-
-const photoButtonStyle = {
-  padding: '6px 10px',
-  borderRadius: 8,
-  border: '1px solid #cbd5e1',
-  fontSize: 12,
-  cursor: 'pointer',
 };

@@ -782,3 +782,90 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
   }
 }
 
+/* =====================================================
+   DASHBOARD
+===================================================== */
+
+.dashboard-tablet {
+  min-height: calc(100vh - 80px);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* 🔥 centra vertical */
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Título */
+.dashboard-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+/* GRID */
+.dashboard-grid {
+  width: 100%;
+  max-width: 100%;
+
+  display: flex;                 /* 🔥 antes grid */
+  flex-direction: column;        /* 🔥 vertical */
+  align-items: center;           /* 🔥 centrado */
+  justify-content: center;
+
+  gap: 48px;                     /* 🔥 aire entre opciones */
+
+  padding: 0;
+}
+
+/* BOTÓN = TEXTO + ICONO (sin card) */
+.dashboard-grid button {
+  all: unset;                    /* 🔥 elimina estilo card */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 16px;                     /* 🔥 espacio icono-texto */
+
+  font-size: 28px;
+  font-weight: 500;
+
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+/* ICONO */
+.dashboard-grid button svg {
+  width: 32px;
+  height: 32px;
+  transition: color 0.2s ease;
+}
+
+/* TEXTO */
+.dashboard-grid button span {
+  font-size: 28px;
+  font-weight: 500;
+}
+
+/* HOVER LIMPIO (solo desktop real) */
+@media (hover: hover) {
+  .dashboard-grid button:hover {
+    color: var(--brand);
+  }
+
+  .dashboard-grid button:hover svg {
+    color: var(--brand);
+  }
+}
+
+/* FOOTER */
+.dashboard-footer,
+.dashboard-tablet footer {
+  margin-top: auto;
+  padding-top: 2rem;
+  font-size: 12px;
+  opacity: 0.5;
+}
