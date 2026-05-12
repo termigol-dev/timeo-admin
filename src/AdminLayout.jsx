@@ -54,7 +54,7 @@ export default function AdminLayout({ dark, setDark, onLogout }) {
             className="header-btn"
             onClick={() => {
               if (!user?.id) return;
-              navigate(`/admin/users/${user.id}/profile`);
+              navigate('/admin/my-profile');
             }}
           >
             <User />

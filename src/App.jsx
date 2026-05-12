@@ -22,6 +22,8 @@ import SimulateRecord from './SimulateRecord';
 import SendPushTest from './SendPushTest.jsx';
 import ScrollToTop from './ScrollToTop';
 import PrivateRoute from './components/PrivateRoute';
+import Billing from './Billing';
+import MyProfile from './MyProfile';
 
 export default function App() {
 
@@ -155,7 +157,8 @@ export default function App() {
               <Route path="dashboard" element={<Dashboard />} />
 
               <Route path="employees" element={<EmployeesList />} />
-              
+
+              <Route path="/admin/billing" element={<Billing />} />
 
               <Route path="companies" element={<Companies />} />
               <Route path="companies/new" element={<NewCompany />} />
@@ -181,6 +184,11 @@ export default function App() {
                 }
               />
             </Route>
+
+            <Route
+              path="/admin/my-profile"
+              element={<MyProfile />}
+            />
 
             <Route
               path="/admin/employees/:userId/reports"

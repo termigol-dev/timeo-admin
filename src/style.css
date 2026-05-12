@@ -869,3 +869,99 @@ margin-left: auto; /* 🔥 esto lo empuja a la derecha */
   font-size: 12px;
   opacity: 0.5;
 }
+
+
+.labelStyle {
+  font-size: 15px;
+  font-weight: 600;
+  padding-left: 8px;
+  color: #334155;
+}
+
+.inputStyle {
+  width: 85%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+}
+
+/* ───────── PLAN CARDS ───────── */
+
+.planCard {
+  border-radius: 16px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.planCardBasic {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+}
+
+.planCardBasic.active {
+  border: 3px solid #14b8a6;
+  background: #ffffff;
+}
+
+.planCardPro {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.planCardPro.active {
+  border: 3px solid #f97316;
+  background: #ffffff;
+}
+
+.planCardBusiness {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+.planCardBusiness.active {
+  border: 3px solid #0284c7;
+  background: #ffffff;
+}
+
+.pillButton {
+  border: 1px solid #dbeafe;
+  background: #ecfeff;
+  color: #0891b2;
+
+  border-radius: 999px;
+
+  padding: 10px 18px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.pillButton:hover {
+  background: #cffafe;
+}
+
+
+.pillButton {
+  border: 1px solid #dbeafe;
+  background: #ecfeff;
+  color: #0891b2;
+
+  border-radius: 999px;
+
+  padding: 10px 18px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.pillButton:hover {
+  background: #cffafe;
+}

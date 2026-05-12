@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createCompany, getMe } from './api';
 import { Check, X } from 'lucide-react';
+import './style.css';
 
 export default function NewCompany() {
   const navigate = useNavigate();
@@ -85,7 +86,7 @@ export default function NewCompany() {
     {
       key: 'PRO',
       name: 'Pro',
-      price: '10,99€',
+      price: '11,99€',
       employees: 'Hasta 10 empleados',
       branches: 'Hasta 3 sucursales',
       extraPrice: '4,99',
@@ -193,19 +194,39 @@ export default function NewCompany() {
           rowGap: 28,
         }}>
           <Field label="Razón social *">
-            <input name="legalName" value={form.legalName} onChange={handleChange} style={inputStyle} />
+            <input
+              name="legalName"
+              value={form.legalName}
+              onChange={handleChange}
+              className="inputStyle"
+            />
           </Field>
 
           <Field label="Nombre comercial">
-            <input name="commercialName" value={form.commercialName} onChange={handleChange} style={inputStyle} />
+            <input
+              name="commercialName"
+              value={form.commercialName}
+              onChange={handleChange}
+              className="inputStyle"
+            />
           </Field>
 
           <Field label="NIF *">
-            <input name="nif" value={form.nif} onChange={handleChange} style={inputStyle} />
+            <input
+              name="nif"
+              value={form.nif}
+              onChange={handleChange}
+              className="inputStyle"
+            />
           </Field>
 
           <Field label="Dirección *">
-            <input name="address" value={form.address} onChange={handleChange} style={inputStyle} />
+            <input
+              name="address"
+              value={form.address}
+              onChange={handleChange}
+              className="inputStyle"
+            />
           </Field>
         </div>
 
@@ -375,22 +396,11 @@ function Field({ label, children }) {
       gap: 10,
       alignItems: 'flex-start'
     }}>
-      <label style={labelStyle}>{label}</label>
+      <label className="labelStyle">
+        {label}
+      </label>
       {children}
     </div>
   );
 }
 
-const labelStyle = {
-  fontSize: 15,
-  fontWeight: 600,
-  paddingLeft: 8,
-  color: '#334155'
-};
-
-const inputStyle = {
-  width: '85%',
-  padding: 10,
-  borderRadius: 10,
-  border: '1px solid #cbd5e1',
-};

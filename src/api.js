@@ -133,6 +133,12 @@ export async function getAllEmployees({ page, pageSize, search } = {}) {
   return res.json();
 }
 
+/* ───────── MY PROFILE ───────── */
+
+export function getPlanUsage() {
+  return api('/companies/plan-usage');
+}
+
 /* ───────── COMPANIES ───────── */
 export function getCompanies() {
   return api('/companies');
@@ -153,6 +159,7 @@ export function updateCompany(id, data) {
 export function deleteCompany(id) {
   return api(`/companies/${id}`, 'DELETE');
 }
+
 
 /* ───────── BRANCHES ───────── */
 export function getBranches(companyId) {
