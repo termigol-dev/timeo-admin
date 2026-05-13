@@ -740,6 +740,16 @@ export default function EmployeeSchedules() {
   }
 
   async function addTurn() {
+
+    console.log('🟢 ADD TURN START', {
+      startTime,
+      endTime,
+      selectedDays,
+      dateFrom,
+      dateTo,
+      editingShift,
+    });
+
     if (!startTime || !endTime || selectedDays.length === 0) return;
 
     if (!dateFrom) {
@@ -749,6 +759,11 @@ export default function EmployeeSchedules() {
 
     const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
     const weekdays = selectedDays.map(d => map[d]);
+
+    console.log('🟢 WEEKDAY MAPPING', {
+      selectedDays,
+      weekdays,
+    });
 
     if (weekdays.length === 0) {
       alert('Debes seleccionar al menos un día');
@@ -760,9 +775,14 @@ export default function EmployeeSchedules() {
     // ======================================================
     if (editingShift) {
 
-      console.log('✏️ EDIT SHIFT', {
-        from: editingShift,
-        to: { weekdays, startTime, endTime, dateFrom }
+      console.log('✏️ EDIT SHIFT START', {
+        original: editingShift,
+        next: {
+          weekdays,
+          startTime,
+          endTime,
+          dateFrom
+        }
       });
 
       // 🔴 DELETE backend
@@ -775,6 +795,8 @@ export default function EmployeeSchedules() {
         endTime: editingShift.endTime
       }];
 
+      console.log('🔴 DELETE OPS GENERATED', deleteOps);
+
       // 🔴 DELETE visual (preview gris)
       const deleteVisualOp = {
         type: 'DELETE_PREVIEW',
@@ -786,6 +808,8 @@ export default function EmployeeSchedules() {
         endTime: editingShift.endTime
       };
 
+      console.log('🔴 DELETE VISUAL OP', deleteVisualOp);
+
       // 🟢 ADD_SHIFT (nuevo modelo → 1 solo)
       const addOp = {
         type: 'ADD_SHIFT',
@@ -796,12 +820,23 @@ export default function EmployeeSchedules() {
         validTo: null
       };
 
-      setDraftTurns(prev => [
-        ...prev,
-        deleteVisualOp,
-        ...deleteOps,
-        addOp
-      ]);
+      console.log('🟢 ADD OP GENERATED', addOp);
+
+      setDraftTurns(prev => {
+
+        console.log('🧠 PREV draftTurns BEFORE EDIT', structuredClone(prev));
+
+        const updated = [
+          ...prev,
+          deleteVisualOp,
+          ...deleteOps,
+          addOp
+        ];
+
+        console.log('🧠 UPDATED draftTurns AFTER EDIT', structuredClone(updated));
+
+        return updated;
+      });
 
       // 🧹 LIMPIAR
       setEditingShift(null);
@@ -818,7 +853,7 @@ export default function EmployeeSchedules() {
     // 🟢 ALTA NORMAL (MODELO NUEVO)
     // ======================================================
 
-    console.log('➕ ADD SHIFT', {
+    console.log('➕ NORMAL ADD_SHIFT FLOW', {
       weekdays,
       startTime,
       endTime,
@@ -835,7 +870,18 @@ export default function EmployeeSchedules() {
       validTo: dateTo && dateTo !== '' ? dateTo : null,
     };
 
-    setDraftTurns(prev => [...prev, newTurn]);
+    console.log('🟢 NEW TURN GENERATED', newTurn);
+
+    setDraftTurns(prev => {
+
+      console.log('🧠 PREV draftTurns BEFORE ADD', structuredClone(prev));
+
+      const updated = [...prev, newTurn];
+
+      console.log('🧠 UPDATED draftTurns AFTER ADD', structuredClone(updated));
+
+      return updated;
+    });
 
     // 🧹 LIMPIAR FORM
     setSelectedDays([]);
@@ -898,22 +944,27 @@ export default function EmployeeSchedules() {
   }
 
   async function completeSchedule() {
+
     const token = localStorage.getItem('token');
-    console.log('🔥🔥🔥 COMPLETE SCHEDULE NUEVO EJECUTÁNDOSE 🔥🔥🔥');
-    console.log('🚀 COMPLETE SCHEDULE START', {
+
+    console.log('🔥 COMPLETE SCHEDULE START', {
       scheduleId,
-      draftTurns,
+      draftTurns: structuredClone(draftTurns),
+      vacations: structuredClone(vacations),
+      backendDays: structuredClone(backendDays),
     });
 
     let activeScheduleId = scheduleId;
 
     try {
+
       setSaving(true);
 
       // ================================
       // 1️⃣ asegurar schedule
       // ================================
       if (!activeScheduleId) {
+
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/draft/${employeeId}`,
           {
@@ -925,6 +976,9 @@ export default function EmployeeSchedules() {
         if (!res.ok) throw new Error('Error creando horario');
 
         const newSchedule = await res.json();
+
+        console.log('🆕 NEW SCHEDULE CREATED', newSchedule);
+
         activeScheduleId = newSchedule.id;
         setScheduleId(newSchedule.id);
       }
@@ -937,6 +991,9 @@ export default function EmployeeSchedules() {
       const groupedShifts = {};
 
       for (const op of draftTurns) {
+
+        console.log('🚨 PROCESSING DRAFT OP', structuredClone(op));
+
         if (op.type !== 'ADD_SHIFT') continue;
 
         const key = `${op.startTime}-${op.endTime}-${op.validFrom}-${op.validTo || 'null'}`;
@@ -959,12 +1016,14 @@ export default function EmployeeSchedules() {
         }
       }
 
+      console.log('🧠 GROUPED SHIFTS RAW', groupedShifts);
+
       const normalizedAddShifts = Object.values(groupedShifts).map(s => ({
         ...s,
         weekdays: [...new Set(s.weekdays)].sort((a, b) => a - b),
       }));
 
-      console.log('🧠 ADD_SHIFT AGRUPADOS:', normalizedAddShifts);
+      console.log('🧠 NORMALIZED ADD SHIFTS', normalizedAddShifts);
 
       // ================================
       // 🟠 VACATIONS
@@ -976,6 +1035,8 @@ export default function EmployeeSchedules() {
           date: v.date,
         }));
 
+      console.log('🟠 VACATION OPS GENERATED', vacationOps);
+
       // ================================
       // 2️⃣ ordenar operaciones
       // ================================
@@ -985,12 +1046,15 @@ export default function EmployeeSchedules() {
         ...vacationOps,
       ];
 
-      console.log('📦 OPS FINALES:', ordered);
+      console.log('📦 FINAL ORDERED OPS', structuredClone(ordered));
 
       // ================================
       // 3️⃣ ejecutar operaciones
       // ================================
       for (const op of ordered) {
+
+        console.log('🚨 PROCESSING OP', structuredClone(op));
+
         // ======================================================
         // ♻️ DELETE_EXCEPTION (RESTAURAR DÍA)
         // ======================================================
@@ -1004,10 +1068,10 @@ export default function EmployeeSchedules() {
               method: 'DELETE',
               headers: {
                 Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json', // 👈 AÑADIR
+                'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                date: op.date, // 👈 ENVIAR DATE
+                date: op.date,
               }),
             }
           );
@@ -1020,15 +1084,15 @@ export default function EmployeeSchedules() {
         // ======================================================
         if (op.type === 'SET_DAY') {
 
-          console.log('🟡 SET_DAY DETECTADO', op);
+          console.log('🟡 SET_DAY DETECTADO', structuredClone(op));
 
-          // 🔥 BUSCAR DELETE_PREVIEW para este día
           const deleteDrafts = draftTurns.filter(d =>
             d.type === 'DELETE_PREVIEW' &&
             d.date === op.date
           );
 
-          // 🔥 FILTRAR BLOQUES USANDO ESA INFO
+          console.log('🟡 DELETE DRAFTS FOUND', deleteDrafts);
+
           const cleanBlocks = (op.blocks || []).filter(b => {
 
             const isDeleted = deleteDrafts.some(d =>
@@ -1039,27 +1103,33 @@ export default function EmployeeSchedules() {
             return !isDeleted;
           });
 
-          // ======================================================
-          // 🧠 COMPARAR CON PATRÓN (FIX REAL)
-          // ======================================================
+          console.log('🧹 CLEAN BLOCKS', cleanBlocks);
 
-          // 🔥 usar backendDays (fuente real)
           const dayData = backendDays.find(d => d.date === op.date);
+
+          console.log('🟡 SET_DAY DAY DATA', {
+            opDate: op.date,
+            dayData,
+          });
+
           const patternTurns = dayData?.patternTurns || [];
 
-          // 🔥 normalizar patrón
+          console.log('🧠 PATTERN TURNS RAW', patternTurns);
+
           const patternBlocks = patternTurns.map(t => ({
             startTime: t.startTime,
             endTime: t.endTime
           }));
 
-          // 🔥 normalizar snapshot limpio
           const normalizedClean = cleanBlocks.map(b => ({
             startTime: b.startTime,
             endTime: b.endTime
           }));
 
-          // 🔥 comparar
+          console.log('🧠 PATTERN BLOCKS', patternBlocks);
+
+          console.log('🧠 NORMALIZED CLEAN BLOCKS', normalizedClean);
+
           const isSameAsPattern =
             patternBlocks.length === normalizedClean.length &&
             patternBlocks.every(p =>
@@ -1069,17 +1139,13 @@ export default function EmployeeSchedules() {
               )
             );
 
-          console.log('🧠 COMPARACIÓN PATRÓN', {
+          console.log('🧠 PATTERN COMPARISON RESULT', {
+            opDate: op.date,
             patternBlocks,
             normalizedClean,
             isSameAsPattern
           });
 
-          console.log('🧹 CLEAN BLOCKS', cleanBlocks);
-
-          // ======================================================
-          // ♻️ SI ES IGUAL AL PATRÓN → BORRAR EXCEPCIÓN
-          // ======================================================
           if (isSameAsPattern) {
 
             console.log('♻️ SNAPSHOT = PATRÓN → DELETE_EXCEPTION');
@@ -1125,24 +1191,29 @@ export default function EmployeeSchedules() {
 
           continue;
         }
+
         // ======================================================
         // 🔴 DELETE
         // ======================================================
         if (op.type === 'DELETE') {
 
-          console.log('🔴 DELETE (INTERCEPTADO)', op);
+          console.log('🔴 DELETE (INTERCEPTADO)', structuredClone(op));
 
-          // ======================================================
-          // 🟠 SOLO ESTE DÍA → EXCEPCIÓN
-          // ======================================================
           if (op.mode === 'ONLY_THIS_BLOCK') {
 
             console.log('🟠 CONVERTIR DELETE → SET_DAY');
 
             const dateObj = new Date(op.date);
+
+            debugDate('DELETE ONLY_THIS_BLOCK DATEOBJ', dateObj);
+
             const weekday = dateObj.getDay() === 0 ? 7 : dateObj.getDay();
 
-            // 🔥 CLAVE: respetar rango de fechas
+            console.log('🔴 DELETE ONLY_THIS_BLOCK WEEKDAY', {
+              opDate: op.date,
+              computedWeekday: weekday,
+            });
+
             const patternTurns = savedTurns.filter(t => {
 
               let parsedWeekdays = [];
@@ -1160,7 +1231,10 @@ export default function EmployeeSchedules() {
               );
             });
 
+            console.log('🔴 PATTERN TURNS MATCHED FOR DELETE', patternTurns);
+
             const blocks = patternTurns.map(t => {
+
               const isDeleted =
                 t.startTime === op.startTime &&
                 t.endTime === op.endTime;
@@ -1169,7 +1243,6 @@ export default function EmployeeSchedules() {
                 startTime: t.startTime,
                 endTime: t.endTime,
                 deleted: isDeleted
-
               };
             });
 
@@ -1199,10 +1272,7 @@ export default function EmployeeSchedules() {
             continue;
           }
 
-          // ======================================================
-          // 🔴 CASCADA
-          // ======================================================
-          console.log('🔴 DELETE CASCADA → ENVIANDO', op);
+          console.log('🔴 DELETE CASCADE PAYLOAD', op);
 
           await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
@@ -1218,12 +1288,16 @@ export default function EmployeeSchedules() {
 
           continue;
         }
+
         // ======================================================
         // 🟢 ADD_SHIFT (PATRÓN)
         // ======================================================
         if (op.type === 'ADD_SHIFT') {
 
-          console.log('🟢 ADD_SHIFT ENVIANDO', op);
+          console.log('🟢 ADD_SHIFT FETCH PAYLOAD', {
+            op,
+            url: `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
+          });
 
           await fetch(
             `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/shifts`,
@@ -1239,13 +1313,18 @@ export default function EmployeeSchedules() {
 
           continue;
         }
-        // (resto igual...)
       }
 
       // ================================
       // 4️⃣ confirmar
       // ================================
       if (ordered.length > 0) {
+
+        console.log('✅ CONFIRMING SCHEDULE', {
+          ordered,
+          scheduleId: id,
+        });
+
         await fetch(
           `${import.meta.env.VITE_API_URL}/companies/${employee.companyId}/branches/${employee.branchId}/schedules/${id}/confirm`,
           {
@@ -1258,14 +1337,18 @@ export default function EmployeeSchedules() {
       console.log('✅ SCHEDULE GUARDADO OK');
 
       setDraftTurns([]);
-      setHasUnsavedChanges(false); // 🔥 RESET REAL
+      setHasUnsavedChanges(false);
 
       window.history.back();
 
     } catch (err) {
+
       console.error('❌ ERROR EN completeSchedule', err);
+
       alert(err.message || 'Error guardando horario');
+
     } finally {
+
       setSaving(false);
     }
   }
@@ -1353,8 +1436,8 @@ export default function EmployeeSchedules() {
     for (const day of turn.days) {
 
       // weekDays = ['','L','M','X','J','V','S','D']
-      const weekdayNumber = weekDays.indexOf(day); // 1..7
-
+      const weekdayNumber = weekDays.indexOf(day) + 1;
+      
       if (weekdayNumber < 1 || weekdayNumber > 7) {
         console.warn('⚠️ Día inválido, se ignora:', day);
         continue;
@@ -1391,6 +1474,21 @@ export default function EmployeeSchedules() {
       const created = await res.json();
       console.log('🟢 TURNO GUARDADO OK:', created);
     }
+  }
+
+  function debugDate(label, value) {
+    console.log(`📅 ${label}`, {
+      raw: value,
+      type: typeof value,
+      parsed:
+        value instanceof Date
+          ? {
+            local: value.toString(),
+            iso: value.toISOString(),
+            day: value.getDay(),
+          }
+          : null,
+    });
   }
 
   const {
@@ -1707,7 +1805,7 @@ export default function EmployeeSchedules() {
 
                 <button onClick={() => {
 
-                  const isSingleDay = !dateTo || dateFrom === dateTo;
+                  const isSingleDay = dateMode === 'SINGLE_DAY';
 
                   console.log('🧪 MODE CHECK', {
                     dateMode,
@@ -1741,13 +1839,28 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   const checkOverlapForDate = (date) => {
 
+                    console.log('🔎 CHECK OVERLAP START', {
+                      date,
+                      startTime,
+                      endTime,
+                      selectedDays,
+                    });
+
                     const dayData = backendDays?.find(d => d.date === date);
+
+                    console.log('🔎 DAY DATA FOUND', {
+                      date,
+                      dayData,
+                    });
+
                     if (!dayData) return false;
 
                     const baseTurns =
                       dayData.hasException
                         ? [...(dayData.turns || [])]
                         : [...(dayData.patternTurns || [])];
+
+                    console.log('🔎 INITIAL baseTurns', structuredClone(baseTurns));
 
                     (draftTurns || [])
                       .filter(d => d.type === 'ADD_SHIFT')
@@ -1757,7 +1870,26 @@ export default function EmployeeSchedules() {
                           (!d.validFrom || date >= d.validFrom) &&
                           (!d.validTo || date <= d.validTo);
 
-                        const weekday = new Date(date).getDay() === 0 ? 7 : new Date(date).getDay();
+                        const parsedDate = new Date(date);
+
+                        debugDate('CHECK OVERLAP DATE PARSE', parsedDate);
+
+                        const weekday =
+                          parsedDate.getDay() === 0
+                            ? 7
+                            : parsedDate.getDay();
+
+                        console.log('🔎 COMPUTED WEEKDAY', {
+                          rawDate: date,
+                          weekday,
+                        });
+
+                        console.log('🔎 CHECKING DRAFT AGAINST DATE', {
+                          draft: d,
+                          inRange,
+                          weekday,
+                          draftWeekdays: d.weekdays,
+                        });
 
                         if (!d.weekdays?.includes(weekday)) return;
                         if (!inRange) return;
@@ -1766,7 +1898,14 @@ export default function EmployeeSchedules() {
                           startTime: d.startTime,
                           endTime: d.endTime
                         });
+
+                        console.log('🟢 ADDING DRAFT TURN TO baseTurns', {
+                          date,
+                          draft: d,
+                        });
                       });
+
+                    console.log('🔎 FINAL baseTurns FOR OVERLAP', structuredClone(baseTurns));
 
                     const toMinutes = t => {
                       const [h, m] = t.split(':').map(Number);
@@ -1774,6 +1913,7 @@ export default function EmployeeSchedules() {
                     };
 
                     const newStart = toMinutes(startTime);
+
                     const newEnd =
                       toMinutes(endTime) <= newStart
                         ? toMinutes(endTime) + 1440
@@ -1782,12 +1922,26 @@ export default function EmployeeSchedules() {
                     return baseTurns.some(t => {
 
                       const existingStart = toMinutes(t.startTime);
+
                       const existingEnd =
                         toMinutes(t.endTime) <= existingStart
                           ? toMinutes(t.endTime) + 1440
                           : toMinutes(t.endTime);
 
-                      return existingStart < newEnd && existingEnd > newStart;
+                      const overlaps =
+                        existingStart < newEnd &&
+                        existingEnd > newStart;
+
+                      console.log('🔎 OVERLAP CHECK', {
+                        existing: t,
+                        newStart,
+                        newEnd,
+                        existingStart,
+                        existingEnd,
+                        overlaps,
+                      });
+
+                      return overlaps;
                     });
                   };
 
@@ -1796,7 +1950,16 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   if (isSingleDay) {
 
+                    console.log('🟡 SINGLE DAY VALIDATION START', {
+                      dateFrom,
+                    });
+
                     const hasOverlap = checkOverlapForDate(dateFrom);
+
+                    console.log('🟡 SINGLE DAY OVERLAP RESULT', {
+                      dateFrom,
+                      hasOverlap,
+                    });
 
                     if (hasOverlap) {
                       alert('Este turno se solapa con uno existente. Debes editar el turno.');
@@ -1809,19 +1972,41 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   if (!isSingleDay) {
 
+                    console.log('🟢 RANGE VALIDATION START', {
+                      dateFrom,
+                      dateTo,
+                    });
+
                     if (!dateFrom) {
                       alert('Debes indicar fecha de inicio');
                       return;
                     }
 
                     let current = new Date(dateFrom);
-                    const end = dateTo ? new Date(dateTo) : new Date(dateFrom);
+
+                    debugDate('RANGE VALIDATION CURRENT START', current);
+
+                    const end = dateTo
+                      ? new Date(dateTo)
+                      : new Date(dateFrom);
+
+                    debugDate('RANGE VALIDATION END', end);
 
                     while (current <= end) {
 
                       const dateStr = current.toISOString().slice(0, 10);
 
+                      console.log('📅 RANGE ITERATION DATE', {
+                        current,
+                        dateStr,
+                      });
+
                       const hasOverlap = checkOverlapForDate(dateStr);
+
+                      console.log('📅 RANGE ITERATION RESULT', {
+                        dateStr,
+                        hasOverlap,
+                      });
 
                       if (hasOverlap) {
                         alert(`Hay un solape el día ${dateStr}. Debes editar el turno.`);
@@ -1837,6 +2022,10 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   if (editingShift) {
 
+                    console.log('✏️ EDITING SHIFT FLOW', {
+                      editingShift,
+                    });
+
                     const blocks = buildFinalDayBlocks({
                       date: editingShift.date,
                       backendDays,
@@ -1850,11 +2039,15 @@ export default function EmployeeSchedules() {
                       }
                     });
 
+                    console.log('🏗️ BLOCKS GENERATED FOR EDIT', blocks);
+
                     const newOp = {
                       type: 'SET_DAY',
                       date: editingShift.date,
                       blocks
                     };
+
+                    console.log('🟡 NEW SET_DAY OP', newOp);
 
                     setDraftTurns(prev => [
                       ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === editingShift.date)),
@@ -1870,6 +2063,12 @@ export default function EmployeeSchedules() {
                     // ======================================================
                     if (isSingleDay) {
 
+                      console.log('🟢 SINGLE DAY FLOW', {
+                        dateFrom,
+                        startTime,
+                        endTime,
+                      });
+
                       const blocks = buildFinalDayBlocks({
                         date: dateFrom,
                         backendDays,
@@ -1881,11 +2080,15 @@ export default function EmployeeSchedules() {
                         }
                       });
 
+                      console.log('🏗️ BLOCKS GENERATED FOR SINGLE DAY', blocks);
+
                       const newOp = {
                         type: 'SET_DAY',
                         date: dateFrom,
                         blocks
                       };
+
+                      console.log('🟡 NEW SINGLE DAY SET_DAY OP', newOp);
 
                       setDraftTurns(prev => [
                         ...prev.filter(d => !(d.type === 'SET_DAY' && d.date === dateFrom)),
@@ -1899,7 +2102,10 @@ export default function EmployeeSchedules() {
                       // ======================================================
                       // 🟢 RANGE → ADD_SHIFT
                       // ======================================================
+                      console.log('🟢 RANGE FLOW → CALLING addTurn()');
+
                       addTurn();
+
                       setHasUnsavedChanges(true);
                     }
                   }
@@ -1907,7 +2113,6 @@ export default function EmployeeSchedules() {
                   setEditingShift(null);
                   setDateTo('');
                   setShowPanel(false);
-
                 }}>
                   Aceptar
                 </button>
