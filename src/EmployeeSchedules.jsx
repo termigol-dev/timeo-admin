@@ -1437,7 +1437,7 @@ export default function EmployeeSchedules() {
 
       // weekDays = ['','L','M','X','J','V','S','D']
       const weekdayNumber = weekDays.indexOf(day) + 1;
-      
+
       if (weekdayNumber < 1 || weekdayNumber > 7) {
         console.warn('⚠️ Día inválido, se ignora:', day);
         continue;
@@ -1805,8 +1805,11 @@ export default function EmployeeSchedules() {
 
                 <button onClick={() => {
 
-                  const isSingleDay = dateMode === 'SINGLE_DAY';
-
+                  const isSingleDay =
+                    dateMode === 'SINGLE_DAY' ||
+                    !!editingShift ||
+                    deleteShiftMode === 'ONLY_THIS_BLOCK';
+                    
                   console.log('🧪 MODE CHECK', {
                     dateMode,
                     dateFrom,
@@ -1948,7 +1951,19 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   // 🔒 VALIDACIÓN SINGLE DAY
                   // ======================================================
-                  if (isSingleDay) {
+
+                  console.log('🚨 VALIDATION ENTRY CHECK', {
+                    editingShift,
+                    isEditing: !!editingShift,
+                    isSingleDay,
+                    dateMode,
+                    startTime,
+                    endTime,
+                    dateFrom,
+                    dateTo,
+                  });
+
+                  if (isSingleDay && !editingShift) {
 
                     console.log('🟡 SINGLE DAY VALIDATION START', {
                       dateFrom,
@@ -1970,7 +1985,7 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   // 🔒 VALIDACIÓN RANGE
                   // ======================================================
-                  if (!isSingleDay) {
+                  if (!isSingleDay && !editingShift) {
 
                     console.log('🟢 RANGE VALIDATION START', {
                       dateFrom,
@@ -2020,6 +2035,12 @@ export default function EmployeeSchedules() {
                   // ======================================================
                   // 🔁 RESTO IGUAL
                   // ======================================================
+
+                  console.log('🚨 BEFORE EDIT FLOW CHECK', {
+                    editingShift,
+                    isEditing: !!editingShift,
+                  });
+
                   if (editingShift) {
 
                     console.log('✏️ EDITING SHIFT FLOW', {
@@ -2098,7 +2119,6 @@ export default function EmployeeSchedules() {
                       setHasUnsavedChanges(true);
 
                     } else {
-
                       // ======================================================
                       // 🟢 RANGE → ADD_SHIFT
                       // ======================================================
