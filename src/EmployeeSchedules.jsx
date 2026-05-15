@@ -1809,7 +1809,7 @@ export default function EmployeeSchedules() {
                     dateMode === 'SINGLE_DAY' ||
                     !!editingShift ||
                     deleteShiftMode === 'ONLY_THIS_BLOCK';
-                    
+
                   console.log('🧪 MODE CHECK', {
                     dateMode,
                     dateFrom,
@@ -2130,7 +2130,6 @@ export default function EmployeeSchedules() {
                     }
                   }
 
-                  setEditingShift(null);
                   setDateTo('');
                   setShowPanel(false);
                 }}>
