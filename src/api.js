@@ -105,7 +105,35 @@ export async function updateUser(userId, data) {
   return res.json();
 }
 
+export async function updateBranch(
+  companyId,
+  userId,
+  branchId,
+) {
 
+ const response = await fetch(
+  `${import.meta.env.VITE_API_URL}/companies/${companyId}/employees/${userId}/branch`,
+    {
+      method: 'PATCH',
+
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization:
+          `Bearer ${localStorage.getItem('token')}`,
+      },
+
+      body: JSON.stringify({
+        branchId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Error actualizando sucursal');
+  }
+
+  return response.json();
+}
 
 export function deleteUser(id) {
   return api(`/users/${id}`, 'DELETE');

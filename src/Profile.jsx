@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   getUserById,
   updateUser,
+  updateBranch,
   getBranches,
   deleteEmployee,
 } from './api';
@@ -94,6 +95,12 @@ export default function Profile() {
       }
 
       await updateUser(userId, payload);
+
+      await updateBranch(
+        user.companyId,
+        userId,
+        selectedBranch || null
+      );
 
       if (photoFile) {
         const res = await fetch(

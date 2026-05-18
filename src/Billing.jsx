@@ -3,6 +3,8 @@ import React, {
   useState,
 } from 'react';
 
+
+
 const plans = {
   BASIC: {
     name: 'BASIC',
@@ -118,49 +120,85 @@ export default function Billing() {
       basePrice,
       setupPrice,
     ]);
+async function handleCheckout() {
 
-  async function handleCheckout() {
+  try {
+
+    console.log('🔥 HANDLE CHECKOUT');
+
+    const token =
+      localStorage.getItem('token');
+
+    console.log('🪙 TOKEN:', token);
+
+    const res = await fetch(
+      'https://timeo-backend.onrender.com/billing/checkout',
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          plan: selectedPlan,
+          billingPeriod,
+          withSetup,
+          totalPrice: Number(totalPrice),
+          basePrice,
+          setupPrice,
+        }),
+      }
+    );
+
+    console.log('📡 STATUS:', res.status);
+
+    const text = await res.text();
+
+    console.log('📦 RAW RESPONSE:', text);
+
+    let data = null;
 
     try {
 
-      const res = await fetch(
-        'http://localhost:3000/billing/checkout',
-        {
-          method: 'POST',
+      data = JSON.parse(text);
 
-          headers: {
-            'Content-Type': 'application/json',
-          },
+      console.log('✅ PARSED JSON:', data);
 
-          body: JSON.stringify({
-            plan: selectedPlan,
-
-            billingPeriod,
-
-            withSetup,
-
-            totalPrice: Number(totalPrice),
-
-            basePrice,
-
-            setupPrice,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      window.location.href =
-        data.url;
-
-    } catch (error) {
+    } catch (e) {
 
       console.error(
-        'Error iniciando pago:',
-        error
+        '❌ JSON PARSE ERROR',
+        e
       );
     }
+
+    if (!data?.url) {
+
+      console.error(
+        '❌ NO URL RETURNED'
+      );
+
+      return;
+    }
+
+    console.log(
+      '🚀 REDIRECTING TO:',
+      data.url
+    );
+
+    window.location.href =
+      data.url;
+
+  } catch (error) {
+
+    console.error(
+      '❌ CHECKOUT ERROR:',
+      error
+    );
   }
+}
 
   return (
 
@@ -872,10 +910,19 @@ export default function Billing() {
             >
               Cancelar
             </button>
-
             <button
+              type="button"
               className="pillButton"
-              onClick={handleCheckout}
+              onClick={(e) => {
+
+                e.preventDefault();
+
+                e.stopPropagation();
+
+                console.log('🔥 CLICK');
+
+                handleCheckout();
+              }}
               style={{
                 flex: 1,
 
