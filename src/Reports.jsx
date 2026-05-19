@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getMyReports } from './api';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReportText from "./ReportText";
 import ReportGraph from "./ReportGraph";
 import Logo from "./components/Logo";
-
+import {
+  getMyReports,
+  getCompanyEmployees,
+} from './api';
 
 
 
@@ -140,6 +142,9 @@ export default function Reports() {
 
   const [days, setDays] = useState([]);
   const [employee, setEmployee] = useState(null);
+  const [employees, setEmployees] = useState([]);
+
+
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -158,14 +163,59 @@ export default function Reports() {
   const [simpleMode, setSimpleMode] = useState(false);
 
   const { userId } = useParams();
+  const [selectedEmployeeId, setSelectedEmployeeId] =
+    useState(userId);
   const navigate = useNavigate();
+  const rawUser =
+    localStorage.getItem('user');
 
+  const currentUser =
+    rawUser
+      ? JSON.parse(rawUser)
+      : null;
+
+  const companyId =
+    currentUser?.companyId;
   const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
   const to = new Date(year, month + 1, 0).toISOString().slice(0, 10);
 
   useEffect(() => {
     load();
-  }, [year, month]);
+  }, [year, month, selectedEmployeeId]);
+
+  useEffect(() => {
+    if (userId) {
+      setSelectedEmployeeId(userId);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+
+    async function loadEmployees() {
+
+      if (!companyId) return;
+
+      try {
+
+        const data =
+          await getCompanyEmployees(
+            companyId
+          );
+
+        setEmployees(data);
+
+      } catch (e) {
+
+        console.error(
+          'Error cargando empleados',
+          e
+        );
+      }
+    }
+
+    loadEmployees();
+
+  }, [companyId]);
 
   async function load() {
 
@@ -174,7 +224,7 @@ export default function Reports() {
     try {
 
       const res = await getMyReports({
-        userId,
+        userId: selectedEmployeeId,
         from,
         to,
       });
@@ -263,6 +313,7 @@ export default function Reports() {
         <Logo size={120} />
 
         <div className="report-main-name">
+
           <div className="report-main-employee">
             {employee?.name} {employee?.lastName}
           </div>
@@ -270,6 +321,38 @@ export default function Reports() {
           <div className="report-main-company">
             {employee?.companyName}
           </div>
+
+          {/* 🔥 SELECTOR EMPLEADO */}
+          <select
+            className="report-employee-select no-print"
+
+           value={selectedEmployeeId || ''}
+
+            onChange={(e) => {
+
+              setSelectedEmployeeId(
+                e.target.value
+              );
+
+              navigate(
+                `/admin/employees/${e.target.value}/reports`
+              );
+            }}
+          >
+
+            {employees.map(emp => (
+
+              <option
+                key={emp.id}
+                value={emp.id}
+              >
+                {emp.name} {emp.lastName}
+              </option>
+
+            ))}
+
+          </select>
+
         </div>
 
         <div className="report-main-title">
@@ -333,6 +416,7 @@ export default function Reports() {
           </div>
 
         </div>
+
         <div className="employee-back no-print">
           <button
             onClick={() => {
@@ -346,6 +430,7 @@ export default function Reports() {
             ← Volver
           </button>
         </div>
+
         <button
           className="report-print-button"
           onClick={() => window.print()}
@@ -404,6 +489,7 @@ export default function Reports() {
 
         </div>
       )}
+
       {!simpleMode && (
         <div className="report-legend">
 
@@ -452,5 +538,4 @@ export default function Reports() {
     </div>
 
   );
-
 }

@@ -228,6 +228,16 @@ export function regenerateTabletToken(companyId, branchId) {
 }
 
 /* ───────── EMPLOYEES ───────── */
+
+export function getCompanyEmployees(
+  companyId
+) {
+
+  return api(
+    `/companies/${companyId}/employees`
+  );
+}
+
 export async function getUserById(userId) {
   const res = await fetch(
     `${import.meta.env.VITE_API_URL}/users/${userId}`,

@@ -1,10 +1,11 @@
-// src/components/profile/SubscriptionCard.jsx
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function SubscriptionCard({
   plan,
-  setUpgradeOpen,
 }) {
+
+  const navigate = useNavigate();
 
   return (
     <div
@@ -50,7 +51,8 @@ export default function SubscriptionCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fit, minmax(240px, 1fr))',
           gap: 20,
         }}
       >
@@ -93,28 +95,37 @@ export default function SubscriptionCard({
               flexWrap: 'wrap',
             }}
           >
-            <button
-  className="pillButton"
-  onClick={() => setUpgradeOpen(true)}
-  style={{
-    color: '#ea580c',
-    borderColor: '#fdba74',
-  }}
->
-  Pasar a PRO
-</button>
 
+            {/* PRO */}
             <button
               className="pillButton"
-              onClick={() => setUpgradeOpen(true)}
+              onClick={() =>
+                navigate(
+                  '/admin/billing?plan=PRO'
+                )
+              }
+              style={{
+                color: '#ea580c',
+                borderColor: '#fdba74',
+              }}
+            >
+              Pasar a PRO
+            </button>
+
+            {/* BUSINESS */}
+            <button
+              className="pillButton"
+              onClick={() =>
+                navigate(
+                  '/admin/billing?plan=BUSINESS'
+                )
+              }
             >
               Pasar a BUSINESS
             </button>
 
           </div>
         </div>
-
-        
 
         {/* CANCELAR */}
         <div

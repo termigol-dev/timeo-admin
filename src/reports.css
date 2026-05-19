@@ -382,3 +382,35 @@
   font-size:14px;
 }
 
+.report-employee-select {
+
+  margin-top: 16px;
+
+  border: 1px solid #e2e8f0;
+
+  border-radius: 14px;
+
+  padding: 10px 16px;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+  background: white;
+
+  color: #0f172a;
+
+  min-width: 240px;
+
+  outline: none;
+
+  transition: all 0.2s ease;
+}
+
+.report-employee-select:focus {
+
+  border-color: #14b8a6;
+
+  box-shadow:
+    0 0 0 3px rgba(20,184,166,0.12);
+}

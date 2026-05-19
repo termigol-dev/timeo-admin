@@ -3,6 +3,7 @@ import React, {
   useState,
 } from 'react';
 
+import { useLocation } from 'react-router-dom';
 
 
 const plans = {
@@ -51,8 +52,16 @@ const plans = {
 
 export default function Billing() {
 
-  const [selectedPlan, setSelectedPlan] =
-    useState('BASIC');
+  const location = useLocation();
+
+const params =
+  new URLSearchParams(location.search);
+
+const initialPlan =
+  params.get('plan') || 'BASIC';
+
+const [selectedPlan, setSelectedPlan] =
+  useState(initialPlan);
 
   const [billingPeriod, setBillingPeriod] =
     useState('MONTHLY');

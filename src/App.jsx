@@ -6,6 +6,7 @@ import './style.css';
 
 /* 🔽 PÁGINAS ADMIN */
 import Dashboard from './Dashboard';
+import DashboardLimited from './DashboardLimited';
 import Companies from './Companies';
 import CompanyProfile from './CompanyProfile';
 import Employees from './Employees';
@@ -24,6 +25,7 @@ import ScrollToTop from './ScrollToTop';
 import PrivateRoute from './components/PrivateRoute';
 import Billing from './Billing';
 import MyProfile from './MyProfile';
+import { getMe } from './api';
 
 export default function App() {
 
@@ -46,6 +48,15 @@ export default function App() {
   })();
 
   console.log('🧪 USER EN APP:', user);
+  console.log(
+    '🔥 COMPANY STATUS:',
+    user?.companyStatus
+  );
+  const isRestricted = [
+    'EXPIRED',
+    'PAST_DUE',
+    'CANCELED',
+  ].includes(user?.companyStatus);
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark);
@@ -53,9 +64,55 @@ export default function App() {
   }, [dark]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setLogged(!!token);
-    setAuthChecked(true);
+
+    async function loadSession() {
+
+      const token =
+        localStorage.getItem('token');
+
+      if (!token) {
+
+        setLogged(false);
+        setAuthChecked(true);
+
+        return;
+      }
+
+      try {
+
+        const freshUser =
+          await getMe();
+
+        console.log(
+          '🔥 USER REFRESCADO:',
+          freshUser
+        );
+
+        localStorage.setItem(
+          'user',
+          JSON.stringify(freshUser)
+        );
+
+        setLogged(true);
+
+      } catch (error) {
+
+        console.error(
+          '❌ ERROR REFRESCANDO SESIÓN',
+          error
+        );
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        setLogged(false);
+      }
+
+      setAuthChecked(true);
+    }
+
+    loadSession();
+
   }, []);
 
   useEffect(() => {
@@ -153,9 +210,23 @@ export default function App() {
               <Route path="push-test" element={<SendPushTest />} />
               <Route path="/admin/dev/simulate" element={<SimulateRecord />} />
 
-              <Route index element={<Dashboard />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route
+                index
+                element={
+                  isRestricted
+                    ? <DashboardLimited />
+                    : <Dashboard />
+                }
+              />
 
+              <Route
+                path="dashboard"
+                element={
+                  isRestricted
+                    ? <DashboardLimited />
+                    : <Dashboard />
+                }
+              />
               <Route path="employees" element={<EmployeesList />} />
 
               <Route path="/admin/billing" element={<Billing />} />
