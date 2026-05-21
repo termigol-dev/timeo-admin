@@ -111,8 +111,8 @@ export async function updateBranch(
   branchId,
 ) {
 
- const response = await fetch(
-  `${import.meta.env.VITE_API_URL}/companies/${companyId}/employees/${userId}/branch`,
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/companies/${companyId}/employees/${userId}/branch`,
     {
       method: 'PATCH',
 
@@ -165,6 +165,13 @@ export async function getAllEmployees({ page, pageSize, search } = {}) {
 
 export function getPlanUsage() {
   return api('/companies/plan-usage');
+}
+
+export function openBillingPortal() {
+  return api(
+    '/billing/portal',
+    'POST'
+  );
 }
 
 /* ───────── COMPANIES ───────── */

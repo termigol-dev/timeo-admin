@@ -7,7 +7,8 @@ import React, {
 } from 'react';
 
 import {
-  ArrowLeft
+  ArrowLeft,
+  FileText,
 } from 'lucide-react';
 
 import {
@@ -318,58 +319,8 @@ export default function MyProfile() {
                 ?.billingPeriod ||
               mockData.billingPeriod
             }
-          />
-        </div>
 
-        {/* FACTURAS */}
-        <div
-          style={{
-            background:
-              'rgba(255,255,255,0.78)',
-
-            backdropFilter: 'blur(12px)',
-
-            borderRadius: 30,
-
-            border:
-              '1px solid rgba(255,255,255,0.7)',
-
-            padding: 4,
-
-            boxShadow:
-              '0 8px 30px rgba(148,163,184,0.08)',
-          }}
-        >
-          <InvoicesCard />
-        </div>
-
-        {/* SUBSCRIPTION */}
-        <div
-          style={{
-            background:
-              'rgba(255,255,255,0.78)',
-
-            backdropFilter: 'blur(12px)',
-
-            borderRadius: 30,
-
-            border:
-              '1px solid rgba(255,255,255,0.7)',
-
-            padding: 4,
-
-            boxShadow:
-              '0 8px 30px rgba(148,163,184,0.08)',
-          }}
-        >
-          <SubscriptionCard
-            plan={
-              profileData?.plan || 'BASIC'
-            }
-
-            setUpgradeOpen={
-              setUpgradeOpen
-            }
+            showManageButton={true}
           />
         </div>
 

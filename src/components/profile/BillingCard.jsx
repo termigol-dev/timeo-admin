@@ -2,6 +2,12 @@
 import React from 'react';
 import '../../style.css';
 import Logo from '../Logo';
+import { openBillingPortal } from '../../api';
+import {
+  CreditCard,
+  FileText,
+} from 'lucide-react';
+
 
 export default function BillingCard({
   cardLast4,
@@ -11,6 +17,27 @@ export default function BillingCard({
 
   const isYearly =
     billingPeriod === 'YEARLY';
+
+  async function handleBillingPortal() {
+
+    try {
+
+      const res =
+        await openBillingPortal();
+
+      window.location.href =
+        res.url;
+
+    } catch (err) {
+
+      console.error(err);
+
+      alert(
+        'No se pudo abrir el portal de facturación'
+      );
+    }
+  }
+
 
   return (
 
@@ -23,14 +50,6 @@ export default function BillingCard({
         }}
       >
 
-        <p
-          className="labelStyle"
-          style={{
-            marginBottom: 12,
-          }}
-        >
-          FACTURACIÓN
-        </p>
 
         <h2
           style={{
@@ -203,9 +222,21 @@ export default function BillingCard({
                   fontWeight: 700,
 
                   color: 'white',
+                  marginBottom: 18,
                 }}
               >
                 PABLO ESTEBAN
+              </div>
+
+              {/* CHANGE CARD */}
+              <div
+                className="dashboard-grid"
+                style={{
+                  flexDirection: 'row',
+                  gap: 0,
+                }}
+              >
+
               </div>
 
             </div>
@@ -248,7 +279,7 @@ export default function BillingCard({
 
         </div>
 
-        {/* SUMMARY */}
+        {/* BILLING */}
         <div
           className="inputStyle"
           style={{
@@ -273,125 +304,64 @@ export default function BillingCard({
                 marginBottom: 14,
               }}
             >
-              RESUMEN ACTUAL
+              FACTURACIÓN
             </p>
 
-            <div
+            <h2
               style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: 8,
-                marginBottom: 26,
+                margin: 0,
+
+                fontSize: 34,
+
+                fontWeight: 700,
+
+                color: '#0f172a',
+
+                lineHeight: 1.1,
+
+                marginBottom: 18,
               }}
             >
+              Gestionar facturación
+            </h2>
 
-              <h2
-                style={{
-                  margin: 0,
-
-                  fontSize: 54,
-
-                  fontWeight: 700,
-
-                  color: '#0f172a',
-
-                  lineHeight: 1,
-                }}
-              >
-                {price}€
-              </h2>
-
-              <span
-                style={{
-                  fontSize: 18,
-                  fontWeight: 500,
-                  color: '#64748b',
-                  marginBottom: 6,
-                }}
-              >
-                / {isYearly ? 'año' : 'mes'}
-              </span>
-
-            </div>
-
-            <div
+            <p
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 18,
+                margin: 0,
+
+                color: '#64748b',
+
+                lineHeight: 1.7,
               }}
             >
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-
-                <span
-                  style={{
-                    color: '#64748b',
-                  }}
-                >
-                  Plan actual
-                </span>
-
-                <strong
-                  style={{
-                    color: '#0f172a',
-                  }}
-                >
-                  Incluido
-                </strong>
-
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-
-                <span
-                  style={{
-                    color: '#64748b',
-                  }}
-                >
-                  Empleados extra
-                </span>
-
-                <strong
-                  style={{
-                    color: '#0f172a',
-                  }}
-                >
-                  +2€
-                </strong>
-
-              </div>
-
-            </div>
+              Consulta y descarga tus
+              facturas y gestiona tu
+              suscripción.
+            </p>
 
           </div>
 
           {/* ACTIONS */}
           <div
+            className="dashboard-grid"
             style={{
-              display: 'flex',
-              gap: 12,
               marginTop: 30,
-              flexWrap: 'wrap',
+              flexDirection: 'row',
+              gap: 0,
             }}
           >
 
-            <button className="pillButton">
-              Cambiar tarjeta
-            </button>
+            <button
+              onClick={handleBillingPortal}
+            >
 
+              <FileText size={18} />
+
+              <span>
+                Gestionar facturas
+              </span>
+
+            </button>
 
           </div>
 
