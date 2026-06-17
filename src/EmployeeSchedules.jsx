@@ -759,7 +759,7 @@ export default function EmployeeSchedules() {
 
     const map = { L: 1, M: 2, X: 3, J: 4, V: 5, S: 6, D: 7 };
     const weekdays = selectedDays.map(d => map[d]);
-    
+
     console.log('🟢 WEEKDAY MAPPING', {
       selectedDays,
       weekdays,
@@ -1804,15 +1804,10 @@ export default function EmployeeSchedules() {
                 </button>
 
                 <button onClick={() => {
-
+                  console.log('🚨 DELETE MODE', deleteShiftMode);
                   const isSingleDay =
-                    dateMode === 'SINGLE_DAY' ||
-                    deleteShiftMode === 'ONLY_THIS_BLOCK' ||
-                    (
-                      dateFrom &&
-                      dateTo &&
-                      dateFrom === dateTo
-                    );
+                    !!editingShift ||
+                    dateMode === 'SINGLE_DAY';
                   console.log('🧪 MODE CHECK', {
                     dateMode,
                     dateFrom,
